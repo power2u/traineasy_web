@@ -1,0 +1,209 @@
+@import "tailwindcss";
+@import "@heroui/react/styles";
+
+/* Light Mode - Peaceful Off-White Colors */
+:root.light {
+  /* Backgrounds */
+  --background: #fafaf9;
+  --foreground: #1c1917;
+  --card: #ffffff;
+  --card-foreground: #1c1917;
+  --popover: #ffffff;
+  --popover-foreground: #1c1917;
+  
+  /* Primary Colors */
+  --primary: #0ea5e9;
+  --primary-foreground: #ffffff;
+  
+  /* Secondary Colors */
+  --secondary: #f5f5f4;
+  --secondary-foreground: #1c1917;
+  
+  /* Muted Colors */
+  --muted: #f5f5f4;
+  --muted-foreground: #78716c;
+  
+  /* Accent Colors */
+  --accent: #f5f5f4;
+  --accent-foreground: #1c1917;
+  
+  /* Destructive */
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  
+  /* Borders */
+  --border: #e7e5e4;
+  --input: #e7e5e4;
+  --ring: #0ea5e9;
+  
+  /* Chart Colors */
+  --chart-1: #0ea5e9;
+  --chart-2: #10b981;
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: #ec4899;
+  
+  /* Success/Warning/Info */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --info: #0ea5e9;
+}
+
+/* Dark Mode - Current Colors */
+:root.dark {
+  /* Backgrounds */
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --card: #171717;
+  --card-foreground: #ededed;
+  --popover: #171717;
+  --popover-foreground: #ededed;
+  
+  /* Primary Colors */
+  --primary: #0ea5e9;
+  --primary-foreground: #ffffff;
+  
+  /* Secondary Colors */
+  --secondary: #262626;
+  --secondary-foreground: #ededed;
+  
+  /* Muted Colors */
+  --muted: #262626;
+  --muted-foreground: #a3a3a3;
+  
+  /* Accent Colors */
+  --accent: #262626;
+  --accent-foreground: #ededed;
+  
+  /* Destructive */
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  
+  /* Borders */
+  --border: #262626;
+  --input: #262626;
+  --ring: #0ea5e9;
+  
+  /* Chart Colors */
+  --chart-1: #60a5fa;
+  --chart-2: #4ade80;
+  --chart-3: #fb923c;
+  --chart-4: #a78bfa;
+  --chart-5: #f472b6;
+  
+  /* Success/Warning/Info */
+  --success: #4ade80;
+  --warning: #fb923c;
+  --info: #60a5fa;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Placeholder text colors */
+.light ::placeholder {
+  color: #57534e;
+  opacity: 0.6;
+}
+
+.dark ::placeholder {
+  color: #a3a3a3;
+  opacity: 0.6;
+}
+
+/* Input and textarea styling */
+.light input,
+.light textarea {
+  color: #1c1917;
+}
+
+.dark input,
+.dark textarea {
+  color: #ededed;
+}
+
+/* Mobile app-like improvements */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Smooth scrolling for mobile */
+@media (max-width: 768px) {
+  html {
+    overflow: hidden;
+    height: 100%;
+  }
+  
+  body {
+    overflow: hidden;
+    height: 100%;
+    position: fixed;
+    width: 100%;
+  }
+}
+
+/* Custom scrollbar for desktop */
+@media (min-width: 769px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    background: #1a1a1a;
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: #404040;
+    border-radius: 4px;
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: #505050;
+  }
+
+  .light ::-webkit-scrollbar-track {
+    background: #f5f5f4;
+  }
+
+  .light ::-webkit-scrollbar-thumb {
+    background: #d6d3d1;
+    border-radius: 4px;
+  }
+
+  .light ::-webkit-scrollbar-thumb:hover {
+    background: #a8a29e;
+  }
+}
