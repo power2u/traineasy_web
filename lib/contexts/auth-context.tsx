@@ -17,16 +17,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const mapUser = useCallback((supabaseUser: User): AuthUser => {
     // Extract display name from user metadata (Google OAuth provides this)
-    const displayName = 
-      supabaseUser.user_metadata?.full_name || 
-      supabaseUser.user_metadata?.name || 
-      supabaseUser.email?.split('@')[0] || 
+    const displayName =
+      supabaseUser.user_metadata?.full_name ||
+      supabaseUser.user_metadata?.name ||
+      supabaseUser.email?.split('@')[0] ||
       'User';
 
     return {
       id: supabaseUser.id,
       email: supabaseUser.email,
       phone: supabaseUser.phone,
+      banned_until: (supabaseUser as any).banned_until,
       provider: (supabaseUser.app_metadata.provider as AuthProvider) || 'email',
       createdAt: new Date(supabaseUser.created_at),
       displayName,
@@ -36,11 +37,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const mappedUser = session?.user ? mapUser(session.user) : null;
+    // Check active session with getUser to ensure fresh data (including banned status)
+    supabase.auth.getUser().then(({ data: { user }, error }) => {
+      if (error || !user) {
+        setLoading(false);
+        return;
+      }
+
+      const mappedUser = mapUser(user);
+
+      // Check if user is banned
+      if (mappedUser?.banned_until) {
+        if (new Date(mappedUser.banned_until) > new Date()) {
+          console.log('User is banned, signing out...');
+          supabase.auth.signOut().then(() => {
+            setUser(null);
+            setLoading(false);
+            router.push('/auth/login?error=account_disabled');
+          });
+          return;
+        }
+      }
+
       setUser(mappedUser);
-      
+
       // Save user data to local storage for service worker
       if (mappedUser) {
         localStorage.setItem('user_data', JSON.stringify({
@@ -51,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         localStorage.removeItem('user_data');
       }
-      
+
       setLoading(false);
     });
 
@@ -60,8 +80,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       const mappedUser = session?.user ? mapUser(session.user) : null;
+
+      // Check if user is banned
+      // Check if user is banned
+      if (mappedUser?.banned_until) {
+        if (new Date(mappedUser.banned_until) > new Date()) {
+          console.log('User is banned, signing out...');
+          supabase.auth.signOut().then(() => {
+            setUser(null);
+            setLoading(false);
+            router.push('/auth/login?error=account_disabled');
+          });
+          return;
+        }
+      }
+
       setUser(mappedUser);
-      
+
       // Save user data to local storage for service worker
       if (mappedUser) {
         localStorage.setItem('user_data', JSON.stringify({
@@ -72,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         localStorage.removeItem('user_data');
       }
-      
+
       setLoading(false);
     });
 
@@ -89,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: credentials.email,
           password: credentials.password,
         });
-        
+
         if (error) {
           // Check if user exists but signed up with different provider
           if (error.message.includes('Invalid login credentials')) {

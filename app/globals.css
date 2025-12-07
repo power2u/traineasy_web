@@ -160,19 +160,7 @@ body {
 }
 
 /* Smooth scrolling for mobile */
-@media (max-width: 768px) {
-  html {
-    overflow: hidden;
-    height: 100%;
-  }
-  
-  body {
-    overflow: hidden;
-    height: 100%;
-    position: fixed;
-    width: 100%;
-  }
-}
+
 
 /* Custom scrollbar for desktop */
 @media (min-width: 769px) {

@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { enableUser, disableUser } from './admin';
 
 export interface UserMembership {
   id: string;
@@ -115,6 +116,9 @@ export async function createMembership(data: {
 
     if (error) throw error;
 
+    // Automatically enable user login when membership is assigned
+    await enableUser(data.user_id);
+
     return {
       success: true,
       membership,
@@ -211,6 +215,54 @@ export async function getMembershipStats() {
     };
   } catch (error: any) {
     console.error('[getMembershipStats] Error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Sync membership status: Expire memberships and disable users
+export async function syncMembershipStatus() {
+  try {
+    const supabase = await createClient();
+    const today = new Date().toISOString().split('T')[0];
+
+    // 1. Find all active memberships that should be expired
+    const { data: expiredMemberships, error: fetchError } = await supabase
+      .from('user_memberships')
+      .select('id, user_id')
+      .eq('status', 'active')
+      .lt('end_date', today);
+
+    if (fetchError) throw fetchError;
+
+    if (!expiredMemberships || expiredMemberships.length === 0) {
+      return { success: true, message: 'No memberships to sync' };
+    }
+
+    // 2. Update status to expired
+    const { error: updateError } = await supabase
+      .from('user_memberships')
+      .update({ status: 'expired' })
+      .in('id', expiredMemberships.map(m => m.id));
+
+    if (updateError) throw updateError;
+
+    // 3. Disable login for these users
+    let disabledCount = 0;
+    for (const m of expiredMemberships) {
+      try {
+        const result = await disableUser(m.user_id);
+        if (result.success) disabledCount++;
+      } catch (e) {
+        console.error(`Failed to disable user ${m.user_id}:`, e);
+      }
+    }
+
+    return {
+      success: true,
+      message: `Synced ${expiredMemberships.length} memberships. Disabled ${disabledCount} users.`
+    };
+  } catch (error: any) {
+    console.error('[syncMembershipStatus] Error:', error);
     return { success: false, error: error.message };
   }
 }

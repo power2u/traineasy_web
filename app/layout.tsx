@@ -23,7 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased overflow-hidden">
+      <body className="antialiased">
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>

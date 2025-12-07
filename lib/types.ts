@@ -3,6 +3,7 @@ export interface AuthUser {
   id: string;
   email?: string;
   phone?: string;
+  banned_until?: string;
   provider: 'email' | 'phone' | 'google';
   createdAt: Date;
   displayName?: string;
@@ -137,7 +138,7 @@ export interface UserProfile {
 }
 
 // Body Measurements Types
-export type MeasurementType = 
+export type MeasurementType =
   | 'weight'
   | 'biceps_left'
   | 'biceps_right'

@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Button, Card, Spinner, TextField, Label, Input, Chip } from '@heroui/react';
-import { Edit2 } from 'lucide-react';
+import { Edit2, RefreshCw } from 'lucide-react';
 import {
   createUser,
   deleteUser,
@@ -15,7 +15,7 @@ import {
   resetUserPassword,
 } from '@/app/actions/admin';
 import { listPackages, assignPackageToUser } from '@/app/actions/packages';
-import { getActiveMembership, createMembership } from '@/app/actions/memberships';
+import { getActiveMembership, createMembership, syncMembershipStatus } from '@/app/actions/memberships';
 
 interface User {
   id: string;
@@ -124,7 +124,7 @@ export default function AdminUsersPage() {
 
   const applyFilter = () => {
     let filtered = [...users];
-    
+
     switch (filter) {
       case 'active':
         filtered = users.filter(u => !u.is_banned);
@@ -138,7 +138,7 @@ export default function AdminUsersPage() {
       default:
         filtered = users;
     }
-    
+
     setFilteredUsers(filtered);
   };
 
@@ -312,6 +312,25 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleSyncStatus = async () => {
+    if (!confirm('This will expire all past-due memberships and disable login for those users. Continue?')) return;
+
+    setIsLoading(true);
+    try {
+      const result = await syncMembershipStatus();
+      if (result.success) {
+        alert(result.message);
+        await loadUsers();
+      } else {
+        alert('Failed to sync status: ' + result.error);
+      }
+    } catch (error) {
+      alert('An error occurred during sync');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (!user || !isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -332,28 +351,28 @@ export default function AdminUsersPage() {
       {/* Statistics Cards - Now Clickable */}
       {!isLoading && users.length > 0 && (
         <div className="grid grid-cols-2 gap-3 mb-4 md:grid-cols-4 md:gap-6 md:mb-8">
-          <Card 
+          <Card
             className={`p-3 md:p-6 cursor-pointer transition-all ${filter === 'all' ? 'ring-2 ring-blue-500' : 'hover:bg-default-100 dark:hover:bg-default-50'}`}
             onClick={() => setFilter('all')}
           >
             <div className="text-[10px] text-default-500 mb-1 md:text-sm md:mb-2">Total Users</div>
             <div className="text-xl font-bold md:text-3xl">{stats.total}</div>
           </Card>
-          <Card 
+          <Card
             className={`p-3 md:p-6 cursor-pointer transition-all ${filter === 'active' ? 'ring-2 ring-green-500' : 'hover:bg-default-100 dark:hover:bg-default-50'}`}
             onClick={() => setFilter('active')}
           >
             <div className="text-[10px] text-default-500 mb-1 md:text-sm md:mb-2">Active</div>
             <div className="text-xl font-bold text-green-500 md:text-3xl">{stats.active}</div>
           </Card>
-          <Card 
+          <Card
             className={`p-3 md:p-6 cursor-pointer transition-all ${filter === 'disabled' ? 'ring-2 ring-red-500' : 'hover:bg-default-100 dark:hover:bg-default-50'}`}
             onClick={() => setFilter('disabled')}
           >
             <div className="text-[10px] text-default-500 mb-1 md:text-sm md:mb-2">Disabled</div>
             <div className="text-xl font-bold text-red-500 md:text-3xl">{stats.disabled}</div>
           </Card>
-          <Card 
+          <Card
             className={`p-3 md:p-6 cursor-pointer transition-all ${filter === 'admins' ? 'ring-2 ring-blue-500' : 'hover:bg-default-100 dark:hover:bg-default-50'}`}
             onClick={() => setFilter('admins')}
           >
@@ -376,6 +395,10 @@ export default function AdminUsersPage() {
           <div className="flex gap-2 md:gap-3">
             <Button variant="ghost" size="sm" onPress={loadUsers} isDisabled={isLoading}>
               {isLoading ? 'Loading...' : 'Refresh'}
+            </Button>
+            <Button variant="ghost" size="sm" onPress={handleSyncStatus} isDisabled={isLoading}>
+              <RefreshCw className="w-4 h-4 mr-1" />
+              Sync Status
             </Button>
             <Button variant="primary" size="sm" onPress={() => setIsCreateModalOpen(true)}>
               + Create User
@@ -610,11 +633,10 @@ export default function AdminUsersPage() {
                       type="button"
                       onClick={() => setSelectedPackageId(pkg.id)}
                       disabled={isAssigningMembership}
-                      className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
-                        selectedPackageId === pkg.id
-                          ? 'border-primary bg-primary/10'
-                          : 'border-default-200 hover:border-default-300'
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className={`w-full p-3 rounded-lg border-2 text-left transition-all ${selectedPackageId === pkg.id
+                        ? 'border-primary bg-primary/10'
+                        : 'border-default-200 hover:border-default-300'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       <div className="font-medium">{pkg.name}</div>
                       <div className="text-sm text-default-500 mt-1">

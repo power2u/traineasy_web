@@ -288,7 +288,10 @@ export async function disableUser(userId: string) {
     banUntil.setFullYear(banUntil.getFullYear() + 100);
 
     const { error } = await adminClient.auth.admin.updateUserById(userId, {
-      ban_duration: '876000h', // 100 years in hours
+      ban_duration: '876000h', // 100 years in hours (approx)
+      user_metadata: {
+        banned_until: banUntil.toISOString() // Store explicit date for client-side checks
+      }
     });
 
     if (error) {
