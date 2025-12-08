@@ -5,21 +5,16 @@ import { Card, Button, Switch, TextField, Label, Input, Text } from '@heroui/rea
 import {
   getUserNotificationPreferences,
   updateUserNotificationPreferences,
-  saveUserFCMToken,
   type NotificationPreferences,
 } from '@/app/actions/notifications';
-import { requestNotificationPermission, getNotificationPermission } from '@/lib/firebase/messaging';
 
 export function NotificationSettings() {
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>('default');
-  const [hasToken, setHasToken] = useState(false);
 
   useEffect(() => {
     loadPreferences();
-    setPermissionStatus(getNotificationPermission());
   }, []);
 
   const loadPreferences = async () => {
@@ -27,19 +22,8 @@ export function NotificationSettings() {
     const result = await getUserNotificationPreferences();
     if (result.success && result.preferences) {
       setPreferences(result.preferences);
-      setHasToken(!!result.preferences.fcm_token);
     }
     setIsLoading(false);
-  };
-
-  const handleRequestPermission = async () => {
-    const token = await requestNotificationPermission();
-    if (token) {
-      await saveUserFCMToken(token);
-      setPermissionStatus('granted');
-      setHasToken(true);
-      await loadPreferences();
-    }
   };
 
   const handleSave = async () => {
@@ -82,36 +66,14 @@ export function NotificationSettings() {
 
   return (
     <div className="space-y-6">
-      {/* Permission Status */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Notification Permission</h3>
-        
-        {permissionStatus === 'default' && (
-          <div className="space-y-3">
-            <Text className="text-default-500">
-              Enable push notifications to receive reminders for meals, water, and weight tracking.
-            </Text>
-            <Button variant="primary" onPress={handleRequestPermission}>
-              Enable Notifications
-            </Button>
-          </div>
-        )}
-
-        {permissionStatus === 'denied' && (
-          <div className="space-y-3">
-            <Text className="text-red-500">
-              Notifications are blocked. Please enable them in your browser settings.
-            </Text>
-          </div>
-        )}
-
-        {permissionStatus === 'granted' && (
-          <div className="space-y-3">
-            <Text className="text-green-500">
-              ✓ Notifications are enabled {hasToken && '(Token registered)'}
-            </Text>
-          </div>
-        )}
+      {/* Info Banner */}
+      <Card className="p-6 bg-blue-50 dark:bg-blue-950">
+        <h3 className="text-lg font-semibold mb-2">📬 Notification System</h3>
+        <Text className="text-sm text-default-600">
+          Notifications are managed server-side using Supabase pg_cron. 
+          Reminders will be sent automatically based on your configured times.
+          No browser permissions needed!
+        </Text>
       </Card>
 
       {/* General Settings */}
@@ -244,7 +206,11 @@ export function NotificationSettings() {
                 onChange={(value) => updatePreference('weight_reminder_day', parseInt(value) || 1)}
               >
                 <Label>Reminder Day</Label>
-                <select className="w-full p-2 border border-default-300 rounded-lg bg-default-100">
+                <select 
+                  className="w-full p-2 border border-default-300 rounded-lg bg-default-100"
+                  value={preferences.weight_reminder_day}
+                  onChange={(e) => updatePreference('weight_reminder_day', parseInt(e.target.value))}
+                >
                   <option value="0">Sunday</option>
                   <option value="1">Monday</option>
                   <option value="2">Tuesday</option>

@@ -60,3 +60,4 @@ supabase/MEAL_REMINDERS_SETUP.md
 supabase/migrations/20241208_meal_reminders_cron.sql
 supabase/migrations/init_cron.sql
 supabase/README_MEAL_REMINDERS.md
+supabase/test-with-vault.sql
