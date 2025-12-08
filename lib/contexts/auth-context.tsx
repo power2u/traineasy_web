@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { AuthUser, AuthContextValue, AuthProvider, AuthCredentials } from '@/lib/types';
 import type { User } from '@supabase/supabase-js';
+import { setExternalUserId, removeExternalUserId } from '@/lib/onesignal';
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -68,6 +69,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: mappedUser.email,
           full_name: mappedUser.displayName,
         }));
+        
+        // Link OneSignal with user ID for targeted notifications
+        setExternalUserId(mappedUser.id).catch(err => 
+          console.error('Failed to set OneSignal user ID:', err)
+        );
       } else {
         localStorage.removeItem('user_data');
       }
@@ -104,6 +110,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: mappedUser.email,
           full_name: mappedUser.displayName,
         }));
+        
+        // Link OneSignal with user ID for targeted notifications
+        setExternalUserId(mappedUser.id).catch(err => 
+          console.error('Failed to set OneSignal user ID:', err)
+        );
       } else {
         localStorage.removeItem('user_data');
       }
@@ -165,6 +176,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     try {
       setError(null);
+      
+      // Remove OneSignal user ID association
+      await removeExternalUserId().catch(err => 
+        console.error('Failed to remove OneSignal user ID:', err)
+      );
+      
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       router.push('/auth/login');
