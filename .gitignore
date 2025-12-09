@@ -78,3 +78,8 @@ QUICK_TEST_NOTIFICATIONS.md
 .gitignore
 GET_FIREBASE_KEYS.md
 supabase/check-fcm-setup.sql
+MEAL_REMINDERS_CRON_SETUP.md
+PG_CRON_SETUP_SUMMARY.md
+SETUP_PG_CRON.md
+supabase/setup-cron-config.sql
+supabase/migrations/20241209_meal_reminders_pg_cron.sql
