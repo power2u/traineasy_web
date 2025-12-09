@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }));
         
         // Link OneSignal with user ID for targeted notifications
-        setExternalUserId(mappedUser.id).catch(err => 
+        setExternalUserId(user.id!).catch(err => 
           console.error('Failed to set OneSignal user ID:', err)
         );
       } else {
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }));
         
         // Link OneSignal with user ID for targeted notifications
-        setExternalUserId(mappedUser.id).catch(err => 
+        setExternalUserId(session?.user.id!).catch(err => 
           console.error('Failed to set OneSignal user ID:', err)
         );
       } else {
