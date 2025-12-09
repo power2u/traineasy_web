@@ -33,6 +33,10 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Firebase service account (NEVER commit this!)
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+
 # vercel
 .vercel
 
@@ -63,3 +67,7 @@ supabase/README_MEAL_REMINDERS.md
 supabase/test-with-vault.sql
 supabase/migrations/20241209_daily_wellness_checkin.sql
 supabase/WELLNESS_CHECKIN_README.md
+FIREBASE_FCM_SETUP.md
+MIGRATION_SUMMARY.md
+supabase/UPDATE_MEAL_REMINDERS_CREDENTIALS.md
+SETUP_COMPLETE.md

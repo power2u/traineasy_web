@@ -2,7 +2,6 @@
 
 import { AuthProvider } from '@/lib/contexts/auth-context';
 import { ThemeProvider } from '@/lib/contexts/theme-context';
-import { OneSignalProvider } from '@/lib/onesignal/provider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Toaster } from 'sonner';
@@ -22,14 +21,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <OneSignalProvider>
-        <AuthProvider>
-          <ThemeProvider>
-            {children}
-            <Toaster position="top-center" richColors />
-          </ThemeProvider>
-        </AuthProvider>
-      </OneSignalProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          {children}
+          <Toaster position="top-center" richColors />
+        </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

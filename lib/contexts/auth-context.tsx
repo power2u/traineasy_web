@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { AuthUser, AuthContextValue, AuthProvider, AuthCredentials } from '@/lib/types';
 import type { User } from '@supabase/supabase-js';
-import { setExternalUserId, removeExternalUserId } from '@/lib/onesignal';
+import { requestNotificationPermission, saveFCMToken, removeFCMToken } from '@/lib/firebase/messaging';
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -70,11 +70,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           full_name: mappedUser.displayName,
         }));
         
-        // Link OneSignal with user ID for targeted notifications (async, non-blocking)
-        setTimeout(() => {
-          setExternalUserId(user.id!).catch(err => 
-            console.warn('OneSignal user ID setup skipped:', err.message)
-          );
+        // Request FCM token and save to database (async, non-blocking)
+        setTimeout(async () => {
+          try {
+            const token = await requestNotificationPermission();
+            if (token) {
+              await saveFCMToken(user.id!, token);
+              console.log('FCM token saved successfully');
+            }
+          } catch (err: any) {
+            console.warn('FCM token setup skipped:', err.message);
+          }
         }, 1000);
       } else {
         localStorage.removeItem('user_data');
@@ -113,11 +119,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           full_name: mappedUser.displayName,
         }));
         
-        // Link OneSignal with user ID for targeted notifications (async, non-blocking)
-        setTimeout(() => {
-          setExternalUserId(session?.user.id!).catch(err => 
-            console.warn('OneSignal user ID setup skipped:', err.message)
-          );
+        // Request FCM token and save to database (async, non-blocking)
+        setTimeout(async () => {
+          try {
+            const token = await requestNotificationPermission();
+            if (token) {
+              await saveFCMToken(session?.user.id!, token);
+              console.log('FCM token saved successfully');
+            }
+          } catch (err: any) {
+            console.warn('FCM token setup skipped:', err.message);
+          }
         }, 1000);
       } else {
         localStorage.removeItem('user_data');
@@ -181,10 +193,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setError(null);
       
-      // Remove OneSignal user ID association
-      await removeExternalUserId().catch(err => 
-        console.error('Failed to remove OneSignal user ID:', err)
-      );
+      // Remove FCM token from database
+      if (user) {
+        await removeFCMToken(user.id).catch(err => 
+          console.error('Failed to remove FCM token:', err)
+        );
+      }
       
       const { error } = await supabase.auth.signOut();
       if (error) throw error;

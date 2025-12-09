@@ -91,9 +91,9 @@ export async function GET(request: Request) {
       }
     }
 
-    // Send notifications via OneSignal
+    // Send notifications via Firebase FCM
     const results = await Promise.all(
-      notifications.map(notif => sendOneSignalNotification(notif))
+      notifications.map(notif => sendFCMNotification(notif, supabase))
     );
 
     return NextResponse.json({
@@ -111,7 +111,7 @@ export async function GET(request: Request) {
   }
 }
 
-async function sendOneSignalNotification({
+async function sendFCMNotification({
   userId,
   type,
   message,
@@ -119,27 +119,43 @@ async function sendOneSignalNotification({
   userId: string;
   type: string;
   message: string;
-}) {
+}, supabase: any) {
   try {
-    const response = await fetch('https://onesignal.com/api/v1/notifications', {
+    // Get user's FCM tokens
+    const { data: tokens } = await supabase
+      .from('fcm_tokens')
+      .select('token')
+      .eq('user_id', userId);
+
+    if (!tokens || tokens.length === 0) {
+      return { success: false, error: 'No FCM tokens found' };
+    }
+
+    const response = await fetch('https://fcm.googleapis.com/fcm/send', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Basic ${process.env.ONESIGNAL_AUTH_KEY}`,
+        Authorization: `key=${process.env.FIREBASE_SERVER_KEY}`,
       },
       body: JSON.stringify({
-        app_id: process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID,
-        include_external_user_ids: [userId],
-        contents: { en: message },
-        headings: { en: getNotificationTitle(type) },
-        data: { type, url: getNotificationUrl(type) },
+        registration_ids: tokens.map((t: any) => t.token),
+        notification: {
+          title: getNotificationTitle(type),
+          body: message,
+          icon: '/logo.png',
+          click_action: getNotificationUrl(type),
+        },
+        data: { 
+          type, 
+          url: getNotificationUrl(type) 
+        },
       }),
     });
 
     const result = await response.json();
     return { success: response.ok, result };
   } catch (error) {
-    console.error('Error sending OneSignal notification:', error);
+    console.error('Error sending FCM notification:', error);
     return { success: false, error };
   }
 }
