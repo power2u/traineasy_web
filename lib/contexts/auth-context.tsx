@@ -70,10 +70,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           full_name: mappedUser.displayName,
         }));
         
-        // Link OneSignal with user ID for targeted notifications
-        setExternalUserId(user.id!).catch(err => 
-          console.error('Failed to set OneSignal user ID:', err)
-        );
+        // Link OneSignal with user ID for targeted notifications (async, non-blocking)
+        setTimeout(() => {
+          setExternalUserId(user.id!).catch(err => 
+            console.warn('OneSignal user ID setup skipped:', err.message)
+          );
+        }, 1000);
       } else {
         localStorage.removeItem('user_data');
       }
@@ -111,10 +113,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           full_name: mappedUser.displayName,
         }));
         
-        // Link OneSignal with user ID for targeted notifications
-        setExternalUserId(session?.user.id!).catch(err => 
-          console.error('Failed to set OneSignal user ID:', err)
-        );
+        // Link OneSignal with user ID for targeted notifications (async, non-blocking)
+        setTimeout(() => {
+          setExternalUserId(session?.user.id!).catch(err => 
+            console.warn('OneSignal user ID setup skipped:', err.message)
+          );
+        }, 1000);
       } else {
         localStorage.removeItem('user_data');
       }
