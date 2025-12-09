@@ -8,38 +8,52 @@ import { messaging } from './config';
  */
 export async function requestNotificationPermission(): Promise<string | null> {
   try {
+    console.log('🔔 Starting FCM token request...');
+    
     if (!messaging) {
-      console.warn('Firebase messaging not supported');
-      return null;
+      console.error('❌ Firebase messaging not supported or not initialized');
+      throw new Error('Firebase messaging not available');
     }
 
+    console.log('✅ Firebase messaging initialized');
+
     // Request permission
+    console.log('📋 Requesting notification permission...');
     const permission = await Notification.requestPermission();
+    console.log('📋 Permission result:', permission);
     
     if (permission !== 'granted') {
-      console.log('Notification permission denied');
-      return null;
+      console.warn('⚠️ Notification permission denied');
+      throw new Error('Notification permission denied');
     }
 
     // Get FCM token
     const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+    console.log('🔑 VAPID key present:', !!vapidKey);
+    
     if (!vapidKey) {
-      console.error('VAPID key not configured');
-      return null;
+      console.error('❌ VAPID key not configured in environment variables');
+      throw new Error('VAPID key not configured');
     }
 
+    console.log('🎫 Requesting FCM token from Firebase...');
     const token = await getToken(messaging, { vapidKey });
     
     if (token) {
-      console.log('FCM Token:', token);
+      console.log('✅ FCM Token received:', token.substring(0, 20) + '...');
       return token;
     } else {
-      console.log('No registration token available');
-      return null;
+      console.error('❌ No registration token available');
+      throw new Error('Failed to get FCM token');
     }
-  } catch (error) {
-    console.error('Error getting FCM token:', error);
-    return null;
+  } catch (error: any) {
+    console.error('❌ Error getting FCM token:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+    });
+    throw error;
   }
 }
 
@@ -52,10 +66,14 @@ export function onForegroundMessage(callback: (payload: any) => void) {
     return () => {};
   }
 
-  return onMessage(messaging, (payload) => {
-    console.log('Foreground message received:', payload);
+  console.log('📡 Setting up foreground message listener...');
+  
+  const unsubscribe = onMessage(messaging, (payload) => {
+    console.log('📨 Foreground message received:', payload);
     callback(payload);
   });
+
+  return unsubscribe;
 }
 
 /**

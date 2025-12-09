@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/lib/contexts/theme-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Toaster } from 'sonner';
+import { FCMForegroundHandler } from '@/components/notifications/fcm-foreground-handler';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // Create QueryClient instance per request to avoid sharing state
@@ -23,6 +24,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ThemeProvider>
+          <FCMForegroundHandler />
           {children}
           <Toaster position="top-center" richColors />
         </ThemeProvider>
