@@ -83,3 +83,8 @@ PG_CRON_SETUP_SUMMARY.md
 SETUP_PG_CRON.md
 supabase/setup-cron-config.sql
 supabase/migrations/20241209_meal_reminders_pg_cron.sql
+supabase/migrations/20241209_cron_config_table.sql
+supabase/cleanup-old-cron-jobs.sql
+.gitignore
+CRON_CLEANUP_GUIDE.md
+TEST_MEAL_REMINDER_CRON.md
