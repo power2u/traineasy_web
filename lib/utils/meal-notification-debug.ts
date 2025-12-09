@@ -170,8 +170,8 @@ export async function testMealNotification(): Promise<void> {
   try {
     const notification = new Notification('Test Meal Reminder 🍽️', {
       body: 'This is a test notification from the meal reminder system!',
-      icon: '/icon-192x192.png',
-      badge: '/icon-192x192.png',
+      icon: '/logo.png',
+      badge: '/logo.png',
       tag: 'test-meal-notification',
     });
 

@@ -135,8 +135,8 @@ class NotificationScheduler {
       
       new Notification(`${icons[schedule.type]} ${this.getTitle(schedule.type)}`, {
         body: schedule.message,
-        icon: '/icon-192x192.png',
-        badge: '/badge-72x72.png',
+        icon: '/logo.png',
+        badge: '/logo.png',
         tag: `${schedule.type}-reminder`,
         requireInteraction: false,
       });

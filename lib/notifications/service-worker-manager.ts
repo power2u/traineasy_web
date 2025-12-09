@@ -61,8 +61,8 @@ export class ServiceWorkerNotificationManager {
 
     try {
       await this.registration.showNotification(title, {
-        icon: '/icon-192x192.png',
-        badge: '/badge-72x72.png',
+        icon: '/logo.png',
+        badge: '/logo.png',
         ...options,
       });
     } catch (error) {

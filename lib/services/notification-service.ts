@@ -124,8 +124,8 @@ export async function sendPushNotification(
         notification: {
           title,
           body,
-          icon: '/icon-192x192.png',
-          badge: '/icon-192x192.png',
+          icon: '/logo.png',
+          badge: '/logo.png',
         },
         data: data || {},
       }),

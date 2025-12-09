@@ -95,8 +95,8 @@ export async function sendMealReminder(
     // Send browser notification
     const notification = new Notification('Meal Reminder 🍽️', {
       body: `Don't forget to mark your ${mealLabel} as completed!`,
-      icon: '/icon-192x192.png',
-      badge: '/icon-192x192.png',
+      icon: '/logo.png',
+      badge: '/logo.png',
       tag: `meal-${mealType}-${today}`,
       requireInteraction: false,
       silent: false,

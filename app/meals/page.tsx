@@ -5,6 +5,7 @@ import { useCallback, useMemo } from 'react';
 import { Button, Card, Spinner } from '@heroui/react';
 import { useMealsData } from '@/lib/hooks/use-meals-data';
 import { toast } from 'sonner';
+import { WellnessCheckIn } from '@/components/meals/wellness-checkin';
 
 interface TodayMeals {
   id?: string;
@@ -196,57 +197,8 @@ export default function MealsPage() {
         </div>
       </Card>
 
-      {/* Weekly History */}
-      {history.length > 0 && (
-        <Card className="p-3 md:p-6">
-          <h2 className="text-base font-semibold mb-3 md:text-xl md:mb-4">Last 7 Days</h2>
-          <div className="space-y-1.5 md:space-y-2">
-            {history.map((entry) => {
-              const date = new Date(entry.date);
-              const isToday = entry.date === new Date().toISOString().split('T')[0];
-
-              return (
-                <div
-                  key={entry.date}
-                  className="flex items-center justify-between p-2 rounded-lg bg-default-50 md:p-3"
-                >
-                  <div>
-                    <div className="font-medium text-sm md:text-base">
-                      {isToday ? 'Today' : date.toLocaleDateString('en-US', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 md:gap-2">
-                    <div className="flex gap-0.5 md:gap-1">
-                      <span className={entry.breakfast_completed ? 'text-green-500' : 'text-default-300'}>
-                        🌅
-                      </span>
-                      <span className={entry.snack1_completed ? 'text-green-500' : 'text-default-300'}>
-                        🍎
-                      </span>
-                      <span className={entry.lunch_completed ? 'text-green-500' : 'text-default-300'}>
-                        ☀️
-                      </span>
-                      <span className={entry.snack2_completed ? 'text-green-500' : 'text-default-300'}>
-                        🍪
-                      </span>
-                      <span className={entry.dinner_completed ? 'text-green-500' : 'text-default-300'}>
-                        🌙
-                      </span>
-                    </div>
-                    <span className="text-sm font-medium text-default-500 ml-2">
-                      {entry.total_completed}/5
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
+      {/* Wellness Check-In */}
+      {user && <WellnessCheckIn userId={user.id} />}
     </div>
   );
 }

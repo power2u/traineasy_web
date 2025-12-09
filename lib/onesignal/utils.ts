@@ -31,6 +31,7 @@ export async function getPlayerId(): Promise<string | null> {
  */
 export async function setExternalUserId(userId: string): Promise<void> {
   try {
+    console.log('userId is ',userId)
     await OneSignal.login(userId);
   } catch (error) {
     console.error('Error setting external user ID:', error);

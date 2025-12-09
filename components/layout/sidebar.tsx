@@ -5,8 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { Button } from '@heroui/react';
 import { memo, useMemo } from 'react';
-import { LayoutDashboard, Droplet, Utensils, Ruler, User, Wrench } from 'lucide-react';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { LayoutDashboard, Droplet, Utensils, Ruler, User, Wrench, Info } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -44,7 +43,7 @@ const NavItem = memo(function NavItem({
 
 export const Sidebar = memo(function Sidebar() {
   const pathname = usePathname();
-  const { signOut, user } = useAuth();
+  const { user } = useAuth();
 
   // Check if user is super admin - memoized
   const isSuperAdmin = useMemo(() => 
@@ -53,12 +52,14 @@ export const Sidebar = memo(function Sidebar() {
     [user]
   );
 
-  const allNavItems = useMemo(() => 
-    isSuperAdmin 
-      ? [...navItems, { href: '/admin', label: 'Admin', icon: Wrench }]
-      : navItems,
-    [isSuperAdmin]
-  );
+  const allNavItems = useMemo(() => {
+    const items = [...navItems];
+    if (isSuperAdmin) {
+      items.push({ href: '/admin', label: 'Admin', icon: Wrench });
+    }
+    items.push({ href: '/info', label: 'App Info', icon: Info });
+    return items;
+  }, [isSuperAdmin]);
 
   const displayName = useMemo(() => 
     user?.displayName || user?.email?.split('@')[0],
@@ -90,24 +91,11 @@ export const Sidebar = memo(function Sidebar() {
 
       {/* User Section */}
       <div className="border-t border-border p-4">
-        <div className="mb-3 rounded-lg bg-secondary p-3">
+        <div className="rounded-lg bg-secondary p-3">
           <div className="text-xs text-muted-foreground">Signed in as</div>
           <div className="truncate text-sm font-medium text-foreground">{displayName}</div>
           <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
         </div>
-        
-        {/* Theme Toggle */}
-        <div className="mb-3">
-          <ThemeToggle />
-        </div>
-        
-        <Button
-          variant="danger-soft"
-          className="w-full"
-          onClick={signOut}
-        >
-          Sign Out
-        </Button>
       </div>
     </aside>
   );
