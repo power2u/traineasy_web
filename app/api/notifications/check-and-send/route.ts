@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { sendPushNotification } from '@/lib/firebase/admin';
+import { shouldSendMealReminder, getCurrentDateInTimezone } from '@/lib/utils/timezone';
 
 /**
  * API Route for checking user activity and sending notifications
@@ -16,12 +17,9 @@ export async function GET(request: Request) {
 
     const supabase = await createClient();
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const currentHour = now.getHours();
-    const currentMinutes = now.getMinutes();
-    const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinutes.toString().padStart(2, '0')}`;
-
-    console.log(`[Cron] Running meal reminder check at ${currentTime}`);
+    const today = now.toISOString().split('T')[0]; // Keep as UTC for database consistency
+    
+    console.log(`[Cron] Running meal reminder check at ${now.toISOString()}`);
 
     // Get all users with meal reminders enabled
     const { data: users, error: usersError } = await supabase
@@ -36,7 +34,8 @@ export async function GET(request: Request) {
         snack1_time,
         lunch_time,
         snack2_time,
-        dinner_time
+        dinner_time,
+        timezone
       `)
       .eq('notifications_enabled', true)
       .eq('meal_reminders_enabled', true)
@@ -85,16 +84,14 @@ export async function GET(request: Request) {
       for (const mealInfo of mealTypes) {
         if (!mealInfo.time) continue; // Skip if meal time not configured
 
-        // Parse meal time (format: "HH:MM:SS" or "HH:MM")
-        const [mealHour, mealMinute] = mealInfo.time.split(':').map(Number);
-        const mealTimeInMinutes = mealHour * 60 + mealMinute;
-        const currentTimeInMinutes = currentHour * 60 + currentMinutes;
-
-        // Check if meal time has passed by at least 1 hour (60 minutes)
-        const timeSinceMeal = currentTimeInMinutes - mealTimeInMinutes;
+        // Check if notification should be sent using timezone-aware logic
+        const userTimezone = user.timezone || 'Asia/Kolkata';
+        const reminderCheck = shouldSendMealReminder(mealInfo.time, userTimezone, 1);
+        
+        console.log(`[${user.full_name}] ${mealInfo.type}: ${reminderCheck.userCurrentTime} vs ${reminderCheck.mealTime}, diff: ${reminderCheck.timeSinceMeal}min, should send: ${reminderCheck.shouldSend}`);
 
         if (
-          timeSinceMeal >= 60 && // At least 1 hour has passed
+          reminderCheck.shouldSend && // At least 1 hour has passed (timezone-aware)
           !mealInfo.completed && // Meal not completed
           !mealInfo.notified // Notification not sent yet
         ) {

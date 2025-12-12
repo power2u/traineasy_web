@@ -8,6 +8,8 @@ export interface MealTimes {
   lunch_time: string;
   snack2_time: string;
   dinner_time: string;
+  timezone: string;
+  theme?: 'light' | 'dark' | 'system';
 }
 
 // Helper to convert HH:MM to HH:MM:SS
@@ -22,7 +24,7 @@ export async function getMealTimes(userId: string) {
     
     const { data, error } = await supabase
       .from('user_preferences')
-      .select('breakfast_time, snack1_time, lunch_time, snack2_time, dinner_time')
+      .select('breakfast_time, snack1_time, lunch_time, snack2_time, dinner_time, timezone')
       .eq('id', userId)
       .single();
 
@@ -38,13 +40,15 @@ export async function setMealTimes(userId: string, mealTimes: MealTimes) {
   try {
     const supabase = await createClient();
     
-    // Convert time format
+    // Convert time format and include timezone and theme
     const formattedTimes = {
       breakfast_time: convertToTimeFormat(mealTimes.breakfast_time),
       snack1_time: convertToTimeFormat(mealTimes.snack1_time),
       lunch_time: convertToTimeFormat(mealTimes.lunch_time),
       snack2_time: convertToTimeFormat(mealTimes.snack2_time),
       dinner_time: convertToTimeFormat(mealTimes.dinner_time),
+      timezone: mealTimes.timezone,
+      ...(mealTimes.theme && { theme: mealTimes.theme }), // Only include theme if provided
       meal_times_configured: true,
     };
 

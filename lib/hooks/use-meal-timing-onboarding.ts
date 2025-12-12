@@ -3,10 +3,12 @@ import { isMealTimesConfigured, setMealTimes, type MealTimes } from '@/app/actio
 import { 
   saveMealTimesToStorage 
 } from '@/lib/utils/meal-timing-storage';
+import { useTheme } from '@/lib/contexts/theme-context';
 
 export function useMealTimingOnboarding(userId: string | undefined) {
   const [showDialog, setShowDialog] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const { setTheme } = useTheme();
 
   useEffect(() => {
     async function checkOnboardingStatus() {
@@ -38,6 +40,12 @@ export function useMealTimingOnboarding(userId: string | undefined) {
     if (!userId) return;
 
     try {
+      // Apply theme immediately if provided
+      if (mealTimes.theme) {
+        await setTheme(mealTimes.theme);
+        console.log('[useMealTimingOnboarding] Theme applied:', mealTimes.theme);
+      }
+
       // Save to local storage immediately for offline access and notifications
       saveMealTimesToStorage(mealTimes);
 
@@ -58,7 +66,7 @@ export function useMealTimingOnboarding(userId: string | undefined) {
       console.error('Failed to save meal times to server:', error);
       throw error;
     }
-  }, [userId]);
+  }, [userId, setTheme]);
 
   return {
     showDialog,
