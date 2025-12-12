@@ -107,14 +107,31 @@ export async function saveFCMToken(userId: string, token: string): Promise<boole
 /**
  * Remove FCM token from Supabase
  */
-export async function removeFCMToken(userId: string): Promise<boolean> {
+export async function removeFCMToken(userId: string, removeAll: boolean = false): Promise<boolean> {
   try {
+    let currentToken = null;
+    
+    // If not removing all tokens, get current browser's token
+    if (!removeAll) {
+      try {
+        currentToken = await getToken(messaging!, { 
+          vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY 
+        });
+      } catch (error) {
+        console.warn('Could not get current token for removal:', error);
+      }
+    }
+
     const response = await fetch('/api/fcm/remove-token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({ 
+        userId,
+        token: currentToken,
+        removeAll 
+      }),
     });
 
     return response.ok;

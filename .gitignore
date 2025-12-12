@@ -88,3 +88,8 @@ supabase/cleanup-old-cron-jobs.sql
 .gitignore
 CRON_CLEANUP_GUIDE.md
 TEST_MEAL_REMINDER_CRON.md
+QUICK_SETUP.sql
+supabase/debug-meal-reminders.sql
+supabase/diagnose-why-no-notifications.sql
+supabase/test-api-call.sql
+supabase/migrations/20241209_complete_meal_reminders_setup.sql

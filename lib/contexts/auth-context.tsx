@@ -193,9 +193,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setError(null);
       
-      // Remove FCM token from database
+      // Remove ALL FCM tokens from database (complete logout)
       if (user) {
-        await removeFCMToken(user.id).catch(err => 
+        await removeFCMToken(user.id, true).catch(err => 
           console.error('Failed to remove FCM token:', err)
         );
       }

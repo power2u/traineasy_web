@@ -15,11 +15,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Delete all FCM tokens for this user
-    const { error } = await supabase
+    // Get request body to check if specific token should be removed
+    const body = await request.json();
+    const { token, removeAll } = body;
+
+    let query = supabase
       .from('fcm_tokens')
       .delete()
       .eq('user_id', user.id);
+
+    // If specific token provided, remove only that token
+    if (token && !removeAll) {
+      query = query.eq('token', token);
+    }
+    // Otherwise remove all tokens (for complete logout)
+
+    const { error } = await query;
 
     if (error) {
       console.error('Error removing FCM tokens:', error);
@@ -29,7 +40,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true,
+      message: token && !removeAll ? 'Specific token removed' : 'All tokens removed'
+    });
 
   } catch (error: any) {
     console.error('Error in remove-token API:', error);
