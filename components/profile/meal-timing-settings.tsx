@@ -24,6 +24,7 @@ export function MealTimingSettings({ userId }: MealTimingSettingsProps) {
     lunch_time: '13:00',
     snack2_time: '16:00',
     dinner_time: '19:00',
+    timezone: 'Asia/Kolkata', // Default timezone
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -45,6 +46,7 @@ export function MealTimingSettings({ userId }: MealTimingSettingsProps) {
           lunch_time: times.lunch_time.substring(0, 5),
           snack2_time: times.snack2_time.substring(0, 5),
           dinner_time: times.dinner_time.substring(0, 5),
+          timezone: times.timezone || 'Asia/Kolkata', // Include timezone from server
         });
       }
     } catch (error) {
