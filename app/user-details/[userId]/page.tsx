@@ -55,6 +55,16 @@ export default function UserDetailsPage() {
         throw new Error(data.error || 'Failed to load user details');
       }
       
+      console.log('User details loaded:', {
+        userId,
+        measurementsCount: data.measurements?.length || 0,
+        weightLogsCount: data.weightLogs?.length || 0, // Weight data from body_measurements
+        mealLogsCount: data.mealLogs?.length || 0,
+        waterLogsCount: data.waterLogs?.length || 0,
+        sampleMeasurement: data.measurements?.[0],
+        weightMeasurements: data.measurements?.filter((m: any) => m.measurement_type === 'weight').length || 0
+      });
+      
       setUserDetails(data);
     } catch (error: any) {
       console.error('Error loading user details:', error);

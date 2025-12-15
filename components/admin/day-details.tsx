@@ -45,14 +45,18 @@ export function DayDetails({ date, mealLogs, weightLogs, waterLogs, measurements
   
   // Get data for the selected date (properly handling timezones)
   const dayMeal = mealLogs.find(meal => meal.date === dateStr);
-  const dayWeight = weightLogs.filter(weight => weight.date === dateStr);
+  // Weight data comes from body_measurements table with measurement_type = 'weight'
+  const dayWeight = measurements.filter(measurement => 
+    measurement.measurement_type === 'weight' && measurement.date === dateStr
+  );
   const dayWater = waterLogs.filter(water => getLocalDateStr(water.timestamp) === dateStr);
+  // Non-weight measurements (biceps, chest, waist, etc.)
   const dayMeasurements = measurements.filter(measurement => {
-    // Handle both date fields and timestamp fields
+    // Exclude weight measurements as they're handled separately above
+    if (measurement.measurement_type === 'weight') return false;
+    
     if (measurement.date) {
       return measurement.date === dateStr;
-    } else if (measurement.updated_at) {
-      return getLocalDateStr(measurement.updated_at) === dateStr;
     }
     return false;
   });
@@ -214,7 +218,7 @@ export function DayDetails({ date, mealLogs, weightLogs, waterLogs, measurements
             {dayWeight.map((log, index) => (
               <div key={index} className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <div>
-                  <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{log.weight} kg</div>
+                  <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{log.value} {log.unit}</div>
                   <div className="text-xs text-default-500 dark:text-default-400">
                     {formatTime(log.created_at)}
                   </div>

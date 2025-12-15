@@ -36,6 +36,16 @@ export default function MeasurementsPage() {
   const [selectedType, setSelectedType] = useState<MeasurementType>('weight');
   const [preferredUnit, setPreferredUnit] = useState<'kg' | 'lbs' | 'cm' | 'in'>('kg');
   const [prefsLoading, setPrefsLoading] = useState(true);
+// Add this after the existing useEffect
+useEffect(() => {
+  // Immediately update unit based on measurement type
+  if (selectedType === 'weight') {
+    // Keep the user's preferred weight unit (will be set by preferences)
+  } else {
+    // All body measurements should use cm
+    setPreferredUnit('cm');
+  }
+}, [selectedType]);
 
   // Use React Query hook for measurements data
   const {
@@ -62,19 +72,28 @@ export default function MeasurementsPage() {
   // Load preferences once
   useEffect(() => {
     if (user) {
-      preferencesService.getPreferences(user.id).then((prefs) => {
-        if (prefs) {
-          // Set unit based on measurement type
-          if (selectedType === 'weight') {
-            setPreferredUnit(prefs.preferred_unit);
-          } else {
-            setPreferredUnit('cm');
+      console.log('Loading preferences for user:', user.id);
+      preferencesService.getPreferences(user.id)
+        .then((prefs) => {
+          console.log('Preferences loaded:', prefs);
+          if (prefs) {
+            // Set unit based on measurement type
+            if (selectedType === 'weight') {
+              setPreferredUnit(prefs.preferred_unit);
+            } else {
+              setPreferredUnit('cm');
+            }
           }
-        }
-        setPrefsLoading(false);
-      });
+          setPrefsLoading(false);
+        })
+        .catch((error) => {
+          console.error('Failed to load preferences:', error);
+          setPrefsLoading(false); // Still set to false to prevent infinite loading
+        });
+    } else if (!authLoading) {
+      setPrefsLoading(false);
     }
-  }, [user, selectedType]);
+  }, [user, selectedType, authLoading]);
 
   const handleSaveMeasurement = async (value: number, notes?: string) => {
     if (!user) return;
@@ -83,6 +102,7 @@ export default function MeasurementsPage() {
       await saveMeasurement(value, preferredUnit, notes);
     } catch (error) {
       console.error('Failed to save measurement:', error);
+      // You might want to show a toast notification here
     }
   };
 
@@ -96,10 +116,18 @@ export default function MeasurementsPage() {
     }
   };
 
-  if (authLoading || prefsLoading) {
+  // Debug logging
+  console.log('Loading states:', { authLoading, prefsLoading, loading, user: !!user });
+
+  if (authLoading || prefsLoading || loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Spinner size="lg" />
+        <div className="text-center">
+          <Spinner size="lg" />
+          <p className="mt-2 text-sm text-gray-500">
+            {authLoading ? 'Loading user...' : prefsLoading ? 'Loading preferences...' : 'Loading measurements...'}
+          </p>
+        </div>
       </div>
     );
   }

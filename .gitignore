@@ -99,3 +99,5 @@ supabase/fix-user-preferences-trigger.sql
 ADMIN_NOTIFICATIONS_GUIDE.md
 ADMIN_USER_MANAGEMENT_GUIDE.md
 ADMIN_USER_PROFILE_GUIDE.md
+supabase/migrations/20241215_remove_weight_logs_table.sql
+supabase/migrations/20241215_body_measurements_rls.sql

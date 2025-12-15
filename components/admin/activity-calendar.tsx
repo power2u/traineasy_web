@@ -20,6 +20,17 @@ interface ActivityCalendarProps {
 export function ActivityCalendar({ data, onDateSelect, selectedDate }: ActivityCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
+  // Debug logging for data received
+  console.log('ActivityCalendar received data:', {
+    mealLogs: data.mealLogs.length,
+    weightLogs: data.weightLogs.length, // Weight data from body_measurements
+    waterLogs: data.waterLogs.length,
+    measurements: data.measurements.length,
+    weightMeasurements: data.measurements.filter(m => m.measurement_type === 'weight').length,
+    nonWeightMeasurements: data.measurements.filter(m => m.measurement_type !== 'weight').length,
+    sampleMeasurement: data.measurements[0]
+  });
+
   // Helper function to get local date string from timestamp
   const getLocalDateStr = (timestamp: string) => {
     const localDate = new Date(timestamp);
@@ -30,17 +41,32 @@ export function ActivityCalendar({ data, onDateSelect, selectedDate }: ActivityC
   const getActivityForDate = (date: Date) => {
     const dateStr = date.toLocaleDateString('en-CA'); // Use local date consistently
     
+    // Debug logging for measurements
+    if (data.measurements.length > 0) {
+      console.log('Sample measurement data:', data.measurements[0]);
+      console.log('Looking for date:', dateStr);
+    }
+    
     const mealActivity = data.mealLogs.find(meal => meal.date === dateStr);
-    const weightActivity = data.weightLogs.filter(weight => weight.date === dateStr);
+    // Weight data comes from body_measurements table with measurement_type = 'weight'
+    const weightActivity = data.measurements.filter(measurement => 
+      measurement.measurement_type === 'weight' && measurement.date === dateStr
+    );
     const waterActivity = data.waterLogs.filter(water => 
       getLocalDateStr(water.timestamp) === dateStr
     );
+    // Non-weight measurements (biceps, chest, waist, etc.)
     const measurementActivity = data.measurements.filter(measurement => {
-      // Handle both date fields and timestamp fields
+      // Exclude weight measurements as they're handled separately above
+      if (measurement.measurement_type === 'weight') return false;
+      
+      // Body measurements table uses 'date' field directly (YYYY-MM-DD format)
       if (measurement.date) {
-        return measurement.date === dateStr;
-      } else if (measurement.updated_at) {
-        return getLocalDateStr(measurement.updated_at) === dateStr;
+        const matches = measurement.date === dateStr;
+        if (matches) {
+          console.log('Found measurement match:', { measurementDate: measurement.date, searchDate: dateStr, measurement });
+        }
+        return matches;
       }
       return false;
     });
