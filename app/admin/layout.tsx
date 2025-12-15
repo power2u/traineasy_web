@@ -51,6 +51,7 @@ export default function AdminLayout({
     { href: '/admin/memberships', label: 'Memberships', icon: '🎫' },
     { href: '/admin/packages', label: 'Packages', icon: '📦' },
     { href: '/admin/banners', label: 'Banners', icon: '✨' },
+    { href: '/admin/notifications', label: 'Notifications', icon: '🔔' },
     { href: '/admin/settings', label: 'Settings', icon: '⚙️' },
   ];
 

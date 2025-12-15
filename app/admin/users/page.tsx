@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Button, Card, Spinner, TextField, Label, Input, Chip } from '@heroui/react';
-import { Edit2, RefreshCw } from 'lucide-react';
+import { Edit2, RefreshCw, Eye } from 'lucide-react';
 import {
   createUser,
   deleteUser,
@@ -46,6 +46,7 @@ export default function AdminUsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Create user modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -92,7 +93,7 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     applyFilter();
-  }, [users, filter]);
+  }, [users, filter, searchQuery]);
 
   const loadUsers = async () => {
     setIsLoading(true);
@@ -125,18 +126,30 @@ export default function AdminUsersPage() {
   const applyFilter = () => {
     let filtered = [...users];
 
+    // Apply status filter
     switch (filter) {
       case 'active':
-        filtered = users.filter(u => !u.is_banned);
+        filtered = filtered.filter(u => !u.is_banned);
         break;
       case 'disabled':
-        filtered = users.filter(u => u.is_banned);
+        filtered = filtered.filter(u => u.is_banned);
         break;
       case 'admins':
-        filtered = users.filter(u => u.role === 'super_admin');
+        filtered = filtered.filter(u => u.role === 'super_admin');
         break;
       default:
-        filtered = users;
+        // Keep all users
+        break;
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(u => 
+        u.email.toLowerCase().includes(query) ||
+        (u.display_name && u.display_name.toLowerCase().includes(query)) ||
+        u.id.toLowerCase().includes(query)
+      );
     }
 
     setFilteredUsers(filtered);
@@ -388,7 +401,7 @@ export default function AdminUsersPage() {
           <div>
             <h2 className="text-base font-semibold md:text-xl">
               Users ({filteredUsers.length})
-              {filter !== 'all' && <span className="text-sm text-gray-400 ml-2">• Filtered</span>}
+              {(filter !== 'all' || searchQuery.trim()) && <span className="text-sm text-gray-400 ml-2">• Filtered</span>}
             </h2>
             <p className="text-xs text-default-500 mt-0.5 md:text-sm md:mt-1">Manage user accounts and permissions</p>
           </div>
@@ -404,6 +417,19 @@ export default function AdminUsersPage() {
               + Create User
             </Button>
           </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mb-4">
+          <TextField>
+            <Label>Search Users</Label>
+            <Input
+              placeholder="Search by email, name, or user ID..."
+              value={searchQuery}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+              className="w-full"
+            />
+          </TextField>
         </div>
 
         {isLoading ? (
@@ -498,6 +524,15 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="py-2 px-2 md:py-4 md:px-4">
                       <div className="flex flex-col items-end gap-1 md:flex-row md:items-center md:justify-end md:gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onPress={() => router.push(`/admin/users/${u.id}`)}
+                          className="flex items-center gap-1"
+                        >
+                          <Eye className="w-3 h-3" />
+                          View
+                        </Button>
                         {u.id !== user.id ? (
                           <>
                             <Button size="sm" variant={u.is_banned ? 'primary' : 'ghost'} onPress={() => handleToggleUserStatus(u.id, u.email, u.is_banned)}>

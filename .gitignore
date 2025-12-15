@@ -96,3 +96,6 @@ supabase/migrations/20241209_complete_meal_reminders_setup.sql
 supabase/migrations/20241212_add_timezone_support.sql
 supabase/test-timezone-logic.sql
 supabase/fix-user-preferences-trigger.sql
+ADMIN_NOTIFICATIONS_GUIDE.md
+ADMIN_USER_MANAGEMENT_GUIDE.md
+ADMIN_USER_PROFILE_GUIDE.md
