@@ -6,14 +6,13 @@ import { WaterHistory } from '@/components/water/water-history';
 import { Spinner } from '@heroui/react';
 import { useWaterData } from '@/lib/hooks/use-water-data';
 import { updateWaterTarget } from '@/app/actions/water';
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
 export default function WaterPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [cooldownInfo, setCooldownInfo] = useState({ canAdd: true, remainingMinutes: 0, remainingSeconds: 0 });
   const {
     todayCount,
     todayTotal,
@@ -23,40 +22,19 @@ export default function WaterPage() {
     addWater,
     deleteWater,
     isAdding,
-    getTimeUntilNextGlass,
   } = useWaterData(user?.id || '');
 
   const handleAdd = useCallback(async () => {
     if (!user) return;
     
-    // Check cooldown before adding
-    const cooldownStatus = getTimeUntilNextGlass();
-    if (!cooldownStatus.canAdd) {
-      const minutes = cooldownStatus.remainingMinutes;
-      const seconds = cooldownStatus.remainingSeconds;
-      const timeStr = minutes > 0 
-        ? `${minutes} minute${minutes > 1 ? 's' : ''} and ${seconds} second${seconds > 1 ? 's' : ''}`
-        : `${seconds} second${seconds > 1 ? 's' : ''}`;
-      
-      toast.error(
-        `Drink with care! 💧\nYou can have another glass after ${timeStr}`,
-        { duration: 5000 }
-      );
-      return;
-    }
-    
     try {
       await addWater();
       toast.success('Glass added! Keep hydrated! 💧');
     } catch (error) {
-      if (error instanceof Error && error.message === 'COOLDOWN_ACTIVE') {
-        // Already handled above
-        return;
-      }
       toast.error('Failed to add water entry');
       console.error('Failed to add water:', error);
     }
-  }, [user, addWater, getTimeUntilNextGlass]);
+  }, [user, addWater]);
 
   const handleDelete = useCallback(async (entryId: string) => {
     try {
@@ -85,21 +63,7 @@ export default function WaterPage() {
     }
   }, [user, queryClient]);
 
-  // Update cooldown info every second
-  useEffect(() => {
-    const updateCooldown = () => {
-      const info = getTimeUntilNextGlass();
-      setCooldownInfo(info);
-    };
 
-    // Initial update
-    updateCooldown();
-
-    // Update every second
-    const interval = setInterval(updateCooldown, 1000);
-
-    return () => clearInterval(interval);
-  }, [getTimeUntilNextGlass]);
 
   if (isLoading) {
     return (
@@ -121,7 +85,6 @@ export default function WaterPage() {
             targetGlasses={targetGlasses}
             onAdd={handleAdd}
             onUpdateTarget={handleUpdateTarget}
-            cooldownInfo={cooldownInfo}
           />
         </div>
 

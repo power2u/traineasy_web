@@ -527,7 +527,7 @@ export default function AdminUsersPage() {
                         <Button 
                           size="sm" 
                           variant="ghost" 
-                          onPress={() => router.push(`/admin/users/${u.id}`)}
+                          onPress={() => router.push(`/user-details/${u.id}`)}
                           className="flex items-center gap-1"
                         >
                           <Eye className="w-3 h-3" />

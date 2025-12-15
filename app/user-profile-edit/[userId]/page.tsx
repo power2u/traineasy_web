@@ -3,8 +3,8 @@
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Card, Button, Spinner, Chip, TextField, Label, Input, TextArea } from '@heroui/react';
-import { ArrowLeft, Save, Edit, User, Mail, Phone, Calendar, MapPin } from 'lucide-react';
+import { Card, Button, Spinner, Chip, TextField, Label, Input, Select, ListBox } from '@heroui/react';
+import { ArrowLeft, Save, Edit, User, Mail, Calendar, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface UserProfile {
@@ -12,17 +12,18 @@ interface UserProfile {
   email: string;
   full_name: string;
   // Personal information
-  age?: number;
-  gender?: string;
-  height?: number;
-  activity_level?: string;
-  goal?: string;
+  date_of_birth?: string;
+  phone?: string;
+  blood_group?: string;
+  height_cm?: number;
   goal_weight?: number;
+  goal_weight_unit?: string;
   // Settings
   preferred_unit?: string;
   theme?: string;
   timezone: string;
-  water_target?: number;
+  daily_water_target?: number;
+  glass_size_ml?: number;
   // Notifications
   notifications_enabled: boolean;
   meal_reminders_enabled: boolean;
@@ -40,7 +41,7 @@ interface UserProfile {
   last_sign_in_at?: string;
 }
 
-export default function AdminUserProfilePage() {
+export default function UserProfileEditPage() {
   const { user } = useAuth();
   const router = useRouter();
   const params = useParams();
@@ -138,7 +139,7 @@ export default function AdminUserProfilePage() {
         <p className="text-red-500 mb-2">{error}</p>
         <p className="text-default-500 mb-4 text-sm">User ID: {userId}</p>
         <div className="flex gap-2 justify-center">
-          <Button onPress={() => router.back()}>Go Back</Button>
+          <Button onPress={() => router.push(`/user-details/${userId}`)}>Go Back</Button>
           <Button variant="ghost" onPress={() => loadUserProfile()}>Retry</Button>
         </div>
       </div>
@@ -149,19 +150,19 @@ export default function AdminUserProfilePage() {
     return (
       <div className="text-center py-12">
         <p className="text-default-500 mb-4">User profile not found</p>
-        <Button onPress={() => router.back()}>Go Back</Button>
+        <Button onPress={() => router.push(`/user-details/${userId}`)}>Go Back</Button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
-            onPress={() => router.back()}
+            onPress={() => router.push(`/user-details/${userId}`)}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -250,6 +251,7 @@ export default function AdminUserProfilePage() {
           </div>
         </div>
       </Card>
+
       {/* Personal Information */}
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-6">Personal Information</h2>
@@ -278,38 +280,79 @@ export default function AdminUserProfilePage() {
           </TextField>
 
           <TextField>
-            <Label>Age</Label>
+            <Label>Phone</Label>
             {isEditing ? (
               <Input
-                type="number"
-                value={editedProfile.age?.toString() || ''}
+                value={editedProfile.phone || ''}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                  setEditedProfile(prev => ({ ...prev, age: e.target.value ? parseInt(e.target.value) : undefined }))
+                  setEditedProfile(prev => ({ ...prev, phone: e.target.value }))
                 }
               />
             ) : (
               <div className="px-3 py-2 bg-default-100 rounded-lg">
-                {userProfile.age || 'Not set'}
+                {userProfile.phone || 'Not set'}
               </div>
             )}
           </TextField>
 
           <TextField>
-            <Label>Gender</Label>
+            <Label>Blood Group</Label>
             {isEditing ? (
-              <select
-                value={editedProfile.gender || ''}
-                onChange={(e) => setEditedProfile(prev => ({ ...prev, gender: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border-2 border-default-200 bg-default-50 focus:border-primary focus:outline-none"
+              <Select 
+                className="w-full" 
+                placeholder="Select blood group"
+                selectedKey={editedProfile.blood_group || ''}
+                onSelectionChange={(key) => setEditedProfile(prev => ({ ...prev, blood_group: key as string }))}
               >
-                <option value="">Select gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
+                <Label>Blood Group</Label>
+                <Select.Trigger>
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    <ListBox.Item id="" textValue="Not set">
+                      Not set
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="A+" textValue="A+">
+                      A+
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="A-" textValue="A-">
+                      A-
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="B+" textValue="B+">
+                      B+
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="B-" textValue="B-">
+                      B-
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="AB+" textValue="AB+">
+                      AB+
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="AB-" textValue="AB-">
+                      AB-
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="O+" textValue="O+">
+                      O+
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="O-" textValue="O-">
+                      O-
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  </ListBox>
+                </Select.Popover>
+              </Select>
             ) : (
               <div className="px-3 py-2 bg-default-100 rounded-lg">
-                {userProfile.gender ? userProfile.gender.charAt(0).toUpperCase() + userProfile.gender.slice(1) : 'Not set'}
+                {userProfile.blood_group || 'Not set'}
               </div>
             )}
           </TextField>
@@ -319,70 +362,20 @@ export default function AdminUserProfilePage() {
             {isEditing ? (
               <Input
                 type="number"
-                value={editedProfile.height?.toString() || ''}
+                value={editedProfile.height_cm?.toString() || ''}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                  setEditedProfile(prev => ({ ...prev, height: e.target.value ? parseInt(e.target.value) : undefined }))
+                  setEditedProfile(prev => ({ ...prev, height_cm: e.target.value ? parseInt(e.target.value) : undefined }))
                 }
               />
             ) : (
               <div className="px-3 py-2 bg-default-100 rounded-lg">
-                {userProfile.height ? `${userProfile.height} cm` : 'Not set'}
+                {userProfile.height_cm ? `${userProfile.height_cm} cm` : 'Not set'}
               </div>
             )}
           </TextField>
 
           <TextField>
-            <Label>Activity Level</Label>
-            {isEditing ? (
-              <select
-                value={editedProfile.activity_level || ''}
-                onChange={(e) => setEditedProfile(prev => ({ ...prev, activity_level: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border-2 border-default-200 bg-default-50 focus:border-primary focus:outline-none"
-              >
-                <option value="">Select activity level</option>
-                <option value="sedentary">Sedentary</option>
-                <option value="lightly_active">Lightly Active</option>
-                <option value="moderately_active">Moderately Active</option>
-                <option value="very_active">Very Active</option>
-                <option value="extremely_active">Extremely Active</option>
-              </select>
-            ) : (
-              <div className="px-3 py-2 bg-default-100 rounded-lg">
-                {userProfile.activity_level ? userProfile.activity_level.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Not set'}
-              </div>
-            )}
-          </TextField>
-        </div>
-      </Card>
-
-      {/* Goals & Targets */}
-      <Card className="p-6">
-        <h2 className="text-xl font-semibold mb-6">Goals & Targets</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <TextField>
-            <Label>Fitness Goal</Label>
-            {isEditing ? (
-              <select
-                value={editedProfile.goal || ''}
-                onChange={(e) => setEditedProfile(prev => ({ ...prev, goal: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border-2 border-default-200 bg-default-50 focus:border-primary focus:outline-none"
-              >
-                <option value="">Select goal</option>
-                <option value="lose_weight">Lose Weight</option>
-                <option value="gain_weight">Gain Weight</option>
-                <option value="maintain_weight">Maintain Weight</option>
-                <option value="build_muscle">Build Muscle</option>
-                <option value="improve_fitness">Improve Fitness</option>
-              </select>
-            ) : (
-              <div className="px-3 py-2 bg-default-100 rounded-lg">
-                {userProfile.goal ? userProfile.goal.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Not set'}
-              </div>
-            )}
-          </TextField>
-
-          <TextField>
-            <Label>Goal Weight (kg)</Label>
+            <Label>Goal Weight</Label>
             {isEditing ? (
               <Input
                 type="number"
@@ -394,24 +387,47 @@ export default function AdminUserProfilePage() {
               />
             ) : (
               <div className="px-3 py-2 bg-default-100 rounded-lg">
-                {userProfile.goal_weight ? `${userProfile.goal_weight} kg` : 'Not set'}
+                {userProfile.goal_weight ? `${userProfile.goal_weight} ${userProfile.goal_weight_unit || 'kg'}` : 'Not set'}
+              </div>
+            )}
+          </TextField>
+        </div>
+      </Card>
+
+      {/* Settings */}
+      <Card className="p-6">
+        <h2 className="text-xl font-semibold mb-6">Settings</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <TextField>
+            <Label>Water Target (glasses)</Label>
+            {isEditing ? (
+              <Input
+                type="number"
+                value={editedProfile.daily_water_target?.toString() || ''}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                  setEditedProfile(prev => ({ ...prev, daily_water_target: e.target.value ? parseInt(e.target.value) : undefined }))
+                }
+              />
+            ) : (
+              <div className="px-3 py-2 bg-default-100 rounded-lg">
+                {userProfile.daily_water_target ? `${userProfile.daily_water_target} glasses` : 'Not set'}
               </div>
             )}
           </TextField>
 
           <TextField>
-            <Label>Water Target (ml)</Label>
+            <Label>Glass Size (ml)</Label>
             {isEditing ? (
               <Input
                 type="number"
-                value={editedProfile.water_target?.toString() || ''}
+                value={editedProfile.glass_size_ml?.toString() || ''}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                  setEditedProfile(prev => ({ ...prev, water_target: e.target.value ? parseInt(e.target.value) : undefined }))
+                  setEditedProfile(prev => ({ ...prev, glass_size_ml: e.target.value ? parseInt(e.target.value) : undefined }))
                 }
               />
             ) : (
               <div className="px-3 py-2 bg-default-100 rounded-lg">
-                {userProfile.water_target ? `${userProfile.water_target} ml` : 'Not set'}
+                {userProfile.glass_size_ml ? `${userProfile.glass_size_ml} ml` : 'Not set'}
               </div>
             )}
           </TextField>
@@ -419,17 +435,42 @@ export default function AdminUserProfilePage() {
           <TextField>
             <Label>Timezone</Label>
             {isEditing ? (
-              <select
-                value={editedProfile.timezone || 'Asia/Kolkata'}
-                onChange={(e) => setEditedProfile(prev => ({ ...prev, timezone: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border-2 border-default-200 bg-default-50 focus:border-primary focus:outline-none"
+              <Select 
+                className="w-full" 
+                placeholder="Select timezone"
+                selectedKey={editedProfile.timezone || 'Asia/Kolkata'}
+                onSelectionChange={(key) => setEditedProfile(prev => ({ ...prev, timezone: key as string }))}
               >
-                <option value="Asia/Kolkata">Asia/Kolkata</option>
-                <option value="America/New_York">America/New_York</option>
-                <option value="Europe/London">Europe/London</option>
-                <option value="Asia/Tokyo">Asia/Tokyo</option>
-                <option value="Australia/Sydney">Australia/Sydney</option>
-              </select>
+                <Label>Timezone</Label>
+                <Select.Trigger>
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    <ListBox.Item id="Asia/Kolkata" textValue="Asia/Kolkata">
+                      Asia/Kolkata
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="America/New_York" textValue="America/New_York">
+                      America/New_York
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="Europe/London" textValue="Europe/London">
+                      Europe/London
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="Asia/Tokyo" textValue="Asia/Tokyo">
+                      Asia/Tokyo
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="Australia/Sydney" textValue="Australia/Sydney">
+                      Australia/Sydney
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  </ListBox>
+                </Select.Popover>
+              </Select>
             ) : (
               <div className="px-3 py-2 bg-default-100 rounded-lg flex items-center gap-2">
                 <MapPin className="w-4 h-4" />
@@ -441,14 +482,30 @@ export default function AdminUserProfilePage() {
           <TextField>
             <Label>Preferred Unit</Label>
             {isEditing ? (
-              <select
-                value={editedProfile.preferred_unit || 'kg'}
-                onChange={(e) => setEditedProfile(prev => ({ ...prev, preferred_unit: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border-2 border-default-200 bg-default-50 focus:border-primary focus:outline-none"
+              <Select 
+                className="w-full" 
+                placeholder="Select unit"
+                selectedKey={editedProfile.preferred_unit || 'kg'}
+                onSelectionChange={(key) => setEditedProfile(prev => ({ ...prev, preferred_unit: key as string }))}
               >
-                <option value="kg">Kilograms (kg)</option>
-                <option value="lbs">Pounds (lbs)</option>
-              </select>
+                <Label>Preferred Unit</Label>
+                <Select.Trigger>
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    <ListBox.Item id="kg" textValue="Kilograms (kg)">
+                      Kilograms (kg)
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="lbs" textValue="Pounds (lbs)">
+                      Pounds (lbs)
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  </ListBox>
+                </Select.Popover>
+              </Select>
             ) : (
               <div className="px-3 py-2 bg-default-100 rounded-lg">
                 {userProfile.preferred_unit === 'lbs' ? 'Pounds (lbs)' : 'Kilograms (kg)'}
@@ -459,15 +516,34 @@ export default function AdminUserProfilePage() {
           <TextField>
             <Label>Theme Preference</Label>
             {isEditing ? (
-              <select
-                value={editedProfile.theme || 'dark'}
-                onChange={(e) => setEditedProfile(prev => ({ ...prev, theme: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border-2 border-default-200 bg-default-50 focus:border-primary focus:outline-none"
+              <Select 
+                className="w-full" 
+                placeholder="Select theme"
+                selectedKey={editedProfile.theme || 'dark'}
+                onSelectionChange={(key) => setEditedProfile(prev => ({ ...prev, theme: key as string }))}
               >
-                <option value="dark">Dark</option>
-                <option value="light">Light</option>
-                <option value="system">System</option>
-              </select>
+                <Label>Theme</Label>
+                <Select.Trigger>
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    <ListBox.Item id="dark" textValue="Dark">
+                      Dark
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="light" textValue="Light">
+                      Light
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="system" textValue="System">
+                      System
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  </ListBox>
+                </Select.Popover>
+              </Select>
             ) : (
               <div className="px-3 py-2 bg-default-100 rounded-lg">
                 {userProfile.theme ? userProfile.theme.charAt(0).toUpperCase() + userProfile.theme.slice(1) : 'Dark'}

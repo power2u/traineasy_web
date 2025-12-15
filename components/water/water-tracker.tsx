@@ -9,11 +9,6 @@ interface WaterTrackerProps {
   targetGlasses?: number;
   onAdd: () => Promise<void>;
   onUpdateTarget?: (target: number) => Promise<void>;
-  cooldownInfo?: {
-    canAdd: boolean;
-    remainingMinutes: number;
-    remainingSeconds: number;
-  };
 }
 
 export const WaterTracker = memo(function WaterTracker({ 
@@ -21,8 +16,7 @@ export const WaterTracker = memo(function WaterTracker({
   totalMl, 
   targetGlasses = 14, 
   onAdd, 
-  onUpdateTarget,
-  cooldownInfo 
+  onUpdateTarget
 }: WaterTrackerProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [isEditingTarget, setIsEditingTarget] = useState(false);
@@ -154,21 +148,7 @@ export const WaterTracker = memo(function WaterTracker({
           </div>
         </div>
 
-        {/* Cooldown Warning */}
-        {cooldownInfo && !cooldownInfo.canAdd && (
-          <div className="w-full px-3 py-2 bg-warning-50 dark:bg-warning-100/10 border border-warning-200 dark:border-warning-500/30 rounded-lg">
-            <div className="flex items-center gap-2 text-warning-700 dark:text-warning-400">
-              <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              <div className="text-xs md:text-sm">
-                <span className="font-medium">Drink with care!</span>
-                <br />
-                Next glass in {cooldownInfo.remainingMinutes}m {cooldownInfo.remainingSeconds}s
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* Add Button */}
         <Button
@@ -176,9 +156,9 @@ export const WaterTracker = memo(function WaterTracker({
           size="md"
           className="w-full md:size-lg"
           onPress={handleAdd}
-          isDisabled={isAdding || (cooldownInfo && !cooldownInfo.canAdd)}
+          isDisabled={isAdding}
         >
-          {isAdding ? 'Adding...' : cooldownInfo && !cooldownInfo.canAdd ? 'Please Wait...' : '+ Add Glass (250ml)'}
+          {isAdding ? 'Adding...' : '+ Add Glass (250ml)'}
         </Button>
       </div>
     </div>

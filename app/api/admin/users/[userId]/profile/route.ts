@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 
 export async function PUT(
@@ -26,6 +27,9 @@ export async function PUT(
     const { userId } = await params;
     const profileData = await request.json();
 
+    // Create admin client for database operations (bypasses RLS)
+    const adminClient = createAdminClient();
+
     // Remove fields that shouldn't be updated
     const {
       id,
@@ -43,7 +47,7 @@ export async function PUT(
       ...updateData
     };
 
-    const { data: updatedProfile, error: updateError } = await supabase
+    const { data: updatedProfile, error: updateError } = await adminClient
       .from('user_preferences')
       .upsert(upsertData, { 
         onConflict: 'id',
