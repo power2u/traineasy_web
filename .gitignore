@@ -106,3 +106,4 @@ DAILY_NOTIFICATIONS_SETUP.md
 supabase/migrations/20241216_weekly_measurement_reminder_cron.sql
 supabase/migrations/20241215_notification_logs_table.sql
 supabase/migrations/20241215_good_morning_night_cron.sql
+TEST_NOTIFICATIONS_SOLUTION.md

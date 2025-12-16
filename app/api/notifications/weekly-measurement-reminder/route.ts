@@ -102,8 +102,8 @@ export async function POST(request: Request) {
             .gte('date', oneWeekAgo.toISOString().split('T')[0])
             .order('date', { ascending: false });
 
-          const hasRecentWeight = recentMeasurements?.some(m => m.measurement_type === 'weight');
-          const hasRecentBodyMeasurements = recentMeasurements?.some(m => m.measurement_type !== 'weight');
+          const hasRecentWeight = recentMeasurements?.some(m => m.measurement_type === 'weight') ?? false;
+          const hasRecentBodyMeasurements = recentMeasurements?.some(m => m.measurement_type !== 'weight') ?? false;
           
           // Personalized message based on recent activity
           let bodyMessage = `Hey ${user.full_name || 'there'}! 📏`;

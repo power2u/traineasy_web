@@ -1,44 +1,47 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 import { sendPushNotification } from '@/lib/firebase/admin';
 
+// PUBLIC TEST ENDPOINT - FOR DEVELOPMENT ONLY
+// This endpoint doesn't require authentication and uses a test user
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const mealType = searchParams.get('meal') || 'breakfast';
-    const isTest = searchParams.get('test') === 'true';
+    const testUserId = searchParams.get('userId'); // Optional: specify a user ID
 
-    const supabase = await createClient();
+    const adminClient = createAdminClient();
     
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'User not authenticated', details: authError },
-        { status: 401 }
-      );
-    }
-
-    // Get user profile
-    const { data: userProfile, error: profileError } = await supabase
+    // Get a test user (first user with notifications enabled)
+    let userQuery = adminClient
       .from('user_preferences')
       .select('id, full_name')
-      .eq('id', user.id)
-      .single();
+      .eq('notifications_enabled', true);
+    
+    if (testUserId) {
+      userQuery = userQuery.eq('id', testUserId);
+    }
+    
+    const { data: users, error: usersError } = await userQuery.limit(1);
 
-    if (profileError || !userProfile) {
+    if (usersError || !users || users.length === 0) {
       return NextResponse.json(
-        { error: 'User profile not found', details: profileError },
+        { 
+          error: 'No test users found with notifications enabled',
+          details: usersError,
+          suggestion: 'Make sure at least one user has notifications_enabled = true'
+        },
         { status: 404 }
       );
     }
 
+    const testUser = users[0];
+
     // Get user's FCM tokens
-    const { data: tokens, error: tokensError } = await supabase
+    const { data: tokens, error: tokensError } = await adminClient
       .from('fcm_tokens')
       .select('token')
-      .eq('user_id', user.id);
+      .eq('user_id', testUser.id);
 
     if (tokensError) {
       return NextResponse.json(
@@ -49,7 +52,11 @@ export async function GET(request: Request) {
 
     if (!tokens || tokens.length === 0) {
       return NextResponse.json(
-        { error: 'No active FCM tokens found. Please enable notifications first.' },
+        { 
+          error: 'No active FCM tokens found for test user',
+          details: { userId: testUser.id, userName: testUser.full_name },
+          suggestion: 'The test user needs to have registered for push notifications'
+        },
         { status: 400 }
       );
     }
@@ -64,33 +71,31 @@ export async function GET(request: Request) {
     };
 
     const mealLabel = mealLabels[mealType] || mealType;
-    const userName = userProfile.full_name || 'there';
+    const userName = testUser.full_name || 'there';
     
     // Create test notification message
-    const notificationMessage = isTest 
-      ? `🧪 Test notification for ${mealLabel}! This is a test from the dev panel.`
-      : `Hey ${userName}! You missed your ${mealLabel}. Don't forget to log it!`;
+    const notificationMessage = `🧪 Test notification for ${mealLabel}! This is a development test for ${userName}.`;
 
     // Send notification
     const fcmResult = await sendPushNotification({
       tokens: tokens.map(t => t.token),
-      title: isTest ? '🧪 Test Meal Notification' : '🍽️ Meal Reminder',
+      title: '🧪 Dev Test Notification',
       body: notificationMessage,
       data: {
-        type: isTest ? 'test_meal_notification' : 'meal_reminder',
+        type: 'dev_test_notification',
         meal_type: mealType,
         date: new Date().toISOString().split('T')[0],
         url: '/meals',
-        test: isTest.toString()
+        test: 'true'
       },
     });
 
     // Clean up invalid tokens if any
     if (fcmResult.invalidTokens && fcmResult.invalidTokens.length > 0) {
-      await supabase
+      await adminClient
         .from('fcm_tokens')
         .delete()
-        .eq('user_id', user.id)
+        .eq('user_id', testUser.id)
         .in('token', fcmResult.invalidTokens);
     }
 
@@ -100,8 +105,8 @@ export async function GET(request: Request) {
         ? `Test notification sent successfully to ${fcmResult.successCount} device(s)`
         : fcmResult.error || 'Failed to send notification',
       details: {
-        userId: user.id,
-        userName: userProfile.full_name,
+        userId: testUser.id,
+        userName: testUser.full_name,
         mealType,
         mealLabel,
         notificationMessage,
@@ -116,7 +121,7 @@ export async function GET(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Test meal notification error:', error);
+    console.error('Public test meal notification error:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
       { status: 500 }

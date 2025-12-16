@@ -22,15 +22,23 @@ export default function TestNotificationsPage() {
     setResult(null);
 
     try {
-      const response = await fetch(`/api/test-meal-notification?meal=${mealType}&test=true`);
-      const data = await response.json();
+      // Try authenticated endpoint first
+      let response = await fetch(`/api/test-meal-notification?meal=${mealType}&test=true`);
+      let data = await response.json();
+
+      // If authentication fails, try public endpoint
+      if (response.status === 401) {
+        console.log('Authentication failed, trying public endpoint...');
+        response = await fetch(`/api/test-meal-notification-public?meal=${mealType}`);
+        data = await response.json();
+      }
 
       setResult(data);
 
       if (response.ok) {
         toast.success(`Test notification sent for ${mealType}!`);
       } else {
-        toast.error('Failed to send notification');
+        toast.error(data.error || 'Failed to send notification');
       }
     } catch (error: any) {
       toast.error('Error sending notification');
