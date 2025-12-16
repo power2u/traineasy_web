@@ -85,19 +85,14 @@ export function areNotificationsEnabled(): boolean {
 }
 
 /**
- * Save FCM token to Supabase
+ * Save FCM token to Supabase using server action
  */
 export async function saveFCMToken(userId: string, token: string): Promise<boolean> {
   try {
-    const response = await fetch('/api/fcm/save-token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ userId, token }),
-    });
-
-    return response.ok;
+    // Import server action dynamically to avoid SSR issues
+    const { saveFCMToken: saveFCMTokenAction } = await import('@/app/actions/fcm-actions');
+    const result = await saveFCMTokenAction(token);
+    return result.success;
   } catch (error) {
     console.error('Error saving FCM token:', error);
     return false;
@@ -105,7 +100,7 @@ export async function saveFCMToken(userId: string, token: string): Promise<boole
 }
 
 /**
- * Remove FCM token from Supabase
+ * Remove FCM token from Supabase using server action
  */
 export async function removeFCMToken(userId: string, removeAll: boolean = false): Promise<boolean> {
   try {
@@ -122,19 +117,14 @@ export async function removeFCMToken(userId: string, removeAll: boolean = false)
       }
     }
 
-    const response = await fetch('/api/fcm/remove-token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        userId,
-        token: currentToken,
-        removeAll 
-      }),
-    });
+    if (currentToken) {
+      // Import server action dynamically to avoid SSR issues
+      const { removeFCMToken: removeFCMTokenAction } = await import('@/app/actions/fcm-actions');
+      const result = await removeFCMTokenAction(currentToken);
+      return result.success;
+    }
 
-    return response.ok;
+    return true; // If no token to remove, consider it successful
   } catch (error) {
     console.error('Error removing FCM token:', error);
     return false;

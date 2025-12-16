@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './auth-context';
-import { preferencesService } from '@/lib/services/preferences-service';
+
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -25,11 +25,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadTheme = async () => {
       if (user) {
-        // Load from user preferences
+        // Load from user preferences using server action
         try {
-          const prefs = await preferencesService.getPreferences(user.id);
-          const savedTheme = (prefs?.theme as Theme) || 'dark';
-          setThemeState(savedTheme);
+          const { getUserPreferences } = await import('@/app/actions/fcm-actions');
+          const result = await getUserPreferences();
+          
+          if (result.success && result.data?.theme) {
+            const savedTheme = result.data.theme as Theme;
+            setThemeState(savedTheme);
+          } else {
+            // Fallback to localStorage if no theme in preferences
+            const localTheme = (localStorage.getItem('theme') as Theme) || 'dark';
+            setThemeState(localTheme);
+          }
         } catch (error) {
           console.error('Failed to load theme preference:', error);
           const localTheme = (localStorage.getItem('theme') as Theme) || 'dark';
@@ -84,10 +92,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(newTheme);
     localStorage.setItem('theme', newTheme);
 
-    // Save to user preferences if authenticated
+    // Save to user preferences if authenticated using server action
     if (user) {
       try {
-        await preferencesService.updatePreferences(user.id, { theme: newTheme });
+        const { updateUserPreferences } = await import('@/app/actions/fcm-actions');
+        const result = await updateUserPreferences({ theme: newTheme });
+        
+        if (!result.success) {
+          console.error('Failed to save theme preference:', result.error);
+        }
       } catch (error) {
         console.error('Failed to save theme preference:', error);
       }

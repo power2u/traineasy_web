@@ -11,8 +11,17 @@ export class MealServiceWorkerManager {
 
   /**
    * Initialize and register the meal notification service worker
+   * DISABLED: All meal notifications now handled by server-side FCM system
    */
   async initialize(): Promise<boolean> {
+    console.log('🚫 [Meal SW Manager] DISABLED - Using server-side FCM for meal notifications');
+    console.log('✅ [Meal SW Manager] This prevents duplicate notifications');
+    
+    // Mark as initialized but don't actually register service worker
+    this.isInitialized = true;
+    return false; // Return false to indicate no service worker registered
+    
+    /* ORIGINAL CODE DISABLED TO PREVENT DUPLICATE NOTIFICATIONS
     if (this.isInitialized) {
       return true;
     }
@@ -64,6 +73,7 @@ export class MealServiceWorkerManager {
       console.error('[Meal SW Manager] Registration failed:', error);
       return false;
     }
+    */
   }
 
   /**

@@ -192,8 +192,8 @@ export class ServiceWorkerNotificationManager {
 
       request.onsuccess = () => {
         const db = request.result;
-        const tx = db.transaction(['weight_logs'], 'readonly');
-        const store = tx.objectStore('weight_logs');
+        const tx = db.transaction(['body_measurements'], 'readonly');
+        const store = tx.objectStore('body_measurements');
         const getAllRequest = store.getAll();
 
         getAllRequest.onsuccess = () => {

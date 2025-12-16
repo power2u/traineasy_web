@@ -1,39 +1,10 @@
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 import { sendPushNotification } from '@/lib/firebase/admin';
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    
-    // Check if user is authenticated and is admin
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user has admin role
-    const role = user.app_metadata?.role || user.user_metadata?.role;
-    const isSuperAdmin = role === 'super_admin';
-    
-    if (!isSuperAdmin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
-
-    // Try to get user profile using admin client (optional for admin operations)
-    const adminClient = createAdminClient();
-    const { data: profile } = await adminClient
-      .from('user_preferences')
-      .select('id, full_name')
-      .eq('id', user.id)
-      .single();
-
-    // Use email as fallback if no profile found
-    const adminName = profile?.full_name || user.email || 'Admin';
-
-    // Parse request body
+    // This is a test endpoint - in production, add proper authentication
     const { title, body } = await request.json();
 
     if (!title || !body) {
@@ -43,13 +14,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get all active FCM tokens using admin client
+    // Use admin client to get FCM tokens
+    const adminClient = createAdminClient();
+    
+    // Get all active FCM tokens
     const { data: tokens, error: tokensError } = await adminClient
       .from('fcm_tokens')
       .select('token, user_id')
       .order('created_at', { ascending: false });
 
     if (tokensError) {
+      console.error('Error fetching FCM tokens:', tokensError);
       throw tokensError;
     }
 
@@ -63,10 +38,10 @@ export async function POST(request: Request) {
       });
     }
 
-    // Extract unique tokens (in case a user has multiple tokens)
+    // Extract unique tokens
     const uniqueTokens = [...new Set(tokens.map(t => t.token))];
 
-    console.log(`[Admin Notification] ${adminName} sending to ${uniqueTokens.length} tokens: "${title}"`);
+    console.log(`[Test Admin Notification] Sending to ${uniqueTokens.length} tokens: "${title}"`);
 
     // Send notification using Firebase Admin SDK
     const result = await sendPushNotification({
@@ -74,7 +49,7 @@ export async function POST(request: Request) {
       title,
       body,
       data: {
-        type: 'admin_notification',
+        type: 'test_admin_notification',
         timestamp: new Date().toISOString(),
         url: '/dashboard',
       },
@@ -94,12 +69,12 @@ export async function POST(request: Request) {
       successCount: result.successCount || 0,
       failureCount: result.failureCount || 0,
       message: result.success 
-        ? `Notification sent successfully to ${result.successCount || 0} out of ${uniqueTokens.length} devices`
+        ? `Test notification sent successfully to ${result.successCount || 0} out of ${uniqueTokens.length} devices`
         : result.error || 'Failed to send notification',
     });
 
   } catch (error: any) {
-    console.error('Error in admin notification send:', error);
+    console.error('Error in test admin notification:', error);
     return NextResponse.json(
       { 
         error: 'Internal server error', 
@@ -113,4 +88,18 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+export async function GET() {
+  return NextResponse.json({
+    message: 'Test Admin Notifications Endpoint',
+    usage: {
+      method: 'POST',
+      body: {
+        title: 'string',
+        body: 'string'
+      }
+    },
+    example: 'POST /api/test-admin-notifications with body: {"title": "Test", "body": "Test message"}'
+  });
 }

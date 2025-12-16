@@ -111,7 +111,7 @@ export interface DashboardData {
 export interface SyncQueueItem {
   id: string;
   operation: 'create' | 'update' | 'delete';
-  table: 'water_intake' | 'meals' | 'weight_logs';
+  table: 'water_intake' | 'meals' | 'body_measurements';
   data: any;
   timestamp: Date;
   retryCount: number;

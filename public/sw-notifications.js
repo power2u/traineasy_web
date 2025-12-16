@@ -1,5 +1,6 @@
 // Service Worker for Background Notifications
 // This runs independently of the main app
+// NOTE: Meal notifications are now handled by server-side FCM system
 
 const NOTIFICATION_CHECK_INTERVAL = 60 * 60 * 1000; // Check every hour
 const DB_NAME = 'fitness-tracker-db';
@@ -14,13 +15,18 @@ function openDB() {
   });
 }
 
-// Check if user needs reminders
+// Check if user needs reminders (DISABLED - using FCM instead)
 async function checkAndSendReminders() {
   try {
+    console.log('[SW] Meal notifications disabled - using server-side FCM system');
+    // All meal notifications are now handled by the server-side FCM system
+    // This prevents duplicate notifications
+    
+    // Only handle water reminders if needed (optional)
     const db = await openDB();
     const today = new Date().toISOString().split('T')[0];
     
-    // Check water intake
+    // Water reminders are still handled locally (not duplicated by server)
     const waterTx = db.transaction(['water_logs'], 'readonly');
     const waterStore = waterTx.objectStore('water_logs');
     const waterRequest = waterStore.getAll();
@@ -49,31 +55,8 @@ async function checkAndSendReminders() {
       }
     };
     
-    // Check meals
-    const mealsTx = db.transaction(['meals'], 'readonly');
-    const mealsStore = mealsTx.objectStore('meals');
-    const mealsRequest = mealsStore.getAll();
-    
-    mealsRequest.onsuccess = () => {
-      const todayMeals = mealsRequest.result.filter(meal => 
-        meal.date === today && meal.completed
-      );
-      
-      // Send reminder if no meals logged by 2 PM
-      if (hour >= 14 && todayMeals.length === 0) {
-        self.registration.showNotification('🍽️ Meal Reminder', {
-          body: 'Don\'t forget to log your meals today!',
-          icon: '/icon-192x192.png',
-          badge: '/badge-72x72.png',
-          tag: 'meal-reminder',
-          requireInteraction: false,
-          actions: [
-            { action: 'log-meal', title: 'Log Meal' },
-            { action: 'dismiss', title: 'Dismiss' }
-          ]
-        });
-      }
-    };
+    // MEAL NOTIFICATIONS DISABLED - handled by server-side FCM
+    // This prevents duplicate notifications from local SW and server
     
   } catch (error) {
     console.error('Error checking reminders:', error);

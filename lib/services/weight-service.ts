@@ -8,9 +8,10 @@ export class WeightService {
     const today = new Date().toISOString().split('T')[0];
     
     const { data, error } = await this.supabase
-      .from('weight_logs')
+      .from('body_measurements')
       .select('*')
       .eq('user_id', userId)
+      .eq('measurement_type', 'weight')
       .eq('date', today)
       .maybeSingle();
 
@@ -45,10 +46,11 @@ export class WeightService {
     }
 
     const { data, error } = await this.supabase
-      .from('weight_logs')
+      .from('body_measurements')
       .insert({
         user_id: userId,
-        weight,
+        measurement_type: 'weight',
+        value: weight,
         unit,
         date: new Date().toISOString().split('T')[0],
         notes,
@@ -62,9 +64,10 @@ export class WeightService {
 
   async getLogs(userId: string, limit = 30): Promise<WeightLog[]> {
     const { data, error } = await this.supabase
-      .from('weight_logs')
+      .from('body_measurements')
       .select('*')
       .eq('user_id', userId)
+      .eq('measurement_type', 'weight')
       .order('date', { ascending: false })
       .limit(limit);
 
@@ -74,19 +77,21 @@ export class WeightService {
 
   async deleteLog(logId: string, userId: string): Promise<void> {
     const { error } = await this.supabase
-      .from('weight_logs')
+      .from('body_measurements')
       .delete()
       .eq('id', logId)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .eq('measurement_type', 'weight');
 
     if (error) throw error;
   }
 
   async getLatestLog(userId: string): Promise<WeightLog | null> {
     const { data, error } = await this.supabase
-      .from('weight_logs')
+      .from('body_measurements')
       .select('*')
       .eq('user_id', userId)
+      .eq('measurement_type', 'weight')
       .order('date', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -131,9 +136,10 @@ export class WeightService {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     const { data, error } = await this.supabase
-      .from('weight_logs')
-      .select('weight, unit')
+      .from('body_measurements')
+      .select('value, unit')
       .eq('user_id', userId)
+      .eq('measurement_type', 'weight')
       .gte('date', sevenDaysAgo.toISOString().split('T')[0]);
 
     if (error) throw error;
@@ -141,7 +147,7 @@ export class WeightService {
 
     // Convert all weights to kg for accurate averaging
     const weightsKg = data.map(log => {
-      const weight = parseFloat(log.weight);
+      const weight = parseFloat(log.value);
       return log.unit === 'kg' ? weight : weight * 0.45359237;
     });
     
@@ -154,9 +160,10 @@ export class WeightService {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const { data, error } = await this.supabase
-      .from('weight_logs')
-      .select('weight, unit')
+      .from('body_measurements')
+      .select('value, unit')
       .eq('user_id', userId)
+      .eq('measurement_type', 'weight')
       .gte('date', thirtyDaysAgo.toISOString().split('T')[0]);
 
     if (error) throw error;
@@ -164,7 +171,7 @@ export class WeightService {
 
     // Convert all weights to kg for accurate averaging
     const weightsKg = data.map(log => {
-      const weight = parseFloat(log.weight);
+      const weight = parseFloat(log.value);
       return log.unit === 'kg' ? weight : weight * 0.45359237;
     });
     
@@ -201,7 +208,7 @@ export class WeightService {
     return {
       id: data.id,
       userId: data.user_id,
-      weight: parseFloat(data.weight),
+      weight: parseFloat(data.value || data.weight), // Support both value (new) and weight (legacy)
       unit: data.unit,
       date: new Date(data.date),
       notes: data.notes,

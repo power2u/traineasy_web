@@ -20,19 +20,15 @@ export async function GET(request: Request) {
       );
     }
 
-    // Get user profile
-    const { data: userProfile, error: profileError } = await supabase
+    // Try to get user profile, use email as fallback
+    const { data: userProfile } = await supabase
       .from('user_preferences')
       .select('id, full_name')
       .eq('id', user.id)
       .single();
 
-    if (profileError || !userProfile) {
-      return NextResponse.json(
-        { error: 'User profile not found', details: profileError },
-        { status: 404 }
-      );
-    }
+    // Use email as fallback if no profile found
+    const userName = userProfile?.full_name || user.email?.split('@')[0] || 'User';
 
     // Get user's FCM tokens
     const { data: tokens, error: tokensError } = await supabase
@@ -64,12 +60,12 @@ export async function GET(request: Request) {
     };
 
     const mealLabel = mealLabels[mealType] || mealType;
-    const userName = userProfile.full_name || 'there';
+    const displayName = userName || 'there';
     
     // Create test notification message
     const notificationMessage = isTest 
       ? `🧪 Test notification for ${mealLabel}! This is a test from the dev panel.`
-      : `Hey ${userName}! You missed your ${mealLabel}. Don't forget to log it!`;
+      : `Hey ${displayName}! You missed your ${mealLabel}. Don't forget to log it!`;
 
     // Send notification
     const fcmResult = await sendPushNotification({
@@ -101,7 +97,7 @@ export async function GET(request: Request) {
         : fcmResult.error || 'Failed to send notification',
       details: {
         userId: user.id,
-        userName: userProfile.full_name,
+        userName: userName,
         mealType,
         mealLabel,
         notificationMessage,

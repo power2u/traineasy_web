@@ -1,6 +1,6 @@
-// Meal Notification Service Worker
-// Handles background meal reminders even when app is closed
-// Optimized for battery life with intelligent scheduling
+// Meal Notification Service Worker - DISABLED
+// This service worker is DISABLED to prevent duplicate notifications
+// All meal notifications are now handled by the server-side FCM system
 
 const CACHE_NAME = 'meal-notifications-v1';
 const NOTIFICATION_WINDOW = 60; // Check for 60 minutes after scheduled meal time
@@ -202,10 +202,11 @@ async function scheduleNextCheck() {
   }
 }
 
-// Main: Check meals and send notifications
+// Main: Check meals and send notifications (DISABLED)
 async function checkMealsAndNotify() {
   try {
-    console.log('[Meal SW] Checking meals...');
+    console.log('[Meal SW] DISABLED - All meal notifications handled by server-side FCM system');
+    return; // Exit early - no local meal notifications
     
     // Check if meal times are configured
     const mealTimesConfigured = await getFromLocalStorage('meal_times_configured');
