@@ -101,3 +101,8 @@ ADMIN_USER_MANAGEMENT_GUIDE.md
 ADMIN_USER_PROFILE_GUIDE.md
 supabase/migrations/20241215_remove_weight_logs_table.sql
 supabase/migrations/20241215_body_measurements_rls.sql
+COMPLETE_NOTIFICATION_SYSTEM_SETUP.md
+DAILY_NOTIFICATIONS_SETUP.md
+supabase/migrations/20241216_weekly_measurement_reminder_cron.sql
+supabase/migrations/20241215_notification_logs_table.sql
+supabase/migrations/20241215_good_morning_night_cron.sql
