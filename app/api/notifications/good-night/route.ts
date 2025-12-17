@@ -78,8 +78,7 @@ export async function POST(request: Request) {
           const { data: tokens } = await supabase
             .from('fcm_tokens')
             .select('token')
-            .eq('user_id', user.id)
-            .eq('is_active', true);
+            .eq('user_id', user.id);
           
           if (!tokens || tokens.length === 0) {
             console.log(`No active FCM tokens for user ${user.id}`);

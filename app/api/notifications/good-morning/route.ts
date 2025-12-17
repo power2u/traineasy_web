@@ -56,6 +56,8 @@ export async function POST(request: Request) {
         
         const [userHour, userMinute] = userLocalTime.split(':').map(Number);
         
+        console.log(`User ${user.id} (${user.full_name}): Local time is ${userHour}:${userMinute}`);
+        
         // Check if it's 7:00 AM in user's timezone (with 60-minute window since cron runs hourly)
         if (userHour === 7) {
           // Check if we already sent a good morning notification today
@@ -78,13 +80,14 @@ export async function POST(request: Request) {
           const { data: tokens } = await supabase
             .from('fcm_tokens')
             .select('token')
-            .eq('user_id', user.id)
-            .eq('is_active', true);
+            .eq('user_id', user.id);
           
           if (!tokens || tokens.length === 0) {
-            console.log(`No active FCM tokens for user ${user.id}`);
+            console.log(`No FCM tokens for user ${user.id}`);
             continue;
           }
+          
+          console.log(`Found ${tokens.length} FCM tokens for user ${user.id}`);
 
           // Send good morning notification
           const notificationPayload = {
