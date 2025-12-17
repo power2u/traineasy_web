@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { sendPushNotification } from '@/lib/firebase/admin';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -96,19 +97,15 @@ export async function POST(request: Request) {
             }
           };
 
-          // Send to FCM service
-          const fcmResponse = await fetch(`http://localhost:3000/api/fcm/send`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              tokens: tokens.map(t => t.token),
-              notification: notificationPayload
-            })
+          // Send push notification using Firebase Admin SDK
+          const fcmResult = await sendPushNotification({
+            tokens: tokens.map(t => t.token),
+            title: notificationPayload.title,
+            body: notificationPayload.body,
+            data: notificationPayload.data
           });
 
-          if (fcmResponse.ok) {
+          if (fcmResult.success) {
             notificationsSent++;
             console.log(`Good morning notification sent to user ${user.id} (${user.full_name})`);
             
@@ -120,11 +117,14 @@ export async function POST(request: Request) {
                 notification_type: 'good_morning',
                 title: notificationPayload.title,
                 body: notificationPayload.body,
-                sent_at: now.toISOString()
+                sent_at: now.toISOString(),
+                metadata: {
+                  successCount: fcmResult.successCount,
+                  failureCount: fcmResult.failureCount
+                }
               });
           } else {
-            const errorText = await fcmResponse.text();
-            errors.push(`Failed to send to user ${user.id}: ${errorText}`);
+            errors.push(`Failed to send to user ${user.id}: ${fcmResult.error}`);
           }
         }
       } catch (userError) {
