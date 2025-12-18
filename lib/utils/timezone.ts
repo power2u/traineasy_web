@@ -63,6 +63,61 @@ export function shouldSendMealReminder(
 }
 
 /**
+ * Check if it's time to send good morning notification (7 AM in user's timezone)
+ */
+export function shouldSendGoodMorningNotification(userTimezone: string): {
+  shouldSend: boolean;
+  userCurrentTime: string;
+  userHour: number;
+  userMinute: number;
+} {
+  const userTime = getCurrentTimeInTimezone(userTimezone);
+  
+  return {
+    shouldSend: userTime.hour === 7,
+    userCurrentTime: userTime.timeString,
+    userHour: userTime.hour,
+    userMinute: userTime.minute
+  };
+}
+
+/**
+ * Check if it's time to send good night notification (8 PM or after dinner time in user's timezone)
+ */
+export function shouldSendGoodNightNotification(
+  userTimezone: string,
+  dinnerTime?: string | null
+): {
+  shouldSend: boolean;
+  userCurrentTime: string;
+  userHour: number;
+  userMinute: number;
+  targetHour: number;
+} {
+  const userTime = getCurrentTimeInTimezone(userTimezone);
+  
+  // If dinner time is configured, send notification 1 hour after dinner
+  // Otherwise, send at 8 PM (20:00)
+  let targetHour = 20; // Default to 8 PM
+  
+  if (dinnerTime) {
+    const [dinnerHour] = dinnerTime.split(':').map(Number);
+    // Send notification 1 hour after dinner, but not before 8 PM
+    targetHour = Math.max(20, dinnerHour + 1);
+    // Cap at 11 PM to avoid late night notifications
+    targetHour = Math.min(23, targetHour);
+  }
+  
+  return {
+    shouldSend: userTime.hour === targetHour,
+    userCurrentTime: userTime.timeString,
+    userHour: userTime.hour,
+    userMinute: userTime.minute,
+    targetHour
+  };
+}
+
+/**
  * Get user's current date in their timezone
  */
 export function getCurrentDateInTimezone(timezone: string = 'Asia/Kolkata'): string {

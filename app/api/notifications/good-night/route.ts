@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { sendPushNotification } from '@/lib/firebase/admin';
+import { shouldSendGoodNightNotification, getCurrentDateInTimezone } from '@/lib/utils/timezone';
+import { getActiveNotificationMessage } from '@/app/actions/notification-messages';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -19,13 +21,14 @@ export async function POST(request: Request) {
     
     console.log(`Good Night cron running at ${now.toISOString()}`);
     
-    // Get all users who should receive good night notification (8 PM in their timezone)
+    // Get all users who should receive good night notification (8 PM or after dinner time in their timezone)
     const { data: users, error: usersError } = await supabase
       .from('user_preferences')
       .select(`
         id,
         full_name,
         timezone,
+        dinner_time,
         notifications_enabled
       `)
       .eq('notifications_enabled', true);
@@ -45,21 +48,16 @@ export async function POST(request: Request) {
 
     for (const user of users) {
       try {
-        // Calculate user's local time
+        // Check if it's time to send good night notification for this user
         const userTimezone = user.timezone || 'Asia/Kolkata';
-        const userLocalTime = new Date().toLocaleString('en-US', { 
-          timeZone: userTimezone,
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit'
-        });
+        const timeCheck = shouldSendGoodNightNotification(userTimezone, user.dinner_time);
         
-        const [userHour, userMinute] = userLocalTime.split(':').map(Number);
+        console.log(`User ${user.id} (${user.full_name}): Local time is ${timeCheck.userCurrentTime}, target hour: ${timeCheck.targetHour}, should send: ${timeCheck.shouldSend}`);
         
-        // Check if it's 8:00 PM (20:00) in user's timezone (with 60-minute window since cron runs hourly)
-        if (userHour === 20) {
-          // Check if we already sent a good night notification today
-          const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD format
+        // Check if it's 8:00 PM in user's timezone
+        if (timeCheck.shouldSend) {
+          // Check if we already sent a good night notification today (in user's timezone)
+          const today = getCurrentDateInTimezone(userTimezone);
           const { data: existingNotification } = await supabase
             .from('notification_logs')
             .select('id')
@@ -85,8 +83,8 @@ export async function POST(request: Request) {
             continue;
           }
 
-          // Check today's meal completion for personalized message
-          const todayForMeals = new Date().toISOString().split('T')[0];
+          // Check today's meal completion for personalized message (in user's timezone)
+          const todayForMeals = getCurrentDateInTimezone(userTimezone);
           const { data: todayMeal } = await supabase
             .from('meals')
             .select('*')
@@ -105,23 +103,28 @@ export async function POST(request: Request) {
             ].filter(Boolean).length;
           }
 
-          // Personalized good night message based on meal completion
-          let bodyMessage = `Good night ${user.full_name || 'there'}! 🌙`;
-          let actionUrl = '/meals';
-
-          if (completedMeals >= 4) {
-            bodyMessage += ' Great job completing your meals today! Sweet dreams! 😴';
-            actionUrl = '/dashboard';
-          } else if (completedMeals >= 2) {
-            bodyMessage += ' You did well today! Don\'t forget to log tomorrow\'s meals. 📝';
-          } else {
-            bodyMessage += ' Remember to track your meals tomorrow for better health! 🍽️';
+          // Get active good night message from database
+          const messageResult = await getActiveNotificationMessage('good_night');
+          
+          let title = 'Good Night!';
+          let body = 'Sleep well and rest up for tomorrow!';
+          
+          if (messageResult.success && messageResult.message) {
+            title = messageResult.message.title;
+            body = messageResult.message.message;
+            
+            // Replace {name} placeholder with user's name
+            const userName = user.full_name?.split(' ')[0] || 'there';
+            title = title.replace(/{name}/g, userName);
+            body = body.replace(/{name}/g, userName);
           }
 
-          // Send good night notification
+          // Determine action URL based on meal completion
+          const actionUrl = completedMeals >= 4 ? '/dashboard' : '/meals';
+
           const notificationPayload = {
-            title: '🌙 Good Night!',
-            body: bodyMessage,
+            title,
+            body,
             data: {
               type: 'good_night',
               action: 'open_meals',
@@ -150,7 +153,7 @@ export async function POST(request: Request) {
                 user_id: user.id,
                 notification_type: 'good_night',
                 title: notificationPayload.title,
-                body: bodyMessage,
+                body: notificationPayload.body,
                 sent_at: now.toISOString(),
                 metadata: {
                   mealsCompleted: completedMeals,

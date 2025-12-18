@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { Card, Button, Input, TextArea, Chip, Spinner, TextField, Label } from '@heroui/react';
 import { toast } from 'sonner';
-
+import Link from 'next/link';
+ 
 interface NotificationResult {
   success: boolean;
   totalTokens: number;
@@ -61,11 +62,22 @@ export default function AdminNotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Send Push Notifications</h1>
-        <p className="text-default-500 mt-1">
-          Send manual push notifications to all users with active FCM tokens
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold">Send Push Notifications</h1>
+          <p className="text-default-500 mt-1">
+            Send manual push notifications to all users with active FCM tokens
+          </p>
+        </div>
+        <div className="flex gap-2">
+       <Link href="/admin/notifications/custom-templates" ><Button  
+            
+            
+            className="bg-green-600 text-white hover:bg-green-700"
+          >
+            Manage Messages
+          </Button></Link>
+        </div>
       </div>
 
       <Card className="p-6">

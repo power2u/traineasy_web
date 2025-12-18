@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { sendPushNotification } from '@/lib/firebase/admin';
+import { getActiveNotificationMessage } from '@/app/actions/notification-messages';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -105,23 +106,27 @@ export async function POST(request: Request) {
           const hasRecentWeight = recentMeasurements?.some(m => m.measurement_type === 'weight') ?? false;
           const hasRecentBodyMeasurements = recentMeasurements?.some(m => m.measurement_type !== 'weight') ?? false;
           
-          // Personalized message based on recent activity
-          let bodyMessage = `Hey ${user.full_name || 'there'}! 📏`;
-          let actionUrl = '/measurements';
-
-          if (!hasRecentWeight && !hasRecentBodyMeasurements) {
-            bodyMessage += ' Time for your weekly measurements! Track your weight and body measurements to monitor your progress. 💪';
-          } else if (!hasRecentWeight) {
-            bodyMessage += ' Don\'t forget to log your weight this week! Your body measurements look good. ⚖️';
-          } else if (!hasRecentBodyMeasurements) {
-            bodyMessage += ' Great job logging your weight! How about tracking your body measurements too? 📐';
-          } else {
-            bodyMessage += ' You\'re doing amazing with your measurements! Keep up the consistent tracking. 🎯';
+          // Get active weekly measurement reminder message from database
+          const messageResult = await getActiveNotificationMessage('weekly_measurement_reminder');
+          
+          let title = '📏 Weekly Measurement Reminder';
+          let bodyMessage = `Hey ${user.full_name || 'there'}! Time for your weekly measurements!`;
+          
+          if (messageResult.success && messageResult.message) {
+            title = messageResult.message.title;
+            bodyMessage = messageResult.message.message;
+            
+            // Replace {name} placeholder with user's name
+            const userName = user.full_name?.split(' ')[0] || 'there';
+            title = title.replace(/{name}/g, userName);
+            bodyMessage = bodyMessage.replace(/{name}/g, userName);
           }
+
+          const actionUrl = '/measurements';
 
           // Send weekly measurement reminder notification
           const notificationPayload = {
-            title: '📏 Weekly Measurement Reminder',
+            title,
             body: bodyMessage,
             data: {
               type: 'weekly_measurement_reminder',

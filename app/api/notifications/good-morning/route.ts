@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { sendPushNotification } from '@/lib/firebase/admin';
+import { shouldSendGoodMorningNotification, getCurrentDateInTimezone } from '@/lib/utils/timezone';
+import { getActiveNotificationMessage } from '@/app/actions/notification-messages';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -45,23 +47,16 @@ export async function POST(request: Request) {
 
     for (const user of users) {
       try {
-        // Calculate user's local time
+        // Check if it's time to send good morning notification for this user
         const userTimezone = user.timezone || 'Asia/Kolkata';
-        const userLocalTime = new Date().toLocaleString('en-US', { 
-          timeZone: userTimezone,
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit'
-        });
+        const timeCheck = shouldSendGoodMorningNotification(userTimezone);
         
-        const [userHour, userMinute] = userLocalTime.split(':').map(Number);
+        console.log(`User ${user.id} (${user.full_name}): Local time is ${timeCheck.userCurrentTime}, should send: ${timeCheck.shouldSend}`);
         
-        console.log(`User ${user.id} (${user.full_name}): Local time is ${userHour}:${userMinute}`);
-        
-        // Check if it's 7:00 AM in user's timezone (with 60-minute window since cron runs hourly)
-        if (userHour === 7) {
-          // Check if we already sent a good morning notification today
-          const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD format
+        // Check if it's 7:00 AM in user's timezone
+        if (timeCheck.shouldSend) {
+          // Check if we already sent a good morning notification today (in user's timezone)
+          const today = getCurrentDateInTimezone(userTimezone);
           const { data: existingNotification } = await supabase
             .from('notification_logs')
             .select('id')
@@ -89,10 +84,25 @@ export async function POST(request: Request) {
           
           console.log(`Found ${tokens.length} FCM tokens for user ${user.id}`);
 
-          // Send good morning notification
+          // Get active good morning message from database
+          const messageResult = await getActiveNotificationMessage('good_morning');
+          
+          let title = 'Good Morning!';
+          let body = 'Have a great day ahead!';
+          
+          if (messageResult.success && messageResult.message) {
+            title = messageResult.message.title;
+            body = messageResult.message.message;
+            
+            // Replace {name} placeholder with user's name
+            const userName = user.full_name?.split(' ')[0] || 'there';
+            title = title.replace(/{name}/g, userName);
+            body = body.replace(/{name}/g, userName);
+          }
+
           const notificationPayload = {
-            title: '🌅 Good Morning!',
-            body: `Good morning ${user.full_name || 'there'}! Ready to start your wellness journey today?`,
+            title,
+            body,
             data: {
               type: 'good_morning',
               action: 'open_app',

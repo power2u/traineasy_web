@@ -8,7 +8,10 @@
       },
       "autoApprove": [
         "execute_sql",
-        "get_logs"
+        "get_logs",
+        "list_migrations",
+        "list_tables",
+        "apply_migration"
       ]
     }
   }

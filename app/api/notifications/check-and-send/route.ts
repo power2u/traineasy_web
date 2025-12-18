@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { sendPushNotification } from '@/lib/firebase/admin';
 import { shouldSendMealReminder, getCurrentDateInTimezone } from '@/lib/utils/timezone';
+import { getActiveNotificationMessage } from '@/app/actions/notification-messages';
 
 /**
  * API Route for checking user activity and sending notifications
@@ -161,22 +162,27 @@ async function sendMealNotification({
       return { success: false, message: 'No FCM tokens found' };
     }
 
-    const mealLabels: Record<string, string> = {
-      breakfast: 'breakfast',
-      snack1: 'morning snack',
-      lunch: 'lunch',
-      snack2: 'afternoon snack',
-      dinner: 'dinner',
-    };
-
-    const displayName = userName || 'there';
-    const mealLabel = mealLabels[mealType] || mealType;
-    const message = `Hey ${displayName}! You missed your ${mealLabel}. Don't forget to log it!`;
+    // Get active meal reminder message from database
+    const notificationType = `meal_reminder_${mealType}`;
+    const messageResult = await getActiveNotificationMessage(notificationType);
+    
+    let title = '🍽️ Meal Reminder';
+    let message = `Hey ${userName || 'there'}! Time for your meal reminder!`;
+    
+    if (messageResult.success && messageResult.message) {
+      title = messageResult.message.title;
+      message = messageResult.message.message;
+      
+      // Replace {name} placeholder with user's name
+      const displayName = userName?.split(' ')[0] || 'there';
+      title = title.replace(/{name}/g, displayName);
+      message = message.replace(/{name}/g, displayName);
+    }
 
     // Send via Firebase Admin SDK
     const result = await sendPushNotification({
       tokens: tokens.map((t: any) => t.token),
-      title: '🍽️ Meal Reminder',
+      title,
       body: message,
       data: {
         type: 'meal_reminder',
