@@ -97,8 +97,18 @@ export async function createMembership(data: {
   try {
     const supabase = await createClient();
 
-    // First, deactivate any existing active memberships
-    await supabase.rpc('deactivate_user_memberships', { p_user_id: data.user_id });
+    // First, deactivate any existing active memberships (using function)
+    try {
+      await supabase.rpc('deactivate_user_memberships', { p_user_id: data.user_id });
+    } catch (rpcError) {
+      // Fallback: deactivate directly with SQL if function fails
+      console.warn('RPC function failed, using direct SQL:', rpcError);
+      await supabase
+        .from('user_memberships')
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .eq('user_id', data.user_id)
+        .eq('status', 'active');
+    }
 
     // Create new membership
     const { data: membership, error } = await supabase

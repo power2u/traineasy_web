@@ -189,6 +189,16 @@ export async function createPlan(
   try {
     const supabase = await createClient();
 
+    // First, deactivate all existing active plans for this user
+    const { error: deactivateError } = await supabase
+      .from('user_plans')
+      .update({ is_active: false })
+      .eq('user_id', userId)
+      .eq('is_active', true);
+
+    if (deactivateError) throw deactivateError;
+
+    // Then create the new active plan
     const { error } = await supabase.from('user_plans').insert({
       user_id: userId,
       ...planData,
@@ -207,6 +217,29 @@ export async function updatePlan(planId: string, planData: Partial<UserPlan>) {
   try {
     const supabase = await createClient();
 
+    // If we're activating this plan, first deactivate all other plans for this user
+    if (planData.is_active === true) {
+      // Get the user_id for this plan
+      const { data: planInfo, error: planError } = await supabase
+        .from('user_plans')
+        .select('user_id')
+        .eq('id', planId)
+        .single();
+
+      if (planError) throw planError;
+
+      // Deactivate all other active plans for this user
+      const { error: deactivateError } = await supabase
+        .from('user_plans')
+        .update({ is_active: false })
+        .eq('user_id', planInfo.user_id)
+        .eq('is_active', true)
+        .neq('id', planId); // Don't deactivate the plan we're updating
+
+      if (deactivateError) throw deactivateError;
+    }
+
+    // Now update the target plan
     const { error } = await supabase
       .from('user_plans')
       .update(planData)
