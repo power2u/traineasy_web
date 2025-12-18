@@ -133,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authCheckRef.current = true;
 
     // Check active session with getUser to ensure fresh data (including banned status)
-    supabase.auth.getUser().then(({ data: { user }, error }) => {
+    supabase.auth.getUser().then(({ data: { user }, error }: { data: { user: User | null }, error: any }) => {
       authCheckRef.current = false;
       
       if (error || !user) {
@@ -151,7 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let authChangeTimeout: NodeJS.Timeout;
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange((event: string, session: any) => {
       // Debounce auth state changes to prevent rapid fire requests
       clearTimeout(authChangeTimeout);
       authChangeTimeout = setTimeout(() => {
@@ -180,9 +180,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) {
           // Check if user exists but signed up with different provider
           if (error.message.includes('Invalid login credentials')) {
-            // Check if user exists with this email
-            const { data: users } = await supabase.auth.admin.listUsers();
-            // Note: admin.listUsers() won't work from client, so we'll handle this differently
             throw new Error('Invalid email or password. If you signed up with Google, please use "Continue with Google" instead.');
           }
           throw error;
@@ -220,7 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Remove ALL FCM tokens from database (complete logout)
       if (user) {
-        await removeFCMToken(user.id, true).catch(err => 
+        await removeFCMToken(user.id, true).catch((err: any) => 
           console.error('Failed to remove FCM token:', err)
         );
       }
@@ -232,7 +229,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(err.message || 'Sign out failed');
       throw err;
     }
-  }, [router, supabase]);
+  }, [user, router, supabase]);
 
   const value = useMemo(() => ({
     user,
