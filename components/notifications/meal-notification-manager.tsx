@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useAuth } from '@/lib/contexts/auth-context';
+import { useAuthUser } from '@/lib/contexts/auth-context';
 import { getMealServiceWorkerManager } from '@/lib/notifications/meal-sw-manager';
 import { useMealsData } from '@/lib/hooks/use-meals-data';
 
@@ -45,7 +45,7 @@ import '@/lib/utils/meal-notification-debug';
  * ```
  */
 export function MealNotificationManager() {
-  const { user } = useAuth();
+  const user = useAuthUser();
   const { toggleMeal } = useMealsData(user?.id || '');
 
   // Initialize service worker

@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/lib/contexts/auth-context';
+import { useAuthUser } from '@/lib/contexts/auth-context';
 import { useCallback, useMemo } from 'react';
 import { Button, Card, Spinner } from '@heroui/react';
 import { useMealsData } from '@/lib/hooks/use-meals-data';
@@ -41,7 +41,7 @@ interface HistoryEntry {
 }
 
 export default function MealsPage() {
-  const { user } = useAuth();
+  const user = useAuthUser();
   const { meals, history, isLoading, toggleMeal: toggleMealMutation, isToggling } = useMealsData(user?.id || '');
 
   const handleToggleMeal = useCallback((

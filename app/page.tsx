@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/lib/contexts/auth-context';
+import { useAuthUser, useAuthLoading } from '@/lib/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Button, Spinner, Card } from '@heroui/react';
@@ -8,7 +8,8 @@ import Link from 'next/link';
 import { Droplet, Utensils, Scale } from 'lucide-react';
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const user = useAuthUser();
+  const loading = useAuthLoading();
   const router = useRouter();
 
   useEffect(() => {

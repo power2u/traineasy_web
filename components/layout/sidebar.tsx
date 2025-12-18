@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/lib/contexts/auth-context';
+import { useAuthUser } from '@/lib/contexts/auth-context';
 import { Button } from '@heroui/react';
 import { memo, useMemo } from 'react';
 import { LayoutDashboard, Droplet, Utensils, Ruler, User, Wrench, Info } from 'lucide-react';
@@ -43,7 +43,7 @@ const NavItem = memo(function NavItem({
 
 export const Sidebar = memo(function Sidebar() {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const user = useAuthUser();
 
   // Check if user is super admin - memoized
   const isSuperAdmin = useMemo(() => 

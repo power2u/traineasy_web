@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/lib/contexts/auth-context';
+import { useAuthUser, useAuthLoading } from '@/lib/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo } from 'react';
 import { Button, Card, Text, Spinner } from '@heroui/react';
@@ -13,7 +13,8 @@ import { getActiveMembership } from '@/app/actions/memberships';
 import { Droplet, Utensils, Scale, Calendar, AlertCircle } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth();
+  const user = useAuthUser();
+  const loading = useAuthLoading();
   const router = useRouter();
 
   // Check if user is admin

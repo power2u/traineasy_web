@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/lib/contexts/auth-context';
+import { useAuthUser } from '@/lib/contexts/auth-context';
 import { WaterTracker } from '@/components/water/water-tracker';
 import { WaterHistory } from '@/components/water/water-history';
 import { Spinner } from '@heroui/react';
@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
 export default function WaterPage() {
-  const { user } = useAuth();
+  const user = useAuthUser();
   const queryClient = useQueryClient();
   const {
     todayCount,

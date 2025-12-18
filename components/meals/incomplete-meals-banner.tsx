@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/lib/contexts/auth-context';
+import { useAuthUser } from '@/lib/contexts/auth-context';
 import { useIncompleteMeals } from '@/lib/hooks/use-meal-notifications';
 import { Clock, X } from 'lucide-react';
 import { useState } from 'react';
@@ -13,7 +13,7 @@ import Link from 'next/link';
  * Displays on dashboard or other pages to remind users
  */
 export function IncompleteMealsBanner() {
-  const { user } = useAuth();
+  const user = useAuthUser();
   const incompleteMeals = useIncompleteMeals(user?.id);
   const [dismissed, setDismissed] = useState(false);
 

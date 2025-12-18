@@ -7,7 +7,7 @@ import { TopBar } from './top-bar';
 import { MotivationMarquee } from '@/components/ui/motivation-marquee';
 import { MealTimingDialog } from '@/components/onboarding/meal-timing-dialog';
 import { useMealTimingOnboarding } from '@/lib/hooks/use-meal-timing-onboarding';
-import { useAuth } from '@/lib/contexts/auth-context';
+import { useAuthUser } from '@/lib/contexts/auth-context';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -15,7 +15,7 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const user = useAuthUser();
   const { showDialog, handleComplete } = useMealTimingOnboarding(user?.id);
   
   // Don't show app shell on auth pages or landing page
