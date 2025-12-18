@@ -1,13 +1,3 @@
-<<<<<<< HEAD
-{
-  "crons": [
-    {
-      "path": "/api/notifications/check-and-send",
-      "schedule": "0 * * * *"
-    }
-  ]
-}
-=======
 {
   "crons": [
     {
@@ -16,4 +6,3 @@
     }
   ]
 }
->>>>>>> main
