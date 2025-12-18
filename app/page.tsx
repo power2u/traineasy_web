@@ -3,9 +3,9 @@
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Button, Spinner } from '@heroui/react';
+import { Button, Spinner, Card } from '@heroui/react';
 import Link from 'next/link';
-import { Dumbbell, Droplet, Utensils, Scale } from 'lucide-react';
+import { Droplet, Utensils, Scale } from 'lucide-react';
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -19,55 +19,106 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Spinner size="lg" />
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner size="lg"  />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-8">
-      <main className="flex flex-col items-center gap-8 text-center">
-        <img src="/logo.png" alt="Fitness Tracker" className="h-20 w-20 mb-4" />
-        <h1 className="text-5xl font-bold">Fitness Tracker</h1>
-        <p className="text-xl text-gray-400 max-w-2xl">
-          Track your water intake, meals, and weight all in one place.
-          Stay healthy, stay motivated.
-        </p>
-        <div className="flex gap-4 mt-4">
+    <div className="flex min-h-screen flex-col items-center justify-center p-8 bg-background">
+      <main className="flex flex-col items-center gap-8 text-center max-w-6xl mx-auto">
+        {/* Hero Section */}
+        <div className="flex flex-col items-center gap-6">
+          <img 
+            src="/logo.png" 
+            alt="Fitness Tracker" 
+            className="h-20 w-20 mb-2 drop-shadow-lg" 
+          />
+          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary via-primary to-info bg-clip-text text-transparent">
+            Fitness Tracker
+          </h1>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl leading-relaxed">
+            Track your water intake, meals, and weight all in one place.
+            Stay healthy, stay motivated.
+          </p>
+        </div>
+
+        {/* CTA Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 mt-6">
           <Link href="/auth/signup">
-            <Button variant='tertiary' >
+            <Button 
+              size="lg" 
+              variant="ghost" 
+              className="min-w-[140px] font-medium"
+              style={{
+                backgroundColor: 'var(--muted)',
+                color: 'var(--foreground)',
+                border: '1px solid var(--border)'
+              }}
+            >
               Get Started
             </Button>
           </Link>
           <Link href="/auth/login">
-            <Button variant='primary' className="bg-blue-600" >
+            <Button 
+              size="lg" 
+              variant="primary"
+              className="min-w-[140px] font-medium"
+              style={{
+                backgroundColor: '#2563eb',
+                color: 'white',
+                border: 'none'
+              }}
+            >
               Sign In
             </Button>
           </Link>
         </div>
-        <div className="mt-12 grid gap-6 md:grid-cols-3 max-w-4xl">
-          <div className="rounded-lg border border-gray-800 bg-gray-900 p-6">
-            <Droplet className="h-8 w-8 mb-3 text-blue-400" />
-            <h3 className="text-lg font-semibold mb-2">Water Tracking</h3>
-            <p className="text-sm text-gray-400">
+
+        {/* Feature Cards */}
+        <div className="mt-16 grid gap-6 md:grid-cols-3 w-full max-w-5xl">
+          <Card className="group hover:scale-105 transition-transform duration-200 p-8 text-center card-enhanced">
+            <div className="flex justify-center mb-4">
+              <div className="p-3 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                <Droplet className="h-8 w-8 text-primary" />
+              </div>
+            </div>
+            <h3 className="text-xl font-semibold mb-3 text-foreground">
+              Water Tracking
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
               Monitor your daily hydration with simple glass counting
             </p>
-          </div>
-          <div className="rounded-lg border border-gray-800 bg-gray-900 p-6">
-            <Utensils className="h-8 w-8 mb-3 text-orange-400" />
-            <h3 className="text-lg font-semibold mb-2">Meals Tracker</h3>
-            <p className="text-sm text-gray-400">
+          </Card>
+
+          <Card className="group hover:scale-105 transition-transform duration-200 p-8 text-center card-enhanced">
+            <div className="flex justify-center mb-4">
+              <div className="p-3 rounded-full bg-warning/10 group-hover:bg-warning/20 transition-colors">
+                <Utensils className="h-8 w-8 text-warning" />
+              </div>
+            </div>
+            <h3 className="text-xl font-semibold mb-3 text-foreground">
+              Meals Tracker
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
               Track your daily meals with a simple checklist
             </p>
-          </div>
-          <div className="rounded-lg border border-gray-800 bg-gray-900 p-6">
-            <Scale className="h-8 w-8 mb-3 text-green-400" />
-            <h3 className="text-lg font-semibold mb-2">Weight Progress</h3>
-            <p className="text-sm text-gray-400">
+          </Card>
+
+          <Card className="group hover:scale-105 transition-transform duration-200 p-8 text-center card-enhanced">
+            <div className="flex justify-center mb-4">
+              <div className="p-3 rounded-full bg-success/10 group-hover:bg-success/20 transition-colors">
+                <Scale className="h-8 w-8 text-success" />
+              </div>
+            </div>
+            <h3 className="text-xl font-semibold mb-3 text-foreground">
+              Weight Progress
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
               Log your weight weekly and visualize your progress
             </p>
-          </div>
+          </Card>
         </div>
       </main>
     </div>

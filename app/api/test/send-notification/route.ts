@@ -75,7 +75,7 @@ export async function POST(request: Request) {
         fcmResult: {
           successCount: fcmResult.successCount,
           failureCount: fcmResult.failureCount,
-          errors: fcmResult.errors
+          errors: fcmResult.error
         }
       }
     });

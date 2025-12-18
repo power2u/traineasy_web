@@ -59,7 +59,7 @@ export async function GET(request: Request) {
         location: user.location,
         timezone: user.timezone,
         localTime: userTime.timeString,
-        localDate: userTime.dateString,
+        localDate: userTime.timeString,
         hour: userTime.hour,
         notifications: notifications.length > 0 ? notifications : ['No notifications at this time'],
         wouldReceiveCount: notifications.length

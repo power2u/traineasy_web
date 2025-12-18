@@ -49,6 +49,17 @@
   --info: #0ea5e9;
 }
 
+/* Light theme specific enhancements */
+.light {
+  /* Subtle shadows for cards */
+  --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --card-shadow-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  
+  /* Gradient backgrounds */
+  --gradient-primary: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+  --gradient-secondary: linear-gradient(135deg, #f5f5f4 0%, #e7e5e4 100%);
+}
+
 /* Dark Mode - Current Colors */
 :root.dark {
   /* Backgrounds */
@@ -157,6 +168,86 @@ body {
 * {
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
+}
+
+/* Card styling enhancements */
+.light .card-enhanced {
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--border);
+  transition: all 0.2s ease-in-out;
+}
+
+.light .card-enhanced:hover {
+  box-shadow: var(--card-shadow-hover);
+  border-color: var(--primary);
+}
+
+.dark .card-enhanced {
+  border: 1px solid var(--border);
+  background: var(--card);
+  transition: all 0.2s ease-in-out;
+}
+
+.dark .card-enhanced:hover {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--card) 90%, var(--primary) 10%);
+}
+
+/* Button styling enhancements - matching login page design */
+.light [data-variant="primary"],
+.light button[data-variant="primary"] {
+  background: #2563eb !important; /* blue-600 */
+  color: white !important;
+  border: none !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+}
+
+.light [data-variant="primary"]:hover,
+.light button[data-variant="primary"]:hover {
+  background: #1d4ed8 !important; /* blue-700 */
+}
+
+.light [data-variant="ghost"],
+.light button[data-variant="ghost"] {
+  background: #f5f5f4 !important; /* light gray like login */
+  color: #1c1917 !important;
+  border: 1px solid #e7e5e4 !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+}
+
+.light [data-variant="ghost"]:hover,
+.light button[data-variant="ghost"]:hover {
+  background: #e7e5e4 !important;
+}
+
+.dark [data-variant="primary"],
+.dark button[data-variant="primary"] {
+  background: #2563eb !important; /* blue-600 */
+  color: white !important;
+  border: none !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+}
+
+.dark [data-variant="primary"]:hover,
+.dark button[data-variant="primary"]:hover {
+  background: #1d4ed8 !important; /* blue-700 */
+}
+
+.dark [data-variant="ghost"],
+.dark button[data-variant="ghost"] {
+  background: #404040 !important; /* dark gray like login */
+  color: #ededed !important;
+  border: 1px solid #525252 !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+}
+
+.dark [data-variant="ghost"]:hover,
+.dark button[data-variant="ghost"]:hover {
+  background: #525252 !important;
 }
 
 /* Smooth scrolling for mobile */

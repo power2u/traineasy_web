@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useEffect, useState } from 'react';
 import { Button, Card, Spinner, TextField, Label, Input, TextArea } from '@heroui/react';
+import { SelectField, BLOOD_GROUP_OPTIONS, WEIGHT_UNIT_OPTIONS, RELATIONSHIP_OPTIONS } from '@/components/ui/select-field';
 import { 
   getProfile, 
   updateProfile, 
@@ -218,29 +219,14 @@ export default function ProfilePage() {
             <p className="text-xs text-default-500 mt-2">Choose your preferred color theme</p>
           </div>
 
-          <div>
-            <Label>Preferred Weight Unit</Label>
-            <div className="flex gap-3 mt-2">
-              <Button
-                variant={preferredUnit === 'kg' ? 'primary' : 'ghost'}
-                size="md"
-                onPress={() => setPreferredUnit('kg')}
-                isDisabled={isSaving}
-                className="flex-1"
-              >
-                Kilograms (kg)
-              </Button>
-              <Button
-                variant={preferredUnit === 'lbs' ? 'primary' : 'ghost'}
-                size="md"
-                onPress={() => setPreferredUnit('lbs')}
-                isDisabled={isSaving}
-                className="flex-1"
-              >
-                Pounds (lbs)
-              </Button>
-            </div>
-          </div>
+          <SelectField
+            label="Preferred Weight Unit"
+            placeholder="Select unit"
+            options={WEIGHT_UNIT_OPTIONS}
+            value={preferredUnit}
+            onChange={(value) => setPreferredUnit(value as 'kg' | 'lbs')}
+            isDisabled={isSaving}
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <TextField value={heightCm} onChange={setHeightCm} isDisabled={isSaving}>
@@ -248,31 +234,22 @@ export default function ProfilePage() {
               <Input type="number" placeholder="170" step="0.1" />
             </TextField>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               <TextField value={goalWeight} onChange={setGoalWeight} isDisabled={isSaving}>
                 <Label>Goal Weight</Label>
                 <Input type="number" placeholder="70" step="0.1" />
               </TextField>
-              <div className="flex gap-2">
-                <Button
-                  variant={goalWeightUnit === 'kg' ? 'primary' : 'ghost'}
-                  size="sm"
-                  onPress={() => setGoalWeightUnit('kg')}
-                  isDisabled={isSaving}
-                  className="flex-1"
-                >
-                  kg
-                </Button>
-                <Button
-                  variant={goalWeightUnit === 'lbs' ? 'primary' : 'ghost'}
-                  size="sm"
-                  onPress={() => setGoalWeightUnit('lbs')}
-                  isDisabled={isSaving}
-                  className="flex-1"
-                >
-                  lbs
-                </Button>
-              </div>
+              <SelectField
+                label="Goal Weight Unit"
+                placeholder="Select unit"
+                options={[
+                  { key: 'kg', label: 'kg', value: 'kg' },
+                  { key: 'lbs', label: 'lbs', value: 'lbs' }
+                ]}
+                value={goalWeightUnit}
+                onChange={(value) => setGoalWeightUnit(value as 'kg' | 'lbs')}
+                isDisabled={isSaving}
+              />
             </div>
           </div>
 
@@ -294,22 +271,14 @@ export default function ProfilePage() {
       <Card className="p-3 mb-3 md:p-6 md:mb-6">
         <h2 className="text-base font-semibold mb-3 md:text-xl md:mb-4">Medical Information</h2>
         <div className="space-y-3 md:space-y-4">
-          <div>
-            <Label>Blood Group</Label>
-            <select
-              value={bloodGroup}
-              onChange={(e) => setBloodGroup(e.target.value)}
-              disabled={isSaving}
-              className="w-full mt-2 px-3 py-2 bg-default-100 border border-default-200 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <option value="">Select blood group</option>
-              {bloodGroups.map((bg) => (
-                <option key={bg} value={bg}>
-                  {bg}
-                </option>
-              ))}
-            </select>
-          </div>
+          <SelectField
+            label="Blood Group"
+            placeholder="Select blood group"
+            options={BLOOD_GROUP_OPTIONS}
+            value={bloodGroup}
+            onChange={setBloodGroup}
+            isDisabled={isSaving}
+          />
 
           <TextField value={allergies} onChange={setAllergies} isDisabled={isSaving}>
             <Label>Allergies</Label>
@@ -343,10 +312,14 @@ export default function ProfilePage() {
               <Input type="tel" placeholder="+1 234 567 8900" />
             </TextField>
 
-            <TextField value={emergencyContactRelationship} onChange={setEmergencyContactRelationship} isDisabled={isSaving}>
-              <Label>Relationship</Label>
-              <Input type="text" placeholder="Spouse, Parent, Sibling, etc." />
-            </TextField>
+            <SelectField
+              label="Relationship"
+              placeholder="Select relationship"
+              options={RELATIONSHIP_OPTIONS}
+              value={emergencyContactRelationship}
+              onChange={setEmergencyContactRelationship}
+              isDisabled={isSaving}
+            />
           </div>
         </div>
       </Card>

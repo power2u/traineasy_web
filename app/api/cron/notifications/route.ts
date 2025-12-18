@@ -270,7 +270,7 @@ async function sendNotificationToUser(config: any, user: any, userTimezone: stri
 
     // Send push notification
     const fcmResult = await sendPushNotification({
-      tokens: tokens.map(t => t.token),
+      tokens: tokens.map((t: { token: any; }) => t.token),
       title: processedMessage.title,
       body: processedMessage.body,
       data: {
