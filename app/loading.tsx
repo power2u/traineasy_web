@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { Spinner } from '@heroui/react';
 
 export default function Loading() {
@@ -7,3 +8,14 @@ export default function Loading() {
     </div>
   );
 }
+=======
+import { Spinner } from '@heroui/react';
+
+export default function Loading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <Spinner size="lg" />
+    </div>
+  );
+}
+>>>>>>> main

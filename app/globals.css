@@ -160,6 +160,7 @@ body {
 }
 
 /* Smooth scrolling for mobile */
+<<<<<<< HEAD
 @media (max-width: 768px) {
   html {
     overflow: hidden;
@@ -173,6 +174,9 @@ body {
     width: 100%;
   }
 }
+=======
+
+>>>>>>> main
 
 /* Custom scrollbar for desktop */
 @media (min-width: 769px) {

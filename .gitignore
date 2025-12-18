@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
@@ -53,3 +54,132 @@ supabase/migrations/002_weight_enhancements.sql
 .kiro/specs/fitness-tracker-pwa/design.md
 .kiro/specs/fitness-tracker-pwa/requirements.md
 .kiro/specs/fitness-tracker-pwa/tasks.md
+=======
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# Firebase service account (NEVER commit this!)
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+FINAL-SUPABASE-SCHEMA.sql
+AUTH-ERROR-HANDLING.md
+IMPLEMENTATION-STATUS.md
+IMPLEMENTATION-STATUS.md
+LAYOUT-IMPLEMENTATION.md
+NATIVE-APP-LAYOUT-COMPLETE.md
+IMPLEMENTATION-STATUS.md
+IMPLEMENTATION-STATUS.md
+WEIGHT-ADVANCED-FEATURES.md
+WEIGHT-TRACKING-COMPLETE.md
+supabase/migrations/002_weight_enhancements.sql
+.kiro/specs/fitness-tracker-pwa/design.md
+.kiro/specs/fitness-tracker-pwa/requirements.md
+.kiro/specs/fitness-tracker-pwa/tasks.md
+supabase/EDGE_FUNCTION_SETUP.md
+supabase/test-meal-reminders.sql
+supabase/MEAL_REMINDERS_QUICK_START.md
+supabase/MEAL_REMINDERS_SETUP.md
+supabase/migrations/20241208_meal_reminders_cron.sql
+supabase/migrations/init_cron.sql
+supabase/README_MEAL_REMINDERS.md
+supabase/test-with-vault.sql
+supabase/migrations/20241209_daily_wellness_checkin.sql
+supabase/WELLNESS_CHECKIN_README.md
+FIREBASE_FCM_SETUP.md
+MIGRATION_SUMMARY.md
+supabase/UPDATE_MEAL_REMINDERS_CREDENTIALS.md
+SETUP_COMPLETE.md
+FIREBASE_KEYS_EXPLAINED.md
+ONESIGNAL_REMOVAL_COMPLETE.md
+supabase/migrations/20241209_fcm_tokens.sql
+QUICK_TEST_NOTIFICATIONS.md
+.gitignore
+GET_FIREBASE_KEYS.md
+supabase/check-fcm-setup.sql
+MEAL_REMINDERS_CRON_SETUP.md
+PG_CRON_SETUP_SUMMARY.md
+SETUP_PG_CRON.md
+supabase/setup-cron-config.sql
+supabase/migrations/20241209_meal_reminders_pg_cron.sql
+supabase/migrations/20241209_cron_config_table.sql
+supabase/cleanup-old-cron-jobs.sql
+.gitignore
+CRON_CLEANUP_GUIDE.md
+TEST_MEAL_REMINDER_CRON.md
+QUICK_SETUP.sql
+supabase/debug-meal-reminders.sql
+supabase/diagnose-why-no-notifications.sql
+supabase/test-api-call.sql
+supabase/migrations/20241209_complete_meal_reminders_setup.sql
+supabase/migrations/20241212_add_timezone_support.sql
+supabase/test-timezone-logic.sql
+supabase/fix-user-preferences-trigger.sql
+ADMIN_NOTIFICATIONS_GUIDE.md
+ADMIN_USER_MANAGEMENT_GUIDE.md
+ADMIN_USER_PROFILE_GUIDE.md
+supabase/migrations/20241215_remove_weight_logs_table.sql
+supabase/migrations/20241215_body_measurements_rls.sql
+COMPLETE_NOTIFICATION_SYSTEM_SETUP.md
+DAILY_NOTIFICATIONS_SETUP.md
+supabase/migrations/20241216_weekly_measurement_reminder_cron.sql
+supabase/migrations/20241215_notification_logs_table.sql
+supabase/migrations/20241215_good_morning_night_cron.sql
+TEST_NOTIFICATIONS_SOLUTION.md
+DATABASE_PERMISSION_FIXES.md
+NOTIFICATION_SYSTEM_STATUS.md
+supabase/migrations/20241216_fix_user_preferences_rls.sql
+FINAL_STATUS_SUMMARY.md
+DUPLICATE_NOTIFICATIONS_FIXED.md
+supabase/migrations/20241218_notification_messages_table.sql
+TIMEZONE_NOTIFICATIONS_UPDATE.md
+CUSTOM_NOTIFICATION_SYSTEM.md
+DYNAMIC_NOTIFICATION_TEMPLATES.md
+FINAL_DEPLOYMENT_STATUS.md
+MIGRATION_SUCCESS_REPORT.md
+supabase/migrations/20241218_populate_notification_scheduling.sql
+supabase/migrations/20241218_add_scheduling_to_notification_messages.sql
+UNIFIED_NOTIFICATION_CRON_SYSTEM.md
+TIMEZONE_AWARE_HOURLY_SYSTEM.md
+SIMPLIFIED_NOTIFICATION_SYSTEM_COMPLETE.md
+NOTIFICATION_TESTING_COMPLETE.md
+NOTIFICATION_SYSTEM_TESTS.md
+>>>>>>> main
