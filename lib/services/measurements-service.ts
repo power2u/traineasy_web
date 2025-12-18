@@ -135,7 +135,7 @@ class MeasurementsService {
     if (error) throw error;
     if (!data || data.length === 0) return null;
 
-    const sum = data.reduce((acc, curr) => acc + curr.value, 0);
+    const sum = data.reduce((acc: any, curr: { value: any; }) => acc + curr.value, 0);
     return sum / data.length;
   }
 
@@ -157,7 +157,7 @@ class MeasurementsService {
     if (error) throw error;
     if (!data || data.length === 0) return null;
 
-    const sum = data.reduce((acc, curr) => acc + curr.value, 0);
+    const sum = data.reduce((acc: any, curr: { value: any; }) => acc + curr.value, 0);
     return sum / data.length;
   }
 }

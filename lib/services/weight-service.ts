@@ -146,12 +146,12 @@ export class WeightService {
     if (!data || data.length === 0) return null;
 
     // Convert all weights to kg for accurate averaging
-    const weightsKg = data.map(log => {
+    const weightsKg = data.map((log: { value: string; unit: string; }) => {
       const weight = parseFloat(log.value);
       return log.unit === 'kg' ? weight : weight * 0.45359237;
     });
     
-    const sum = weightsKg.reduce((acc, w) => acc + w, 0);
+    const sum = weightsKg.reduce((acc: any, w: any) => acc + w, 0);
     return sum / weightsKg.length;
   }
 
@@ -170,12 +170,12 @@ export class WeightService {
     if (!data || data.length === 0) return null;
 
     // Convert all weights to kg for accurate averaging
-    const weightsKg = data.map(log => {
+    const weightsKg = data.map((log: { value: string; unit: string; }) => {
       const weight = parseFloat(log.value);
       return log.unit === 'kg' ? weight : weight * 0.45359237;
     });
     
-    const sum = weightsKg.reduce((acc, w) => acc + w, 0);
+    const sum = weightsKg.reduce((acc: any, w: any) => acc + w, 0);
     return sum / weightsKg.length;
   }
 
