@@ -1,12 +1,13 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { sendPushNotification } from '@/lib/firebase/admin';
-import { shouldSendMealReminder, getCurrentDateInTimezone } from '@/lib/utils/timezone';
 import { getActiveNotificationMessage } from '@/app/actions/notification-messages';
 
 /**
  * API Route for checking user activity and sending notifications
  * This should be called by a cron job every hour (e.g., Vercel Cron)
+ * 
+ * Timezone-aware ±5 minute window notifications
  */
 export async function GET(request: Request) {
   try {
@@ -18,11 +19,11 @@ export async function GET(request: Request) {
 
     const supabase = await createClient();
     const now = new Date();
-    const today = now.toISOString().split('T')[0]; // Keep as UTC for database consistency
+    const today = now.toISOString().split('T')[0];
     
-    console.log(`[Cron] Running meal reminder check at ${now.toISOString()}`);
+    console.log(`[Cron] Running notification check at ${now.toISOString()}`);
 
-    // Get all users with meal reminders enabled
+    // Get all users with notifications enabled
     const { data: users, error: usersError } = await supabase
       .from('user_preferences')
       .select(`
@@ -30,7 +31,8 @@ export async function GET(request: Request) {
         full_name,
         notifications_enabled,
         meal_reminders_enabled,
-        meal_times_configured,
+        water_reminders_enabled,
+        weight_reminders_enabled,
         breakfast_time,
         snack1_time,
         lunch_time,
@@ -38,87 +40,229 @@ export async function GET(request: Request) {
         dinner_time,
         timezone
       `)
-      .eq('notifications_enabled', true)
-      .eq('meal_reminders_enabled', true)
-      .eq('meal_times_configured', true);
+      .eq('notifications_enabled', true);
 
     if (usersError) throw usersError;
 
     const notifications: Array<{
       userId: string;
       userName: string;
-      mealType: string;
+      type: string;
       message: string;
       success: boolean;
     }> = [];
 
-    // Check each user's meals
-    for (const user of users || []) {
-      // Get or create today's meal record
-      let { data: meal } = await supabase
-        .from('meals')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('date', today)
+    // Helper function to check if user is logged in (has activity in last 24 hours)
+    const isUserLoggedIn = async (userId: string): Promise<boolean> => {
+      const { data } = await supabase
+        .from('user_activity')
+        .select('id')
+        .eq('user_id', userId)
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .limit(1)
         .single();
+      return !!data;
+    };
 
-      if (!meal) {
-        const { data: newMeal } = await supabase
+    // Helper to get time in user's timezone
+    const getTimeInTimezone = (timezone: string): { hours: number; minutes: number; timeStr: string } => {
+      const now_utc = new Date();
+      const timeStr = now_utc.toLocaleString('en-US', {
+        timeZone: timezone,
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return { hours, minutes, timeStr };
+    };
+
+    // Helper to check if current time is within ±5 minutes of target time
+    const isTimeMatch = (userHours: number, userMinutes: number, targetTime: string | null): boolean => {
+      if (!targetTime) return false;
+      const [targetHours, targetMinutes] = targetTime.split(':').map(Number);
+      const userTotalMin = userHours * 60 + userMinutes;
+      const targetTotalMin = targetHours * 60 + targetMinutes;
+      const diff = Math.abs(userTotalMin - targetTotalMin);
+      return diff <= 5; // ±5 minutes window
+    };
+
+    // Process each user
+    for (const user of users || []) {
+      const userTimezone = user.timezone || 'Asia/Kolkata';
+      const { hours: userHours, minutes: userMinutes, timeStr: userTimeStr } = getTimeInTimezone(userTimezone);
+      
+      // Check if user is logged in
+      const loggedIn = await isUserLoggedIn(user.id);
+
+      // MEAL REMINDERS (breakfast, snack1, lunch, snack2, dinner)
+      if (user.meal_reminders_enabled) {
+        const mealReminders = [
+          { type: 'breakfast', time: user.breakfast_time, field: 'breakfast' },
+          { type: 'snack1', time: user.snack1_time, field: 'snack1' },
+          { type: 'lunch', time: user.lunch_time, field: 'lunch' },
+          { type: 'snack2', time: user.snack2_time, field: 'snack2' },
+          { type: 'dinner', time: user.dinner_time, field: 'dinner' },
+        ];
+
+        // Get meal record
+        let { data: meal } = await supabase
           .from('meals')
-          .insert({ user_id: user.id, date: today })
-          .select()
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('date', today)
           .single();
-        meal = newMeal;
+
+        if (!meal) {
+          const { data: newMeal } = await supabase
+            .from('meals')
+            .insert({ user_id: user.id, date: today })
+            .select()
+            .single();
+          meal = newMeal;
+        }
+
+        for (const reminder of mealReminders) {
+          if (!reminder.time) continue;
+
+          // Send if: within ±5 min AND (meal not completed OR user not logged in) AND not notified yet
+          const mealField = reminder.field as keyof typeof meal;
+          const notifField = `${reminder.field}_notification_sent_at` as keyof typeof meal;
+          const completedField = `${reminder.field}_completed` as keyof typeof meal;
+
+          const isTimeToSend = isTimeMatch(userHours, userMinutes, reminder.time);
+          const mealNotCompleted = !meal?.[completedField];
+          const notYetNotified = !meal?.[notifField];
+          
+          if (isTimeToSend && (mealNotCompleted || !loggedIn) && notYetNotified) {
+            const result = await sendNotification({
+              userId: user.id,
+              userName: user.full_name,
+              type: `meal_reminder_${reminder.type}`,
+              supabase,
+            });
+
+            if (result.success && meal) {
+              await supabase
+                .from('meals')
+                .update({ [notifField]: now.toISOString() })
+                .eq('id', meal.id);
+            }
+
+            notifications.push({
+              userId: user.id,
+              userName: user.full_name || 'User',
+              type: `meal_reminder_${reminder.type}`,
+              message: result.message,
+              success: result.success,
+            });
+
+            console.log(`[${user.full_name}] Meal ${reminder.type} at ${userTimeStr}: SENT`);
+          }
+        }
       }
 
-      if (!meal) continue;
+      // WATER REMINDER (12:00 daily)
+      if (user.water_reminders_enabled && isTimeMatch(userHours, userMinutes, '12:00')) {
+        // Send if user not logged in OR not yet sent today
+        const { data: waterLog } = await supabase
+          .from('water_logs')
+          .select('id')
+          .eq('user_id', user.id)
+          .gte('created_at', `${today}T00:00:00`)
+          .limit(1)
+          .single();
 
-      // Check each meal type
-      const mealTypes = [
-        { type: 'breakfast', time: user.breakfast_time, completed: meal.breakfast_completed, notified: meal.breakfast_notification_sent_at },
-        { type: 'snack1', time: user.snack1_time, completed: meal.snack1_completed, notified: meal.snack1_notification_sent_at },
-        { type: 'lunch', time: user.lunch_time, completed: meal.lunch_completed, notified: meal.lunch_notification_sent_at },
-        { type: 'snack2', time: user.snack2_time, completed: meal.snack2_completed, notified: meal.snack2_notification_sent_at },
-        { type: 'dinner', time: user.dinner_time, completed: meal.dinner_completed, notified: meal.dinner_notification_sent_at },
-      ];
-
-      for (const mealInfo of mealTypes) {
-        if (!mealInfo.time) continue; // Skip if meal time not configured
-
-        // Check if notification should be sent using timezone-aware logic
-        const userTimezone = user.timezone || 'Asia/Kolkata';
-        const reminderCheck = shouldSendMealReminder(mealInfo.time, userTimezone, 1);
-        
-        console.log(`[${user.full_name}] ${mealInfo.type}: ${reminderCheck.userCurrentTime} vs ${reminderCheck.mealTime}, diff: ${reminderCheck.timeSinceMeal}min, should send: ${reminderCheck.shouldSend}`);
-
-        if (
-          reminderCheck.shouldSend && // At least 1 hour has passed (timezone-aware)
-          !mealInfo.completed && // Meal not completed
-          !mealInfo.notified // Notification not sent yet
-        ) {
-          // Send notification
-          const result = await sendMealNotification({
+        if (!loggedIn || !waterLog) {
+          const result = await sendNotification({
             userId: user.id,
             userName: user.full_name,
-            mealType: mealInfo.type,
+            type: 'water_reminder',
             supabase,
           });
-
-          if (result.success) {
-            // Mark notification as sent
-            await supabase
-              .from('meals')
-              .update({ [`${mealInfo.type}_notification_sent_at`]: now.toISOString() })
-              .eq('id', meal.id);
-          }
 
           notifications.push({
             userId: user.id,
             userName: user.full_name || 'User',
-            mealType: mealInfo.type,
+            type: 'water_reminder',
             message: result.message,
             success: result.success,
           });
+
+          console.log(`[${user.full_name}] Water reminder at ${userTimeStr}: SENT`);
+        }
+      }
+
+      // GOOD MORNING (07:00 daily)
+      if (isTimeMatch(userHours, userMinutes, '07:00')) {
+        // Send if user not logged in
+        if (!loggedIn) {
+          const result = await sendNotification({
+            userId: user.id,
+            userName: user.full_name,
+            type: 'good_morning',
+            supabase,
+          });
+
+          notifications.push({
+            userId: user.id,
+            userName: user.full_name || 'User',
+            type: 'good_morning',
+            message: result.message,
+            success: result.success,
+          });
+
+          console.log(`[${user.full_name}] Good morning at ${userTimeStr}: SENT`);
+        }
+      }
+
+      // GOOD NIGHT (21:00 daily)
+      if (isTimeMatch(userHours, userMinutes, '21:00')) {
+        // Send if user not logged in
+        if (!loggedIn) {
+          const result = await sendNotification({
+            userId: user.id,
+            userName: user.full_name,
+            type: 'good_night',
+            supabase,
+          });
+
+          notifications.push({
+            userId: user.id,
+            userName: user.full_name || 'User',
+            type: 'good_night',
+            message: result.message,
+            success: result.success,
+          });
+
+          console.log(`[${user.full_name}] Good night at ${userTimeStr}: SENT`);
+        }
+      }
+
+      // WEEKLY MEASUREMENT REMINDER (Saturday 19:00)
+      if (user.weight_reminders_enabled) {
+        const dayOfWeek = new Date(today).getDay(); // 0=Sunday, 6=Saturday
+        if (dayOfWeek === 6 && isTimeMatch(userHours, userMinutes, '19:00')) {
+          // Send if user not logged in
+          if (!loggedIn) {
+            const result = await sendNotification({
+              userId: user.id,
+              userName: user.full_name,
+              type: 'weekly_measurement_reminder',
+              supabase,
+            });
+
+            notifications.push({
+              userId: user.id,
+              userName: user.full_name || 'User',
+              type: 'weekly_measurement_reminder',
+              message: result.message,
+              success: result.success,
+            });
+
+            console.log(`[${user.full_name}] Weekly measurement at ${userTimeStr}: SENT`);
+          }
         }
       }
     }
@@ -140,15 +284,15 @@ export async function GET(request: Request) {
   }
 }
 
-async function sendMealNotification({
+async function sendNotification({
   userId,
   userName,
-  mealType,
+  type,
   supabase,
 }: {
   userId: string;
   userName: string | null;
-  mealType: string;
+  type: string;
   supabase: any;
 }) {
   try {
@@ -162,33 +306,37 @@ async function sendMealNotification({
       return { success: false, message: 'No FCM tokens found' };
     }
 
-    // Get active meal reminder message from database
-    const notificationType = `meal_reminder_${mealType}`;
-    const messageResult = await getActiveNotificationMessage(notificationType);
+    // Get notification message from database
+    const messageResult = await getActiveNotificationMessage(type);
     
-    let title = '🍽️ Meal Reminder';
-    let message = `Hey ${userName || 'there'}! Time for your meal reminder!`;
+    let title = 'Train Easy';
+    let message = 'Time for your notification!';
+    let urlPath = '/dashboard';
     
     if (messageResult.success && messageResult.message) {
       title = messageResult.message.title;
       message = messageResult.message.message;
       
-      // Replace {name} placeholder with user's name
+      // Replace {name} placeholder
       const displayName = userName?.split(' ')[0] || 'there';
       title = title.replace(/{name}/g, displayName);
       message = message.replace(/{name}/g, displayName);
     }
 
-    // Send via Firebase Admin SDK
+    // Determine URL path based on notification type
+    if (type.includes('meal')) urlPath = '/meals';
+    if (type.includes('water')) urlPath = '/water';
+    if (type.includes('weight') || type.includes('measurement')) urlPath = '/weight';
+
+    // Send via Firebase
     const result = await sendPushNotification({
       tokens: tokens.map((t: any) => t.token),
       title,
       body: message,
       data: {
-        type: 'meal_reminder',
-        meal_type: mealType,
+        type: type,
         date: new Date().toISOString().split('T')[0],
-        url: '/meals',
+        url: urlPath,
       },
     });
 
@@ -206,7 +354,7 @@ async function sendMealNotification({
       message: result.success ? `Sent to ${result.successCount || 0} device(s)` : result.error || 'Failed to send',
     };
   } catch (error: any) {
-    console.error('[Cron] Error sending meal notification:', error);
+    console.error('[Cron] Error sending notification:', error);
     return { success: false, message: error.message };
   }
 }
