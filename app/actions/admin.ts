@@ -118,14 +118,10 @@ export async function createUser(email: string, password: string, displayName: s
 }
 
 /**
- * DEVELOPMENT ONLY: Delete a user (admin only)
+ * Delete a user (admin only)
+ * Uses service role key to delete users with elevated permissions
  */
 export async function deleteUser(userId: string) {
-  // Only allow in development
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('This action is only available in development mode');
-  }
-
   try {
     const adminClient = createAdminClient();
 
