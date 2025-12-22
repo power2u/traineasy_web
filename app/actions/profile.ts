@@ -123,10 +123,44 @@ export async function updateProfile(userId: string, profileData: Partial<UserPro
       if (error) throw error;
     }
 
+    // Update cron jobs if notification preferences changed
+    const notificationFields = ['notifications_enabled', 'meal_reminders_enabled', 'water_reminders_enabled', 'weight_reminders_enabled', 'breakfast_time', 'snack1_time', 'lunch_time', 'snack2_time', 'dinner_time'];
+    const hasNotificationChanges = notificationFields.some(field => profileData.hasOwnProperty(field));
+    
+    if (hasNotificationChanges) {
+      // Update cron jobs asynchronously (don't wait for it)
+      updateUserCronJobs(userId).catch(error => 
+        console.error('Failed to update cron jobs:', error)
+      );
+    }
+
     return { success: true };
   } catch (error: any) {
     console.error('[updateProfile] Exception:', error);
     return { success: false, error: error.message };
+  }
+}
+
+// Helper function to register/update cron jobs after preference changes
+async function updateUserCronJobs(userId: string) {
+  try {
+    // Use the direct register endpoint to bypass daily limit for preference changes
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/cron/register-user`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('Cron jobs updated after preference change:', result.message);
+    } else {
+      console.error('Failed to update cron jobs:', response.statusText);
+    }
+  } catch (error) {
+    console.error('Error updating cron jobs:', error);
   }
 }
 

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/layout/app-shell";
+import { LocalNotificationProvider } from "@/components/notifications/local-notification-provider";
 
 export const metadata: Metadata = {
   title: "Fitness Tracker",
@@ -35,7 +36,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
         <Providers>
-          <AppShell>{children}</AppShell>
+          <LocalNotificationProvider>
+            <AppShell>{children}</AppShell>
+          </LocalNotificationProvider>
         </Providers>
       </body>
     </html>

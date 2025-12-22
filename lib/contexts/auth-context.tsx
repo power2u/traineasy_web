@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       id: supabaseUser.id,
       email: supabaseUser.email,
       phone: supabaseUser.phone,
-      banned_until: (supabaseUser as any).banned_until,
+      banned_until: (supabaseUser as { banned_until?: string }).banned_until,
       provider: (supabaseUser.app_metadata.provider as AuthProvider) || 'email',
       createdAt: new Date(supabaseUser.created_at),
       displayName,
@@ -73,13 +73,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await saveFCMToken(userId, token);
         console.log('FCM token saved successfully');
       }
-    } catch (err: any) {
-      console.warn('FCM token setup skipped:', err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.warn('FCM token setup skipped:', errorMessage);
     } finally {
       // Reset flag after delay to allow retry if needed
       setTimeout(() => {
         fcmSetupRef.current = false;
       }, FCM_SETUP_DELAY * 2);
+    }
+  }, []);
+
+  const registerUserCronJobs = useCallback(async (userId: string) => {
+    try {
+      const response = await fetch('/api/cron/sync-on-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.synced) {
+          console.log('Cron jobs synced on login:', result.message);
+        } else {
+          console.log('Cron jobs up to date:', result.message);
+        }
+      } else {
+        console.warn('Failed to sync cron jobs:', response.statusText);
+      }
+    } catch (error) {
+      console.warn('Error syncing cron jobs:', error);
     }
   }, []);
 
@@ -117,7 +143,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => {
       setupFCMToken(mappedUser.id);
     }, FCM_SETUP_DELAY);
-  }, [mapUser, updateAuthCache, setupFCMToken, supabase, router]);
+
+    // Register cron jobs for new users (async, non-blocking)
+    setTimeout(() => {
+      registerUserCronJobs(mappedUser.id);
+    }, FCM_SETUP_DELAY + 1000);
+  }, [mapUser, updateAuthCache, setupFCMToken, registerUserCronJobs, supabase, router]);
 
   useEffect(() => {
     // Check if we have recent cached auth state
@@ -133,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authCheckRef.current = true;
 
     // Check active session with getUser to ensure fresh data (including banned status)
-    supabase.auth.getUser().then(({ data: { user }, error }: { data: { user: User | null }, error: any }) => {
+    supabase.auth.getUser().then(({ data: { user }, error }: { data: { user: User | null }, error: Error | null }) => {
       authCheckRef.current = false;
       
       if (error || !user) {
@@ -151,7 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let authChangeTimeout: NodeJS.Timeout;
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event: string, session: any) => {
+    } = supabase.auth.onAuthStateChange((event: string, session: { user: User | null } | null) => {
       // Debounce auth state changes to prevent rapid fire requests
       clearTimeout(authChangeTimeout);
       authChangeTimeout = setTimeout(() => {
@@ -202,8 +233,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       router.push('/dashboard');
-    } catch (err: any) {
-      const errorMessage = err.message || 'Authentication failed';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Authentication failed';
       setError(errorMessage);
       throw err;
     } finally {
@@ -217,16 +248,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Remove ALL FCM tokens from database (complete logout)
       if (user) {
-        await removeFCMToken(user.id, true).catch((err: any) => 
-          console.error('Failed to remove FCM token:', err)
-        );
+        await removeFCMToken(user.id, true).catch((err: unknown) => {
+          const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+          console.error('Failed to remove FCM token:', errorMessage);
+        });
       }
       
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       router.push('/auth/login');
-    } catch (err: any) {
-      setError(err.message || 'Sign out failed');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Sign out failed';
+      setError(errorMessage);
       throw err;
     }
   }, [user, router, supabase]);
@@ -257,7 +290,7 @@ export function useAuth() {
 // Optimized hook for components that only need user ID
 export function useAuthUser() {
   const { user } = useAuth();
-  return useMemo(() => user, [user?.id, user?.email]); // Only re-render if ID or email changes
+  return useMemo(() => user, [user]); // Simplified dependency
 }
 
 // Optimized hook for components that only need loading state
@@ -269,8 +302,9 @@ export function useAuthLoading() {
 // Optimized hook for components that only need auth status
 export function useIsAuthenticated() {
   const { user, loading } = useAuth();
+  const isAuthenticated = !!user;
   return useMemo(() => ({ 
-    isAuthenticated: !!user, 
+    isAuthenticated, 
     loading 
-  }), [!!user, loading]);
+  }), [isAuthenticated, loading]);
 }
