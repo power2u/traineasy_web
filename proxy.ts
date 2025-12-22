@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
+export default async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -21,7 +21,7 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
+          cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
           supabaseResponse = NextResponse.next({
@@ -52,10 +52,12 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(route)
   );
 
-  // Skip auth check for public routes, API routes, and static files
+  // Skip auth check for public routes, API routes, auth routes, and static files
   if (!isProtectedRoute || 
       request.nextUrl.pathname.startsWith('/api/') ||
+      request.nextUrl.pathname.startsWith('/auth/') ||
       request.nextUrl.pathname.startsWith('/_next/') ||
+      request.nextUrl.pathname === '/' ||
       request.nextUrl.pathname.includes('.')) {
     return supabaseResponse;
   }
@@ -76,13 +78,10 @@ export async function middleware(request: NextRequest) {
 
     return supabaseResponse;
   } catch (error) {
-    console.error('Proxy auth error:', error);
+    console.error('Middleware auth error:', error);
     return supabaseResponse; // Allow request to continue on error
   }
 }
-
-// Keep proxy function for backward compatibility
-export const proxy = middleware;
 
 export const config = {
   matcher: [
