@@ -3,7 +3,7 @@
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Button, Card, Spinner, TextField, Label, Input, Chip } from '@heroui/react';
+import { Button, Card, Spinner, TextField, Label, Input, Chip, Select, ListBox } from '@heroui/react';
 import { Edit2, RefreshCw, Eye } from 'lucide-react';
 import {
   createUser,
@@ -587,25 +587,43 @@ export default function AdminUsersPage() {
                 <Input type="text" placeholder="John Doe" />
               </TextField>
 
-              <div>
-                <Label className="mb-2 block">Package (Optional)</Label>
-                <select
-                  value={createPackageId}
-                  onChange={(e) => setCreatePackageId(e.target.value)}
-                  disabled={isCreating}
-                  className="w-full px-3 py-2 rounded-lg border-2 border-default-200 bg-default-50 dark:bg-default-100 text-sm focus:border-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">No package (assign later)</option>
-                  {packages.map((pkg) => (
-                    <option key={pkg.id} value={pkg.id}>
-                      {pkg.name} - ₹{pkg.price} ({pkg.duration_days} days)
-                    </option>
-                  ))}
-                </select>
+              <Select
+                selectedKey={createPackageId === '' ? '__none__' : (createPackageId || null)}
+                onSelectionChange={(key) => {
+                  const selectedValue = key === '__none__' ? '' : (key ? String(key) : '');
+                  setCreatePackageId(selectedValue);
+                }}
+                isDisabled={isCreating}
+              >
+                <Label>Package (Optional)</Label>
+                <Select.Trigger>
+                  <Select.Value>
+                    {(() => {
+                      if (!createPackageId) return 'No package (assign later)';
+                      const selectedPkg = packages.find(p => p.id === createPackageId);
+                      return selectedPkg 
+                        ? `${selectedPkg.name} - ₹${selectedPkg.price} (${selectedPkg.duration_days} days)`
+                        : 'No package (assign later)';
+                    })()}
+                  </Select.Value>
+                  <Select.Indicator />
+                </Select.Trigger>
                 <p className="text-xs text-default-500 mt-1">
                   You can assign a package now or later from the users table
                 </p>
-              </div>
+                <Select.Popover>
+                  <ListBox>
+                    <ListBox.Item id="__none__" textValue="No package (assign later)">
+                      No package (assign later)
+                    </ListBox.Item>
+                    {packages.map((pkg) => (
+                      <ListBox.Item key={pkg.id} id={pkg.id} textValue={`${pkg.name} - ₹${pkg.price} (${pkg.duration_days} days)`}>
+                        {pkg.name} - ₹{pkg.price} ({pkg.duration_days} days)
+                      </ListBox.Item>
+                    ))}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
 
               {createError && <div className="text-sm text-red-500">{createError}</div>}
               {createSuccess && <div className="text-sm text-green-500">{createSuccess}</div>}

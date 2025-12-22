@@ -1,6 +1,6 @@
 'use server';
 
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient } from '@/lib/supabase/server';
 
 /**
  * DEVELOPMENT ONLY: Create or update a super admin user
@@ -70,14 +70,10 @@ export async function createSuperAdmin(email: string) {
 }
 
 /**
- * DEVELOPMENT ONLY: Create a new user (admin only)
+ * Create a new user (admin only)
+ * Uses service role key to create users with elevated permissions
  */
 export async function createUser(email: string, password: string, displayName: string, role: 'user' | 'super_admin' = 'user') {
-  // Only allow in development
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('This action is only available in development mode');
-  }
-
   try {
     const adminClient = createAdminClient();
 
