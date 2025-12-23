@@ -28,11 +28,6 @@ export default function NotificationMessagesAdminPage() {
   const [scheduleTime, setScheduleTime] = useState('');
   const [repeatPattern, setRepeatPattern] = useState('');
   const [isEnabled, setIsEnabled] = useState(true);
-
-  useEffect(() => {
-    loadMessages();
-  }, []);
-
   const loadMessages = async () => {
     setIsLoading(true);
     const result = await getAllNotificationMessages();
@@ -43,6 +38,11 @@ export default function NotificationMessagesAdminPage() {
     }
     setIsLoading(false);
   };
+  useEffect(() => {
+    loadMessages();
+  }, []);
+
+
 
   const handleCreate = async () => {
     if (!notificationType || !title.trim() || !message.trim()) {

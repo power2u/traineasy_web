@@ -12,7 +12,7 @@ mkdir -p logs/cron
 
 # Make notification script executable
 echo "Making scripts executable..."
-chmod +x scripts/send-notification.js
+chmod +x scripts/send-notification.mjs
 
 # Create log rotation for cron logs
 echo "Setting up log rotation..."
@@ -145,7 +145,7 @@ class CronManager {
       // Add new cron jobs (using local server time)
       const newCronEntries = cronJobs.map(job => {
         const jobName = `fitness_tracker_${job.user_id}_${job.notification_type}`;
-        const command = `node ${process.cwd()}/scripts/send-notification.js ${job.user_id} ${job.notification_type}`;
+        const command = `node ${process.cwd()}/scripts/send-notification.mjs ${job.user_id} ${job.notification_type}`;
         return `# ${jobName}\n${job.cron_expression} ${command}`;
       });
       

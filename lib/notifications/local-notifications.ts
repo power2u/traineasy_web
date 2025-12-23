@@ -9,7 +9,7 @@ interface NotificationPayload {
   icon?: string;
   badge?: string;
   tag?: string;
-  data?: any;
+  data?: Record<string, unknown>;
   url?: string;
 }
 
@@ -236,6 +236,7 @@ export class LocalNotificationManager {
    * Check if notifications are supported and enabled
    */
   isSupported(): boolean {
+    if (typeof window === 'undefined') return false;
     return 'serviceWorker' in navigator && 'Notification' in window;
   }
 
@@ -243,6 +244,7 @@ export class LocalNotificationManager {
    * Get current notification permission status
    */
   getPermissionStatus(): NotificationPermission {
+    if (typeof window === 'undefined') return 'default';
     if (!('Notification' in window)) {
       return 'denied';
     }

@@ -95,11 +95,13 @@ export function useLocalNotifications() {
 
   // Check if notifications are supported
   const isSupported = useCallback(() => {
+    if (typeof window === 'undefined') return false;
     return localNotificationManager.isSupported();
   }, []);
 
   // Get permission status
   const getPermissionStatus = useCallback(() => {
+    if (typeof window === 'undefined') return 'default' as NotificationPermission;
     return localNotificationManager.getPermissionStatus();
   }, []);
 

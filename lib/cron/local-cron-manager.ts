@@ -17,7 +17,7 @@ interface UserCronJob {
 export class LocalCronManager {
   private static instance: LocalCronManager;
   private readonly cronJobPrefix = 'fitness_tracker_';
-  private readonly scriptPath = path.join(process.cwd(), 'scripts', 'send-notification.js');
+  private readonly scriptPath = path.join(process.cwd(), 'scripts', 'send-notification.mjs');
 
   private constructor() {}
 

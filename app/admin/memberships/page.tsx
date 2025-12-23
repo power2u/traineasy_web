@@ -23,12 +23,13 @@ export default function AdminMembershipsPage() {
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Create membership modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedPackageId, setSelectedPackageId] = useState('');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState('');
   const [notes, setNotes] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -38,13 +39,20 @@ export default function AdminMembershipsPage() {
   const [userMemberships, setUserMemberships] = useState<UserMembership[]>([]);
   const [isLoadingMemberships, setIsLoadingMemberships] = useState(false);
 
+  // Handle client-side mounting
   useEffect(() => {
-    checkAdminAndLoadData();
-  }, [user]);
+    setIsMounted(true);
+    setStartDate(new Date().toISOString().split('T')[0]);
+  }, []);
+
+  useEffect(() => {
+    if (isMounted) {
+      checkAdminAndLoadData();
+    }
+  }, [user, isMounted]);
 
   const checkAdminAndLoadData = async () => {
-    if (!user) {
-      router.push('/auth/login');
+    if (!user || !isMounted) {
       return;
     }
 
@@ -186,12 +194,17 @@ export default function AdminMembershipsPage() {
     }
   };
 
-  if (isLoading) {
+  if (!isMounted || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Spinner size="lg" />
       </div>
     );
+  }
+
+  if (!user) {
+    router.push('/auth/login');
+    return null;
   }
 
   if (!isAdmin) {
