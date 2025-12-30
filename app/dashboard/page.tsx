@@ -12,6 +12,8 @@ import { getTodayMeals } from '@/app/actions/meals';
 import { getActiveMembership } from '@/app/actions/memberships';
 import { Droplet, Utensils, Scale, Calendar, AlertCircle } from 'lucide-react';
 
+import { EnableNotificationsButton } from '@/components/settings/enable-notifications-button';
+
 export default function DashboardPage() {
   const user = useAuthUser();
   const loading = useAuthLoading();
@@ -153,6 +155,8 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      <EnableNotificationsButton />
 
       {/* Membership Expired Warning - Only for non-admin users */}
       {!isAdmin && membership && membership.is_expired && (
