@@ -50,7 +50,7 @@ interface MealRecord {
  * API Route for checking user activity and sending notifications
  * This should be called by a cron job every hour (e.g., Vercel Cron)
  * 
- * Timezone-aware ±5 minute window notifications
+ * Timezone-aware ±30 minute window notifications
  * Optimized for performance with batching and early returns
  */
 export async function GET(request: Request) {
@@ -320,7 +320,17 @@ async function processWaterReminder(
   supabase: any, 
   notifications: NotificationResult[]
 ) {
-  // Send if user not logged in OR not yet sent today
+  // Check if water reminder was already sent today
+  const { data: existingNotification } = await supabase
+    .from('notification_logs')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('notification_type', 'water_reminder')
+    .gte('sent_at', `${today}T00:00:00`)
+    .limit(1)
+    .single();
+
+  // Send if user not logged in AND not already notified today
   const { data: waterLog } = await supabase
     .from('water_logs')
     .select('id')
@@ -329,7 +339,7 @@ async function processWaterReminder(
     .limit(1)
     .single();
 
-  if (!loggedIn || !waterLog) {
+  if ((!loggedIn || !waterLog) && !existingNotification) {
     const result = await sendNotification({
       userId: user.id,
       userName: user.full_name,
@@ -346,6 +356,10 @@ async function processWaterReminder(
     });
 
     console.log(`[${user.full_name}] Water reminder at ${userTimeStr}: SENT`);
+  } else if (existingNotification) {
+    console.log(`[${user.full_name}] Water reminder at ${userTimeStr}: SKIPPED (already sent today)`);
+  } else {
+    console.log(`[${user.full_name}] Water reminder at ${userTimeStr}: SKIPPED (user logged water)`);
   }
 }
 
@@ -357,22 +371,38 @@ async function processGenericNotification(
   supabase: any, 
   notifications: NotificationResult[]
 ) {
-  const result = await sendNotification({
-    userId: user.id,
-    userName: user.full_name,
-    type: type,
-    supabase,
-  });
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Check if this notification was already sent today
+  const { data: existingNotification } = await supabase
+    .from('notification_logs')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('notification_type', type)
+    .gte('sent_at', `${today}T00:00:00`)
+    .limit(1)
+    .single();
 
-  notifications.push({
-    userId: user.id,
-    userName: user.full_name || 'User',
-    type: type,
-    message: result.message,
-    success: result.success,
-  });
+  if (!existingNotification) {
+    const result = await sendNotification({
+      userId: user.id,
+      userName: user.full_name,
+      type: type,
+      supabase,
+    });
 
-  console.log(`[${user.full_name}] ${type} at ${userTimeStr}: SENT`);
+    notifications.push({
+      userId: user.id,
+      userName: user.full_name || 'User',
+      type: type,
+      message: result.message,
+      success: result.success,
+    });
+
+    console.log(`[${user.full_name}] ${type} at ${userTimeStr}: SENT`);
+  } else {
+    console.log(`[${user.full_name}] ${type} at ${userTimeStr}: SKIPPED (already sent today)`);
+  }
 }
 
 // Helper to get time in user's timezone
@@ -398,14 +428,19 @@ function getTimeInTimezone(timezone: string): { hours: number; minutes: number; 
   return { hours, minutes, timeStr };
 }
 
-// Helper to check if current time is within ±5 minutes of target time
+// Helper to check if current time is within ±30 minutes of target time
 function isTimeMatch(userHours: number, userMinutes: number, targetTime: string | null): boolean {
   if (!targetTime) return false;
-  const [targetHours, targetMinutes] = targetTime.split(':').map(Number);
+  
+  // Handle both "HH:MM" and "HH:MM:SS" formats
+  const timeParts = targetTime.split(':');
+  const targetHours = parseInt(timeParts[0]);
+  const targetMinutes = parseInt(timeParts[1]);
+  
   const userTotalMin = userHours * 60 + userMinutes;
   const targetTotalMin = targetHours * 60 + targetMinutes;
   const diff = Math.abs(userTotalMin - targetTotalMin);
-  return diff <= 5; // ±5 minutes window
+  return diff <= 30; // ±30 minutes window for hourly cron
 }
 
 async function sendNotification({
@@ -471,6 +506,24 @@ async function sendNotification({
         .delete()
         .eq('user_id', userId)
         .in('token', result.invalidTokens);
+    }
+
+    // Log the notification if it was successful
+    if (result.success && (result.successCount || 0) > 0) {
+      await supabase
+        .from('notification_logs')
+        .insert({
+          user_id: userId,
+          notification_type: type,
+          title: title,
+          body: message,
+          sent_at: new Date().toISOString(),
+          metadata: {
+            success_count: result.successCount || 0,
+            total_tokens: tokens.length,
+            url_path: urlPath
+          }
+        });
     }
 
     return {
