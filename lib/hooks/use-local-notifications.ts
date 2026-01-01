@@ -17,9 +17,9 @@ export function useLocalNotifications() {
     try {
       const success = await localNotificationManager.initialize();
       if (success) {
-        console.log('Local notifications initialized successfully');
+        console.log('Local notifications initialized successfully (FCM-based system)');
         isInitialized.current = true;
-        startPolling();
+        // Note: Not starting polling - we use FCM for notifications
       } else {
         console.warn('Failed to initialize local notifications');
       }
@@ -28,8 +28,13 @@ export function useLocalNotifications() {
     }
   }, [user]);
 
-  // Start polling for pending notifications
+  // Start polling for pending notifications (DISABLED - using FCM instead)
   const startPolling = useCallback(() => {
+    // Disabled: We're using FCM for notifications, not browser polling
+    console.log('Browser notification polling disabled - using FCM system');
+    return;
+    
+    /* ORIGINAL CODE - DISABLED
     if (!user || pollingRef.current) return;
 
     pollingRef.current = setInterval(async () => {
@@ -53,6 +58,7 @@ export function useLocalNotifications() {
         console.error('Error polling for notifications:', error);
       }
     }, 5000); // Poll every 5 seconds
+    */
   }, [user]);
 
   // Stop polling
@@ -99,6 +105,18 @@ export function useLocalNotifications() {
     return localNotificationManager.isSupported();
   }, []);
 
+  // Check if we're running as PWA
+  const isPWA = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+    return localNotificationManager.isPWA();
+  }, []);
+
+  // Check if we're on iOS
+  const isIOSDevice = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+    return localNotificationManager.isIOS();
+  }, []);
+
   // Get permission status
   const getPermissionStatus = useCallback(() => {
     if (typeof window === 'undefined') return 'default' as NotificationPermission;
@@ -138,6 +156,8 @@ export function useLocalNotifications() {
   return {
     // Status
     isSupported: isSupported(),
+    isPWA: isPWA(),
+    isIOS: isIOSDevice(),
     permissionStatus: getPermissionStatus(),
     isInitialized: isInitialized.current,
 

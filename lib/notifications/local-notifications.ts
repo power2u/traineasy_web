@@ -76,11 +76,32 @@ export class LocalNotificationManager {
       return 'denied';
     }
 
-    // Request permission
-    const permission = await Notification.requestPermission();
-    console.log('Notification permission:', permission);
-    return permission;
+    try {
+      // For iOS, we need to handle the case where the permission request might not show
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      
+      if (isIOS) {
+        // Check if we're in a PWA context
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                           (window.navigator as any).standalone === true;
+        
+        if (!isStandalone) {
+          console.warn('iOS notifications require PWA installation');
+          // Still try to request permission, but it might not work
+        }
+      }
+
+      // Request permission
+      const permission = await Notification.requestPermission();
+      console.log('Notification permission:', permission);
+      return permission;
+    } catch (error) {
+      console.error('Error requesting notification permission:', error);
+      return 'denied';
+    }
   }
+
+  private recentNotifications = new Set<string>();
 
   /**
    * Show a local notification
@@ -93,9 +114,26 @@ export class LocalNotificationManager {
         return false;
       }
 
-      // If service worker is available, use it
+      // Create unique key for deduplication
+      const notificationKey = `${payload.title}-${payload.body}-${payload.tag || 'default'}`;
+      
+      // Check if we recently showed this notification (prevent duplicates)
+      if (this.recentNotifications.has(notificationKey)) {
+        console.log('Duplicate notification prevented:', notificationKey);
+        return false;
+      }
+      
+      // Add to recent notifications
+      this.recentNotifications.add(notificationKey);
+      
+      // Remove after 30 seconds to allow legitimate duplicates later
+      setTimeout(() => {
+        this.recentNotifications.delete(notificationKey);
+      }, 30000);
+
+      // Use service worker if available, otherwise fallback to direct API
+      // But NOT both to prevent duplicates
       if (this.serviceWorkerRegistration) {
-        // Send message to service worker
         const serviceWorker = this.serviceWorkerRegistration.active;
         if (serviceWorker) {
           serviceWorker.postMessage({
@@ -116,7 +154,7 @@ export class LocalNotificationManager {
         }
       }
 
-      // Fallback to direct notification API
+      // Fallback to direct notification API only if service worker failed
       const notification = new Notification(payload.title, {
         body: payload.body,
         icon: payload.icon || '/icon-192x192.png',
@@ -238,6 +276,27 @@ export class LocalNotificationManager {
   isSupported(): boolean {
     if (typeof window === 'undefined') return false;
     return 'serviceWorker' in navigator && 'Notification' in window;
+  }
+
+  /**
+   * Check if we're running as a PWA
+   */
+  isPWA(): boolean {
+    if (typeof window === 'undefined') return false;
+    
+    // Check if running in standalone mode
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                        (window.navigator as any).standalone === true;
+    
+    return isStandalone;
+  }
+
+  /**
+   * Check if we're on iOS
+   */
+  isIOS(): boolean {
+    if (typeof window === 'undefined') return false;
+    return /iPad|iPhone|iPod/.test(navigator.userAgent);
   }
 
   /**

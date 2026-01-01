@@ -29,9 +29,29 @@ export interface UserPreferences {
   glass_size_ml: number;
   // Notification Preferences
   notifications_enabled: boolean;
+  push_enabled?: boolean;
+  email_enabled?: boolean;
   water_reminders_enabled: boolean;
   weight_reminders_enabled: boolean;
   meal_reminders_enabled: boolean;
+  plan_reminders_enabled?: boolean;
+  // Meal Timing Preferences
+  breakfast_time?: string;
+  snack1_time?: string;
+  lunch_time?: string;
+  snack2_time?: string;
+  dinner_time?: string;
+  meal_reminder_delay_minutes?: number;
+  meal_times_configured?: boolean;
+  // Water Reminder Preferences
+  water_reminder_times?: string[];
+  // Weight Reminder Preferences
+  weight_reminder_day?: number;
+  weight_reminder_time?: string;
+  // Plan Reminder Preferences
+  plan_end_reminder_days?: number;
+  // System Preferences
+  timezone?: string;
   // Display Preferences
   theme: 'light' | 'dark' | 'system';
   language: string;
@@ -366,6 +386,97 @@ export async function updatePreferences(
     }
 
     return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ============================================
+// NOTIFICATION PREFERENCES ACTIONS
+// ============================================
+
+// Get user notification preferences
+export async function getUserNotificationPreferences(userId?: string) {
+  try {
+    const supabase = await createClient();
+    
+    let targetUserId = userId;
+    if (!targetUserId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      targetUserId = user.id;
+    }
+
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('id', targetUserId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+
+    // Return with default values if no preferences exist
+    const preferences = data || {
+      id: targetUserId,
+      notifications_enabled: true,
+      push_enabled: true,
+      email_enabled: false,
+      meal_reminders_enabled: true,
+      water_reminders_enabled: true,
+      weight_reminders_enabled: true,
+      plan_reminders_enabled: true,
+      breakfast_time: '08:00',
+      snack1_time: '10:30',
+      lunch_time: '13:00',
+      snack2_time: '16:00',
+      dinner_time: '19:00',
+      meal_reminder_delay_minutes: 30,
+      water_reminder_times: ['10:00', '15:00', '20:00'],
+      weight_reminder_day: 1, // Monday
+      weight_reminder_time: '09:00',
+      plan_end_reminder_days: 3,
+      timezone: 'Asia/Kolkata',
+      theme: 'system',
+      language: 'en',
+      preferred_unit: 'kg',
+      goal_weight_unit: 'kg',
+      daily_water_target: 2000,
+      glass_size_ml: 250,
+    };
+
+    return {
+      success: true,
+      preferences,
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Update user notification preferences
+export async function updateUserNotificationPreferences(
+  preferences: Partial<UserPreferences>,
+  userId?: string
+) {
+  try {
+    const supabase = await createClient();
+    
+    let targetUserId = userId;
+    if (!targetUserId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      targetUserId = user.id;
+    }
+
+    const result = await updatePreferences(targetUserId, preferences);
+    
+    if (result.success) {
+      return { success: true, successMessage: 'Notification preferences updated successfully' };
+    } else {
+      return { success: false, error: result.error };
+    }
   } catch (error: any) {
     return { success: false, error: error.message };
   }

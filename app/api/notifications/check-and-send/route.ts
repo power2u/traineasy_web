@@ -276,7 +276,12 @@ async function processMealReminders(
     const mealNotCompleted = !meal?.[completedField];
     const notYetNotified = !meal?.[notifField];
     
-    if ((mealNotCompleted || !loggedIn) && notYetNotified) {
+    // Additional check: don't send if notification was sent in the last hour
+    const lastNotificationTime = meal?.[notifField];
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const recentlySent = lastNotificationTime && new Date(lastNotificationTime) > oneHourAgo;
+    
+    if ((mealNotCompleted || !loggedIn) && notYetNotified && !recentlySent) {
       const result = await sendNotification({
         userId: user.id,
         userName: user.full_name,
@@ -300,6 +305,8 @@ async function processMealReminders(
       });
 
       console.log(`[${user.full_name}] Meal ${reminder.type} at ${userTimeStr}: SENT`);
+    } else if (recentlySent) {
+      console.log(`[${user.full_name}] Meal ${reminder.type} at ${userTimeStr}: SKIPPED (recently sent)`);
     }
   }
 }
@@ -370,15 +377,24 @@ async function processGenericNotification(
 
 // Helper to get time in user's timezone
 function getTimeInTimezone(timezone: string): { hours: number; minutes: number; timeStr: string } {
-  const now_utc = new Date();
-  const timeStr = now_utc.toLocaleString('en-US', {
+  const now = new Date();
+  
+  // Use Intl.DateTimeFormat for more accurate timezone handling
+  const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
     hour12: false,
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit'
   });
-  const [hours, minutes] = timeStr.split(':').map(Number);
+  
+  const parts = formatter.formatToParts(now);
+  const hours = parseInt(parts.find(part => part.type === 'hour')?.value || '0');
+  const minutes = parseInt(parts.find(part => part.type === 'minute')?.value || '0');
+  const seconds = parseInt(parts.find(part => part.type === 'second')?.value || '0');
+  
+  const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  
   return { hours, minutes, timeStr };
 }
 

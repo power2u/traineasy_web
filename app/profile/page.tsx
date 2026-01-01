@@ -13,6 +13,7 @@ import {
   type UserPlan
 } from '@/app/actions/profile';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { NotificationSettings } from '@/components/notifications/notification-settings';
 
 export default function ProfilePage() {
   const { user, signOut } = useAuth();
@@ -265,6 +266,11 @@ export default function ProfilePage() {
             </TextField>
           </div>
         </div>
+      </Card>
+
+      {/* Notification Settings */}
+      <Card className="p-3 mb-3 md:p-6 md:mb-6">
+        <NotificationSettings />
       </Card>
 
       {/* Medical Information */}

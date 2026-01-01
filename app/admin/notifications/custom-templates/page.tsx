@@ -26,53 +26,71 @@ export default function NotificationMessagesAdminPage() {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
-  const [repeatPattern, setRepeatPattern] = useState('');
+  const [repeatPattern, setRepeatPattern] = useState('daily');
   const [isEnabled, setIsEnabled] = useState(true);
+
   const loadMessages = async () => {
     setIsLoading(true);
-    const result = await getAllNotificationMessages();
-    if (result.success) {
-      setMessages(result.messages);
-    } else {
+    try {
+      const result = await getAllNotificationMessages();
+      if (result.success) {
+        setMessages(result.messages);
+      } else {
+        toast.error('Failed to load notification messages');
+        console.error('Load messages error:', result.error);
+      }
+    } catch (error) {
+      console.error('Load messages exception:', error);
       toast.error('Failed to load notification messages');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
+
   useEffect(() => {
     loadMessages();
   }, []);
 
-
+  const resetForm = () => {
+    setNotificationType('');
+    setTitle('');
+    setMessage('');
+    setScheduleTime('');
+    setRepeatPattern('daily');
+    setIsEnabled(true);
+    setEditingId(null);
+  };
 
   const handleCreate = async () => {
     if (!notificationType || !title.trim() || !message.trim()) {
-      toast.error('All fields are required');
+      toast.error('Notification type, title, and message are required');
       return;
     }
 
     setIsCreating(true);
-    const result = await createNotificationMessage(
-      notificationType,
-      title.trim(),
-      message.trim(),
-      scheduleTime || undefined,
-      repeatPattern || 'daily',
-      isEnabled
-    );
+    try {
+      const result = await createNotificationMessage(
+        notificationType,
+        title.trim(),
+        message.trim(),
+        scheduleTime || undefined,
+        repeatPattern || 'daily',
+        isEnabled
+      );
 
-    if (result.success) {
-      toast.success('Notification message created successfully');
-      setNotificationType('');
-      setTitle('');
-      setMessage('');
-      setScheduleTime('');
-      setRepeatPattern('');
-      setIsEnabled(true);
-      loadMessages();
-    } else {
-      toast.error(result.error || 'Failed to create notification message');
+      if (result.success) {
+        toast.success('Notification message created successfully');
+        resetForm();
+        loadMessages();
+      } else {
+        toast.error(result.error || 'Failed to create notification message');
+      }
+    } catch (error) {
+      console.error('Create error:', error);
+      toast.error('Failed to create notification message');
+    } finally {
+      setIsCreating(false);
     }
-    setIsCreating(false);
   };
 
   const handleUpdate = async (id: string) => {
@@ -81,44 +99,53 @@ export default function NotificationMessagesAdminPage() {
       return;
     }
 
-    const result = await updateNotificationMessage(
-      id,
-      title.trim(),
-      message.trim()
-    );
+    try {
+      const result = await updateNotificationMessage(
+        id,
+        title.trim(),
+        message.trim()
+      );
 
-    if (result.success) {
-      toast.success('Notification message updated successfully');
-      setEditingId(null);
-      setTitle('');
-      setMessage('');
-      setNotificationType('');
-      setScheduleTime('');
-      setRepeatPattern('');
-      setIsEnabled(true);
-      loadMessages();
-    } else {
-      toast.error(result.error || 'Failed to update notification message');
+      if (result.success) {
+        toast.success('Notification message updated successfully');
+        resetForm();
+        loadMessages();
+      } else {
+        toast.error(result.error || 'Failed to update notification message');
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      toast.error('Failed to update notification message');
     }
   };
 
   const handleActivate = async (id: string, type: string) => {
-    const result = await activateNotificationMessage(id, type);
-    if (result.success) {
-      toast.success('Notification message activated');
-      loadMessages();
-    } else {
-      toast.error(result.error || 'Failed to activate notification message');
+    try {
+      const result = await activateNotificationMessage(id, type);
+      if (result.success) {
+        toast.success('Notification message activated');
+        loadMessages();
+      } else {
+        toast.error(result.error || 'Failed to activate notification message');
+      }
+    } catch (error) {
+      console.error('Activate error:', error);
+      toast.error('Failed to activate notification message');
     }
   };
 
   const handleDeactivate = async (id: string) => {
-    const result = await deactivateNotificationMessage(id);
-    if (result.success) {
-      toast.success('Notification message deactivated');
-      loadMessages();
-    } else {
-      toast.error(result.error || 'Failed to deactivate notification message');
+    try {
+      const result = await deactivateNotificationMessage(id);
+      if (result.success) {
+        toast.success('Notification message deactivated');
+        loadMessages();
+      } else {
+        toast.error(result.error || 'Failed to deactivate notification message');
+      }
+    } catch (error) {
+      console.error('Deactivate error:', error);
+      toast.error('Failed to deactivate notification message');
     }
   };
 
@@ -127,12 +154,17 @@ export default function NotificationMessagesAdminPage() {
       return;
     }
 
-    const result = await deleteNotificationMessage(id);
-    if (result.success) {
-      toast.success('Notification message deleted');
-      loadMessages();
-    } else {
-      toast.error(result.error || 'Failed to delete notification message');
+    try {
+      const result = await deleteNotificationMessage(id);
+      if (result.success) {
+        toast.success('Notification message deleted');
+        loadMessages();
+      } else {
+        toast.error(result.error || 'Failed to delete notification message');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete notification message');
     }
   };
 
@@ -141,16 +173,13 @@ export default function NotificationMessagesAdminPage() {
     setNotificationType(msg.notification_type);
     setTitle(msg.title);
     setMessage(msg.message);
+    setScheduleTime(msg.schedule_time || '');
+    setRepeatPattern(msg.repeat_pattern || 'daily');
+    setIsEnabled(msg.is_enabled !== false);
   };
 
   const cancelEdit = () => {
-    setEditingId(null);
-    setNotificationType('');
-    setTitle('');
-    setMessage('');
-    setScheduleTime('');
-    setRepeatPattern('');
-    setIsEnabled(true);
+    resetForm();
   };
 
   const getTypeLabel = (type: string) => {
@@ -171,37 +200,62 @@ export default function NotificationMessagesAdminPage() {
         description: 'Sent every evening at 8 PM or after dinner time' 
       },
       'water_reminder': { 
-        defaultTime: '', 
-        defaultRepeat: 'hourly', 
-        description: 'Sent every 2 hours during waking hours (8 AM - 10 PM)' 
+        defaultTime: '12:00', 
+        defaultRepeat: 'daily', 
+        description: 'Sent at noon daily for hydration reminder' 
       },
       'meal_reminder_breakfast': { 
         defaultTime: '08:00', 
         defaultRepeat: 'daily', 
-        description: 'Sent 1 hour after breakfast time if not logged' 
+        description: 'Sent at breakfast time if meal not logged' 
+      },
+      'meal_reminder_snack1': { 
+        defaultTime: '10:30', 
+        defaultRepeat: 'daily', 
+        description: 'Sent at morning snack time if not logged' 
       },
       'meal_reminder_lunch': { 
         defaultTime: '13:00', 
         defaultRepeat: 'daily', 
-        description: 'Sent 1 hour after lunch time if not logged' 
+        description: 'Sent at lunch time if meal not logged' 
+      },
+      'meal_reminder_snack2': { 
+        defaultTime: '16:00', 
+        defaultRepeat: 'daily', 
+        description: 'Sent at afternoon snack time if not logged' 
       },
       'meal_reminder_dinner': { 
-        defaultTime: '20:00', 
+        defaultTime: '19:00', 
         defaultRepeat: 'daily', 
-        description: 'Sent 1 hour after dinner time if not logged' 
+        description: 'Sent at dinner time if meal not logged' 
       },
       'weekly_measurement_reminder': { 
         defaultTime: '10:00', 
         defaultRepeat: 'weekly', 
-        description: 'Sent every Sunday at 10 AM' 
+        description: 'Sent every Saturday at 10 AM' 
       },
       'weekly_weight_reminder': { 
         defaultTime: '09:00', 
         defaultRepeat: 'weekly', 
-        description: 'Sent every Sunday at 9 AM' 
+        description: 'Sent every Saturday at 9 AM' 
+      },
+      'membership_expiring': { 
+        defaultTime: '09:00', 
+        defaultRepeat: 'daily', 
+        description: 'Sent when membership is about to expire' 
+      },
+      'membership_expired': { 
+        defaultTime: '09:00', 
+        defaultRepeat: 'daily', 
+        description: 'Sent when membership has expired' 
+      },
+      'feedback_request': { 
+        defaultTime: '18:00', 
+        defaultRepeat: 'weekly', 
+        description: 'Weekly feedback request' 
       }
     };
-    return scheduleMap[type] || { defaultTime: '', defaultRepeat: '', description: 'Custom scheduling' };
+    return scheduleMap[type] || { defaultTime: '', defaultRepeat: 'daily', description: 'Custom scheduling' };
   };
 
   // Auto-fill scheduling when notification type changes
