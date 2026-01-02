@@ -68,6 +68,9 @@ export async function sendPushNotification({
     const app = initializeFirebaseAdmin();
     const messaging = getMessaging(app);
 
+    // Deduplicate tokens to prevent multiple notifications to the same device (if tokens are duplicated)
+    const uniqueTokens = [...new Set(tokens)];
+
     const message = {
       notification: {
         title,
@@ -75,7 +78,16 @@ export async function sendPushNotification({
         ...(imageUrl && { imageUrl }),
       },
       data: data || {},
-      tokens,
+      tokens: uniqueTokens,
+      android: {
+        priority: 'high' as const,
+        ttl: 7200 * 1000, // 2 hours in milliseconds
+      },
+      webpush: {
+        headers: {
+          TTL: '7200', // 2 hours in seconds
+        },
+      },
     };
 
     const response = await messaging.sendEachForMulticast(message);
@@ -94,7 +106,7 @@ export async function sendPushNotification({
           errorCode === 'messaging/invalid-registration-token' ||
           errorCode === 'messaging/invalid-argument'
         ) {
-          invalidTokens.push(tokens[idx]);
+          invalidTokens.push(uniqueTokens[idx]);
         }
       }
     });

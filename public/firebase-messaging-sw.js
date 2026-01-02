@@ -18,8 +18,16 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 // Handle background messages
+// Handle background messages
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message:', payload);
+
+  // If the payload has a notification property, the browser will automatically show the notification.
+  // We should NOT show another one manually, otherwise the user will see duplicates.
+  if (payload.notification) {
+    console.log('[firebase-messaging-sw.js] Letting browser handle notification display');
+    return;
+  }
 
   const notificationTitle = payload.notification?.title || 'Train Easy';
   const notificationOptions = {
@@ -37,7 +45,7 @@ messaging.onBackgroundMessage((payload) => {
 // Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   console.log('[firebase-messaging-sw.js] Notification clicked:', event);
-  
+
   event.notification.close();
 
   const urlToOpen = event.notification.data?.url || '/dashboard';

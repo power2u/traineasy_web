@@ -21,11 +21,19 @@ async function checkAndSendReminders() {
     console.log('[SW] Meal notifications disabled - using server-side FCM system');
     // All meal notifications are now handled by the server-side FCM system
     // This prevents duplicate notifications
-    
+
     // Only handle water reminders if needed (optional)
     const db = await openDB();
     const today = new Date().toISOString().split('T')[0];
-    
+
+    // MEAL NOTIFICATIONS DISABLED - handled by server-side FCM
+    // This prevents duplicate notifications from local SW and server
+
+    // WATER NOTIFICATIONS DISABLED - handled by server-side FCM
+    console.log('[SW] Water notifications disabled - using server-side FCM system');
+    return;
+
+    /*
     // Water reminders are still handled locally (not duplicated by server)
     const waterTx = db.transaction(['water_logs'], 'readonly');
     const waterStore = waterTx.objectStore('water_logs');
@@ -54,10 +62,8 @@ async function checkAndSendReminders() {
         });
       }
     };
-    
-    // MEAL NOTIFICATIONS DISABLED - handled by server-side FCM
-    // This prevents duplicate notifications from local SW and server
-    
+    */    // This prevents duplicate notifications from local SW and server
+
   } catch (error) {
     console.error('Error checking reminders:', error);
   }
@@ -73,14 +79,14 @@ self.addEventListener('periodicsync', (event) => {
 // Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
+
   const action = event.action;
-  const urlToOpen = action === 'log-water' 
-    ? '/water' 
-    : action === 'log-meal' 
-    ? '/meals' 
-    : '/dashboard';
-  
+  const urlToOpen = action === 'log-water'
+    ? '/water'
+    : action === 'log-meal'
+      ? '/meals'
+      : '/dashboard';
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
