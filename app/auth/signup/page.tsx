@@ -51,14 +51,14 @@ export default function SignupPage() {
       if (signUpError) {
         // Handle specific error cases
         if (signUpError.message.includes('already registered')) {
-          throw new Error('This email is already registered. Please sign in instead, or use "Continue with Google" if you signed up with Google.');
+          throw new Error('This email is already registered. Please sign in instead.');
         }
         throw signUpError;
       }
 
       // Check if user already exists (Supabase returns user even if already exists)
       if (data.user && data.user.identities && data.user.identities.length === 0) {
-        throw new Error('This email is already registered. Please sign in instead, or use "Continue with Google" if you signed up with Google.');
+        throw new Error('This email is already registered. Please sign in instead.');
       }
 
       setSuccess(true);

@@ -166,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check active session with getUser to ensure fresh data (including banned status)
     supabase.auth.getUser().then(({ data: { user }, error }: { data: { user: User | null }, error: Error | null }) => {
       authCheckRef.current = false;
-      
+
       if (error || !user) {
         updateAuthCache(null, false);
         return;
@@ -211,7 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) {
           // Check if user exists but signed up with different provider
           if (error.message.includes('Invalid login credentials')) {
-            throw new Error('Invalid email or password. If you signed up with Google, please use "Continue with Google" instead.');
+            throw new Error('Invalid email or password.');
           }
           throw error;
         }
@@ -223,13 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         if (error) throw error;
       } else if (provider === 'google') {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: `${window.location.origin}/auth/callback`,
-          },
-        });
-        if (error) throw error;
+        throw new Error('Google sign-in is currently disabled.');
       }
 
       router.push('/dashboard');
@@ -245,7 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     try {
       setError(null);
-      
+
       // Remove ALL FCM tokens from database (complete logout)
       if (user) {
         await removeFCMToken(user.id, true).catch((err: unknown) => {
@@ -253,7 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Failed to remove FCM token:', errorMessage);
         });
       }
-      
+
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       router.push('/auth/login');
@@ -303,8 +297,8 @@ export function useAuthLoading() {
 export function useIsAuthenticated() {
   const { user, loading } = useAuth();
   const isAuthenticated = !!user;
-  return useMemo(() => ({ 
-    isAuthenticated, 
-    loading 
+  return useMemo(() => ({
+    isAuthenticated,
+    loading
   }), [isAuthenticated, loading]);
 }

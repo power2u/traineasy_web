@@ -10,7 +10,7 @@ export async function checkUserAuthProvider(email: string): Promise<{
 }> {
   try {
     const supabase = createClient();
-    
+
     // Try to sign in with a dummy password to check if user exists
     // This will fail but give us information about the user
     const { error } = await supabase.auth.signInWithPassword({
@@ -23,12 +23,12 @@ export async function checkUserAuthProvider(email: string): Promise<{
       if (error.message.includes('oauth') || error.message.includes('OAuth')) {
         return { exists: true, provider: 'google' };
       }
-      
+
       // If error is about invalid credentials, user exists with email/password
       if (error.message.includes('Invalid login credentials')) {
         return { exists: true, provider: 'email' };
       }
-      
+
       // User doesn't exist
       return { exists: false, provider: 'unknown' };
     }
@@ -46,7 +46,7 @@ export function getAuthErrorMessage(error: any): string {
   const message = error?.message || '';
 
   if (message.includes('Invalid login credentials')) {
-    return 'Invalid email or password. If you signed up with Google, please use "Continue with Google".';
+    return 'Invalid email or password.';
   }
 
   if (message.includes('Email not confirmed')) {
@@ -66,7 +66,7 @@ export function getAuthErrorMessage(error: any): string {
   }
 
   if (message.includes('oauth')) {
-    return 'This account was created with Google. Please use "Continue with Google" to sign in.';
+    return 'This account was created with Google. Google sign-in is currently disabled. Please reset your password to access your account via email.';
   }
 
   // Return original message if no specific match

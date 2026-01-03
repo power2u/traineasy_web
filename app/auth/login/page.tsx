@@ -15,7 +15,7 @@ export default function LoginPage() {
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
-    
+
     try {
       await signIn('email', { email, password });
     } catch (err: any) {
@@ -24,16 +24,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setLocalError(null);
-    
-    try {
-      await signIn('google', {});
-    } catch (err: any) {
-      const errorMsg = getAuthErrorMessage(err);
-      setLocalError(errorMsg);
-    }
-  };
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 bg-background">
@@ -64,11 +54,7 @@ export default function LoginPage() {
             <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20">
               <div className="font-semibold mb-1">⚠️ Login Failed</div>
               <div>{localError}</div>
-              {localError.includes('Google') && (
-                <div className="mt-2 text-xs text-default-400">
-                  💡 Tip: Use the "Continue with Google" button below
-                </div>
-              )}
+
             </div>
           )}
 
@@ -82,21 +68,8 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="my-6 flex items-center gap-4">
-          <div className="h-px flex-1 bg-default-200" />
-          <Text className="text-sm text-default-400">OR</Text>
-          <div className="h-px flex-1 bg-default-200" />
-        </div>
-
-        <Button
-          variant="secondary"
-          className="w-full bg-default-100 hover:bg-default-200 text-foreground font-medium border border-default-300"
-          onClick={handleGoogleLogin}
-          isDisabled={loading}
-        >
-          Continue with Google
-        </Button>
-{/* 
+        {/* Google Login Removed */}
+        {/* 
         <div className="mt-6 text-center text-sm">
           <Text className="text-gray-400">
             Don't have an account?{' '}
