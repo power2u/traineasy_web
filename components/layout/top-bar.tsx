@@ -1,9 +1,10 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useEffect, useState } from 'react';
 import { Button } from '@heroui/react';
 import { Info, ArrowLeft } from 'lucide-react';
+import { getActiveBanner } from '@/app/actions/banners';
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -17,6 +18,8 @@ const pageTitles: Record<string, string> = {
 export const TopBar = memo(function TopBar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [hasBanner, setHasBanner] = useState(false);
+  
   const title = useMemo(() => 
     pageTitles[pathname || '/dashboard'] || 'Fitness Tracker',
     [pathname]
@@ -24,8 +27,29 @@ export const TopBar = memo(function TopBar() {
 
   const isInfoPage = pathname === '/info';
 
+  // Check if banner is active to conditionally apply safe area padding
+  useEffect(() => {
+    const checkBanner = async () => {
+      try {
+        const result = await getActiveBanner();
+        setHasBanner(result.success && !!result.banner);
+      } catch {
+        setHasBanner(false);
+      }
+    };
+    
+    checkBanner();
+    
+    // Check every 5 minutes to sync with banner updates
+    const interval = setInterval(checkBanner, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-card px-3 md:hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    <header 
+      className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-card px-3 md:hidden" 
+      style={{ paddingTop: hasBanner ? '0' : 'env(safe-area-inset-top)' }}
+    >
       <div className="flex items-center gap-2">
          
           <img src="/logo.png" alt="Logo" className="h-7 w-7" />

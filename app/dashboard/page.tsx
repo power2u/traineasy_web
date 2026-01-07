@@ -43,13 +43,13 @@ export default function DashboardPage() {
     enabled: !!user && !isAdmin,
   });
 
-  const { data: latestWeight } = useQuery({
+  const { data: latestWeight, isLoading: isLoadingWeight } = useQuery({
     queryKey: ['weight', 'latest', user?.id],
     queryFn: () => weightService.getLatestLog(user!.id),
     enabled: !!user,
   });
 
-  const { data: waterCount = 0 } = useQuery({
+  const { data: waterCount = 0, isLoading: isLoadingWater } = useQuery({
     queryKey: ['water', 'today-count', user?.id],
     queryFn: async () => {
       const result = await getTodayWaterCount(user!.id);
@@ -58,7 +58,7 @@ export default function DashboardPage() {
     enabled: !!user,
   });
 
-  const { data: waterTarget = 14 } = useQuery({
+  const { data: waterTarget = 14, isLoading: isLoadingWaterTarget } = useQuery({
     queryKey: ['water', 'target', user?.id],
     queryFn: async () => {
       const result = await getWaterTarget(user!.id);
@@ -67,7 +67,7 @@ export default function DashboardPage() {
     enabled: !!user,
   });
 
-  const { data: mealsCompleted = 0, isLoading: isLoadingData } = useQuery({
+  const { data: mealsCompleted = 0, isLoading: isLoadingMeals } = useQuery({
     queryKey: ['meals', 'today-completed', user?.id],
     queryFn: async () => {
       const result = await getTodayMeals(user!.id);
@@ -85,6 +85,9 @@ export default function DashboardPage() {
     },
     enabled: !!user,
   });
+
+  // Check if any data is still loading
+  const isAnyDataLoading = isLoadingWeight || isLoadingWater || isLoadingWaterTarget || isLoadingMeals;
 
   if (loading) {
     return (
@@ -162,7 +165,7 @@ export default function DashboardPage() {
       {!isAdmin && membership && membership.is_expired && (
         <Card className="mb-4 border-destructive/50 bg-destructive/10 p-3 md:p-4">
           <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 flex-shrink-0 text-destructive md:h-6 md:w-6" />
+            <AlertCircle className="h-5 w-5 shrink-0 text-destructive md:h-6 md:w-6" />
             <div>
               <h3 className="text-sm font-semibold text-destructive md:text-base">
                 Your membership has expired
@@ -180,7 +183,7 @@ export default function DashboardPage() {
       {!isAdmin && !membership && !isLoadingMembership && (
         <Card className="mb-4 border-warning/50 bg-warning/10 p-3 md:p-4">
           <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 flex-shrink-0 text-warning md:h-6 md:w-6" />
+            <AlertCircle className="h-5 w-5 shrink-0 text-warning md:h-6 md:w-6" />
             <div>
               <h3 className="text-sm font-semibold text-warning md:text-base">
                 No active membership
@@ -201,19 +204,20 @@ export default function DashboardPage() {
             <Droplet className="h-6 w-6 text-blue-400 md:h-8 md:w-8" />
           </div>
           <div className="mb-3 md:mb-4">
-            {isLoadingData ? (
-              <div className="h-10 md:h-12 flex items-center">
-                <div className="h-1.5 w-16 bg-default-200 rounded animate-pulse"></div>
+            {isAnyDataLoading ? (
+              <div className="space-y-2">
+                <div className="h-8 w-16 bg-default-200 rounded animate-pulse md:h-10 md:w-20"></div>
+                <div className="h-3 w-24 bg-default-200 rounded animate-pulse md:h-4 md:w-28"></div>
               </div>
             ) : (
               <>
                 <div className="text-2xl font-bold md:text-4xl">{waterCount}</div>
-                <Text className="text-xs text-gray-400 md:text-sm">glasses today</Text>
+                <Text className="text-xs text-muted-foreground md:text-sm">glasses today</Text>
               </>
             )}
           </div>
           <Link href="/water">
-            <Button variant="primary" size="sm" className="w-full md:text-base">
+            <Button variant="primary" size="sm" className="w-full md:text-base" isDisabled={isAnyDataLoading}>
               Track Water
             </Button>
           </Link>
@@ -226,19 +230,20 @@ export default function DashboardPage() {
             <Utensils className="h-6 w-6 text-orange-400 md:h-8 md:w-8" />
           </div>
           <div className="mb-3 md:mb-4">
-            {isLoadingData ? (
-              <div className="h-10 md:h-12 flex items-center">
-                <div className="h-1.5 w-16 bg-default-200 rounded animate-pulse"></div>
+            {isAnyDataLoading ? (
+              <div className="space-y-2">
+                <div className="h-8 w-16 bg-default-200 rounded animate-pulse md:h-10 md:w-20"></div>
+                <div className="h-3 w-28 bg-default-200 rounded animate-pulse md:h-4 md:w-32"></div>
               </div>
             ) : (
               <>
                 <div className="text-2xl font-bold md:text-4xl">{mealsCompleted}/5</div>
-                <Text className="text-xs text-gray-400 md:text-sm">meals completed</Text>
+                <Text className="text-xs text-muted-foreground md:text-sm">meals completed</Text>
               </>
             )}
           </div>
           <Link href="/meals">
-            <Button variant="primary" size="sm" className="w-full md:text-base">
+            <Button variant="primary" size="sm" className="w-full md:text-base" isDisabled={isAnyDataLoading}>
               Track Meals
             </Button>
           </Link>
@@ -251,24 +256,29 @@ export default function DashboardPage() {
             <Scale className="h-6 w-6 text-green-400 md:h-8 md:w-8" />
           </div>
           <div className="mb-3 md:mb-4">
-            {latestWeight ? (
+            {isAnyDataLoading ? (
+              <div className="space-y-2">
+                <div className="h-8 w-20 bg-default-200 rounded animate-pulse md:h-10 md:w-24"></div>
+                <div className="h-3 w-32 bg-default-200 rounded animate-pulse md:h-4 md:w-36"></div>
+              </div>
+            ) : latestWeight ? (
               <>
                 <div className="text-2xl font-bold md:text-4xl">
                   {latestWeight.weight.toFixed(1)}
                 </div>
-                <Text className="text-xs text-gray-400 md:text-sm">
+                <Text className="text-xs text-muted-foreground md:text-sm">
                   {latestWeight.unit} • {new Date(latestWeight.date).toLocaleDateString()}
                 </Text>
               </>
             ) : (
               <>
                 <div className="text-2xl font-bold md:text-4xl">--</div>
-                <Text className="text-xs text-gray-400 md:text-sm">no logs yet</Text>
+                <Text className="text-xs text-muted-foreground md:text-sm">no logs yet</Text>
               </>
             )}
           </div>
           <Link href="/weight">
-            <Button variant="primary" size="sm" className="w-full md:text-base">
+            <Button variant="primary" size="sm" className="w-full md:text-base" isDisabled={isAnyDataLoading}>
               {latestWeight ? 'View Progress' : 'Log Weight'}
             </Button>
           </Link>
@@ -278,24 +288,33 @@ export default function DashboardPage() {
       {/* Quick Stats */}
       <Card className="mt-3 p-3 md:mt-6 md:p-6">
         <h3 className="mb-2 text-base font-semibold md:mb-4 md:text-xl">Today's Summary</h3>
-        {isLoadingData ? (
+        {isAnyDataLoading ? (
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="h-12 bg-default-100 rounded animate-pulse"></div>
-            <div className="h-12 bg-default-100 rounded animate-pulse"></div>
-            <div className="h-12 bg-default-100 rounded animate-pulse"></div>
+            <div className="space-y-2">
+              <div className="h-3 w-16 bg-default-200 rounded animate-pulse md:h-4 md:w-20"></div>
+              <div className="h-6 w-24 bg-default-200 rounded animate-pulse md:h-8 md:w-28"></div>
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 w-20 bg-default-200 rounded animate-pulse md:h-4 md:w-24"></div>
+              <div className="h-6 w-16 bg-default-200 rounded animate-pulse md:h-8 md:w-20"></div>
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 w-24 bg-default-200 rounded animate-pulse md:h-4 md:w-28"></div>
+              <div className="h-6 w-12 bg-default-200 rounded animate-pulse md:h-8 md:w-16"></div>
+            </div>
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <Text className="text-[10px] text-gray-400 md:text-sm">Water Goal</Text>
+              <Text className="text-[10px] text-muted-foreground md:text-sm">Water Goal</Text>
               <div className="mt-0.5 text-lg font-bold md:text-2xl">{waterCount} / {waterTarget} glasses</div>
             </div>
             <div>
-              <Text className="text-[10px] text-gray-400 md:text-sm">Meals Today</Text>
+              <Text className="text-[10px] text-muted-foreground md:text-sm">Meals Today</Text>
               <div className="mt-0.5 text-lg font-bold md:text-2xl">{mealsCompleted}/5</div>
             </div>
             <div>
-              <Text className="text-[10px] text-gray-400 md:text-sm">Completion Rate</Text>
+              <Text className="text-[10px] text-muted-foreground md:text-sm">Completion Rate</Text>
               <div className="mt-0.5 text-lg font-bold md:text-2xl">{Math.round((mealsCompleted / 5) * 100)}%</div>
             </div>
           </div>

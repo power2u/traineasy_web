@@ -6,10 +6,12 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "build": "next build",
-    "start": "next start -p 3000 -H 0.0.0.0",
-    "lint": "eslint",
+    "start": "next start",
+    "lint": "eslint ./src --config ./eslint.config.mjs",
+    "lint:fix": "eslint --fix ./src --config ./eslint.config.mjs",
+    "audit": "npm audit --production",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",

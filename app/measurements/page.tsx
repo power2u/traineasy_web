@@ -56,7 +56,6 @@ useEffect(() => {
     monthlyAverage,
     saveMeasurement,
     deleteMeasurement,
-    isSaving,
   } = useMeasurementsData({
     userId: user?.id || null,
     measurementType: selectedType,
@@ -123,8 +122,8 @@ useEffect(() => {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <Spinner size="lg" />
-          <p className="mt-2 text-sm text-gray-500">
+          <Spinner size="lg" color="current" />
+          <p className="mt-2 text-sm text-muted-foreground">
             {authLoading ? 'Loading user...' : prefsLoading ? 'Loading preferences...' : 'Loading measurements...'}
           </p>
         </div>
@@ -140,17 +139,17 @@ useEffect(() => {
   return (
     <div className="space-y-3 pb-20 md:space-y-6 md:pb-6">
       {/* Measurement Type Selector - Mobile Optimized */}
-      <div className="-mx-4 bg-gray-950 px-4 py-3 md:mx-0 md:rounded-lg md:bg-transparent md:px-0">
+      <div className="-mx-4 bg-card px-4 py-3 md:mx-0 md:rounded-lg md:bg-transparent md:px-0">
         <div className="overflow-x-auto -mx-1 px-1">
           <div className="flex gap-2 pb-1">
             {MEASUREMENT_TYPES.map((type) => (
               <button
                 key={type}
                 onClick={() => setSelectedType(type)}
-                className={`flex-shrink-0 rounded-full px-4 py-2.5 text-sm font-medium transition-all active:scale-95 ${
+                className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-medium transition-all active:scale-95 ${
                   selectedType === type
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                    : 'bg-gray-800 text-gray-400 active:bg-gray-700'
+                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
+                    : 'bg-secondary text-secondary-foreground hover:bg-accent active:bg-accent'
                 }`}
               >
                 {MEASUREMENT_LABELS[type]}
@@ -163,29 +162,29 @@ useEffect(() => {
       {/* Current Stats - Compact for Mobile */}
       {currentValue && (
         <div className="grid grid-cols-2 gap-2 md:gap-4">
-          <div className="rounded-xl bg-gradient-to-br from-gray-900 to-gray-800 p-4">
-            <div className="text-[10px] uppercase tracking-wider text-gray-500 md:text-xs">Current</div>
-            <div className="mt-1.5 text-2xl font-bold md:text-3xl">
+          <div className="rounded-xl bg-linear-to-br from-card to-secondary p-4 border border-border">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground md:text-xs">Current</div>
+            <div className="mt-1.5 text-2xl font-bold text-foreground md:text-3xl">
               {currentValue.toFixed(1)}
             </div>
-            <div className="mt-0.5 text-xs font-medium text-gray-400">{preferredUnit}</div>
+            <div className="mt-0.5 text-xs font-medium text-muted-foreground">{preferredUnit}</div>
           </div>
           
           {previousValue && (
-            <div className="rounded-xl bg-gradient-to-br from-gray-900 to-gray-800 p-4">
-              <div className="text-[10px] uppercase tracking-wider text-gray-500 md:text-xs">Change</div>
+            <div className="rounded-xl bg-linear-to-br from-card to-secondary p-4 border border-border">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground md:text-xs">Change</div>
               <div className="mt-1.5 text-2xl font-bold md:text-3xl">
                 {(() => {
                   const change = currentValue - previousValue;
                   const isPositive = change > 0;
                   return (
-                    <span className={isPositive ? 'text-green-400' : change < 0 ? 'text-red-400' : 'text-gray-400'}>
+                    <span className={isPositive ? 'text-success' : change < 0 ? 'text-destructive' : 'text-muted-foreground'}>
                       {isPositive ? '+' : ''}{change.toFixed(1)}
                     </span>
                   );
                 })()}
               </div>
-              <div className="mt-0.5 text-xs font-medium text-gray-400">{preferredUnit}</div>
+              <div className="mt-0.5 text-xs font-medium text-muted-foreground">{preferredUnit}</div>
             </div>
           )}
         </div>

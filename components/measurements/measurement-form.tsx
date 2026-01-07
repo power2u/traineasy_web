@@ -37,8 +37,8 @@ export function MeasurementForm({ measurementType, unit, onSubmit, canLogToday }
       <Card className="p-6">
         <div className="text-center">
           <div className="mb-3 text-4xl">✅</div>
-          <h3 className="mb-2 text-lg font-semibold">Already Logged Today</h3>
-          <p className="text-sm text-gray-400">
+          <h3 className="mb-2 text-lg font-semibold text-foreground">Already Logged Today</h3>
+          <p className="text-sm text-muted-foreground">
             You've already logged this measurement today. Come back tomorrow!
           </p>
         </div>
@@ -48,7 +48,7 @@ export function MeasurementForm({ measurementType, unit, onSubmit, canLogToday }
 
   return (
     <Card className="p-4 md:p-6">
-      <h2 className="mb-4 text-lg font-semibold">
+      <h2 className="mb-4 text-lg font-semibold text-foreground">
         Log {MEASUREMENT_LABELS[measurementType]}
       </h2>
       

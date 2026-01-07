@@ -250,7 +250,40 @@ body {
   background: #525252 !important;
 }
 
-/* Smooth scrolling for mobile */
+/* Custom gradient utilities */
+.bg-linear-to-br {
+  background: linear-gradient(to bottom right, var(--tw-gradient-stops));
+}
+
+.bg-linear-to-r {
+  background: linear-gradient(to right, var(--tw-gradient-stops));
+}
+
+/* iOS PWA Safe Area Support */
+@supports (padding: max(0px)) {
+  .safe-area-top {
+    padding-top: max(env(safe-area-inset-top), 0px);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+  
+  .safe-area-left {
+    padding-left: max(env(safe-area-inset-left), 0px);
+  }
+  
+  .safe-area-right {
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
+}
+
+/* Ensure full viewport coverage for PWA */
+html, body {
+  height: 100vh;
+  height: 100dvh; /* Dynamic viewport height for mobile */
+  overflow-x: hidden;
+}
 
 
 /* Custom scrollbar for desktop */
