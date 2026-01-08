@@ -63,7 +63,7 @@ export function MotivationMarquee() {
 
   return (
     <div className="relative overflow-hidden bg-linear-to-r from-primary/20 via-purple-600/20 to-primary/20 border-y border-primary/30">
-      <div className="flex items-center gap-2 py-2.5 px-3" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <div className="flex items-center gap-2 mt-2 pb-2 px-3" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <Sparkles className="h-4 w-4 text-warning shrink-0 animate-pulse" />
         <div className="flex-1 overflow-hidden">
           <div className="animate-marquee whitespace-nowrap">

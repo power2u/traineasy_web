@@ -319,3 +319,63 @@ html, body {
     background: #a8a29e;
   }
 }
+
+/* Hide scrollbar utility for mobile */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* Admin Tabs Theme Fix */
+.admin-tabs {
+  --tabs-border-color: var(--border);
+  --tabs-text-color: var(--muted-foreground);
+  --tabs-active-color: var(--primary);
+  --tabs-hover-color: var(--foreground);
+  --tabs-bg-hover: var(--accent);
+}
+
+.admin-tabs [data-slot="tablist"] {
+  border-bottom: 1px solid var(--tabs-border-color);
+  background: transparent;
+}
+
+.admin-tabs [data-slot="tab"] {
+  color: var(--tabs-text-color);
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+  background: transparent;
+}
+
+.admin-tabs [data-slot="tab"]:hover {
+  color: var(--tabs-hover-color);
+  background: var(--tabs-bg-hover);
+}
+
+.admin-tabs [data-slot="tab"][data-selected="true"] {
+  color: var(--tabs-active-color);
+  border-bottom-color: var(--tabs-active-color);
+  font-weight: 500;
+  background: transparent;
+}
+
+/* Ensure proper theme inheritance */
+.light .admin-tabs {
+  --tabs-border-color: #e7e5e4;
+  --tabs-text-color: #78716c;
+  --tabs-active-color: #0ea5e9;
+  --tabs-hover-color: #1c1917;
+  --tabs-bg-hover: #f5f5f4;
+}
+
+.dark .admin-tabs {
+  --tabs-border-color: #262626;
+  --tabs-text-color: #a3a3a3;
+  --tabs-active-color: #0ea5e9;
+  --tabs-hover-color: #ededed;
+  --tabs-bg-hover: #262626;
+}

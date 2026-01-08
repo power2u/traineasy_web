@@ -301,16 +301,16 @@ export default function NotificationMessagesAdminPage() {
 
   return (
     <>
-      <div className="mb-6">
+      <div className="mb-4 md:mb-6">
         <div className="flex items-center gap-2 mb-2">
-          <Bell className="h-6 w-6 text-blue-400" />
-          <h1 className="text-2xl font-bold">Notification Messages</h1>
+          <Bell className="h-5 w-5 md:h-6 md:w-6 text-blue-400" />
+          <h1 className="text-xl md:text-2xl font-bold">Notification Messages</h1>
         </div>
         <p className="text-sm text-default-500">
           Manage notification messages used by cron jobs. Only one message per type can be active.
         </p>
         <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
-          <p className="text-sm text-amber-800 dark:text-amber-300">
+          <p className="text-xs md:text-sm text-amber-800 dark:text-amber-300">
             ⏰ <strong>Timezone Notice:</strong> All notification times are based on each user's individual timezone settings. 
             The system automatically adjusts delivery times to match user preferences.
           </p>
@@ -318,15 +318,15 @@ export default function NotificationMessagesAdminPage() {
       </div>
 
       {/* Create/Edit Form */}
-      <Card className="p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">
+      <Card className="p-4 md:p-6 mb-4 md:mb-6">
+        <h2 className="text-lg md:text-xl font-semibold mb-4">
           {editingId ? 'Edit Notification Message' : 'Create New Notification Message'}
         </h2>
         <div className="space-y-4">
           <TextField value={notificationType} onChange={setNotificationType} isRequired>
-            <Label>Notification Type</Label>
+            <Label className="text-sm font-medium">Notification Type</Label>
             <select 
-              className="w-full px-3 py-2 border border-default-300 rounded-lg bg-default-100 text-default-900 dark:bg-default-50 dark:text-default-900 dark:border-default-600"
+              className="w-full px-3 py-2 text-sm border border-default-300 rounded-lg bg-default-100 text-default-900 dark:bg-default-50 dark:text-default-900 dark:border-default-600 focus:ring-2 focus:ring-primary focus:border-primary"
               value={notificationType}
               onChange={(e) => setNotificationType(e.target.value)}
               disabled={!!editingId}
@@ -346,30 +346,32 @@ export default function NotificationMessagesAdminPage() {
           </TextField>
 
           <TextField value={title} onChange={setTitle} isRequired>
-            <Label>Title</Label>
-            <Input placeholder="e.g., 🌅 Good Morning!" />
+            <Label className="text-sm font-medium">Title</Label>
+            <Input placeholder="e.g., 🌅 Good Morning!" className="text-sm" />
           </TextField>
 
           <TextField value={message} onChange={setMessage} isRequired>
-            <Label>Message</Label>
+            <Label className="text-sm font-medium">Message</Label>
             <TextArea 
               placeholder="e.g., Good morning {name}! Ready to start your wellness journey today?" 
               rows={3}
+              className="text-sm"
             />
           </TextField>
 
           {/* Scheduling Section */}
           <div className="border-t pt-4">
-            <h3 className="text-lg font-medium mb-4 text-default-900 dark:text-default-100">
+            <h3 className="text-base md:text-lg font-medium mb-4 text-default-900 dark:text-default-100">
               📅 Scheduling Settings
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <TextField value={scheduleTime} onChange={setScheduleTime}>
-                <Label>Schedule Time (Optional)</Label>
+                <Label className="text-sm font-medium">Schedule Time (Optional)</Label>
                 <Input 
                   type="time"
                   placeholder="e.g., 07:00"
+                  className="text-sm"
                 />
                 <div className="text-xs text-default-500 mt-1">
                   Time when notification should be sent (user's timezone)
@@ -377,9 +379,9 @@ export default function NotificationMessagesAdminPage() {
               </TextField>
 
               <TextField value={repeatPattern} onChange={setRepeatPattern}>
-                <Label>Repeat Pattern</Label>
+                <Label className="text-sm font-medium">Repeat Pattern</Label>
                 <select 
-                  className="w-full px-3 py-2 border border-default-300 rounded-lg bg-default-100 text-default-900 dark:bg-default-50 dark:text-default-900 dark:border-default-600"
+                  className="w-full px-3 py-2 text-sm border border-default-300 rounded-lg bg-default-100 text-default-900 dark:bg-default-50 dark:text-default-900 dark:border-default-600 focus:ring-2 focus:ring-primary focus:border-primary"
                   value={repeatPattern}
                   onChange={(e) => setRepeatPattern(e.target.value)}
                 >
@@ -402,7 +404,7 @@ export default function NotificationMessagesAdminPage() {
                   type="checkbox"
                   checked={isEnabled}
                   onChange={(e) => setIsEnabled(e.target.checked)}
-                  className="rounded border-default-300 text-blue-600 focus:ring-blue-500 dark:bg-default-100 dark:border-default-600"
+                  className="rounded border-default-300 text-primary focus:ring-primary dark:bg-default-100 dark:border-default-600"
                 />
                 <span className="text-sm text-default-700 dark:text-default-300">
                   Enable this notification schedule
@@ -411,8 +413,8 @@ export default function NotificationMessagesAdminPage() {
             </div>
 
             <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-              <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">📋 Repeat Pattern Examples:</h4>
-              <div className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
+              <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2 text-sm">📋 Repeat Pattern Examples:</h4>
+              <div className="text-xs md:text-sm text-blue-700 dark:text-blue-400 space-y-1">
                 <div>• <strong>Daily:</strong> Good morning/night notifications (every day at set time)</div>
                 <div>• <strong>Weekly:</strong> Measurement reminders (every Sunday at 10 AM)</div>
                 <div>• <strong>Monthly:</strong> Progress reports (first day of each month)</div>
@@ -422,9 +424,9 @@ export default function NotificationMessagesAdminPage() {
             </div>
           </div>
 
-          <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-            <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">Available Placeholders:</h4>
-            <div className="flex flex-wrap gap-2 text-sm mb-3">
+          <div className="p-3 md:p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+            <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2 text-sm">Available Placeholders:</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm mb-3">
               {[
                 { placeholder: '{name}', description: 'User\'s first name' },
                 { placeholder: '{mealsCompleted}', description: 'Number of completed meals' },
@@ -436,30 +438,33 @@ export default function NotificationMessagesAdminPage() {
                   key={placeholder}
                   type="button"
                   onClick={() => insertPlaceholder(placeholder, 'message')}
-                  className="bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800/70 px-3 py-2 rounded border border-blue-300 dark:border-blue-700 transition-colors cursor-pointer"
+                  className="bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800/70 px-2 py-2 rounded border border-blue-300 dark:border-blue-700 transition-colors cursor-pointer text-left"
                   title={`Click to insert ${placeholder} - ${description}`}
                 >
-                  <code className="text-sm font-mono text-blue-800 dark:text-blue-200">{placeholder}</code>
+                  <code className="text-xs font-mono text-blue-800 dark:text-blue-200 block">{placeholder}</code>
+                  <span className="text-xs text-blue-600 dark:text-blue-400 mt-1 block">{description}</span>
                 </button>
               ))}
             </div>
-            <p className="text-sm text-blue-700 dark:text-blue-400">
+            <p className="text-xs md:text-sm text-blue-700 dark:text-blue-400">
               Click any placeholder above to insert it into your message. Placeholders will be replaced with actual user data when notifications are sent.
             </p>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             {editingId ? (
               <>
                 <Button
                   variant="primary"
                   onPress={() => handleUpdate(editingId)}
+                  className="w-full sm:w-auto"
                 >
                   Update Message
                 </Button>
                 <Button
                   variant="secondary"
                   onPress={cancelEdit}
+                  className="w-full sm:w-auto"
                 >
                   Cancel
                 </Button>
@@ -469,6 +474,7 @@ export default function NotificationMessagesAdminPage() {
                 variant="primary"
                 onPress={handleCreate}
                 isDisabled={isCreating}
+                className="w-full sm:w-auto"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 {isCreating ? 'Creating...' : 'Create Message'}
@@ -479,76 +485,82 @@ export default function NotificationMessagesAdminPage() {
       </Card>
 
       {/* Messages List */}
-      <div className="space-y-6">
-        <h2 className="text-xl font-semibold">All Notification Messages</h2>
+      <div className="space-y-4 md:space-y-6">
+        <h2 className="text-lg md:text-xl font-semibold">All Notification Messages</h2>
         
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Spinner size="lg" />
           </div>
         ) : Object.keys(messagesByType).length === 0 ? (
-          <Card className="p-12 text-center">
-            <Bell className="h-12 w-12 mx-auto mb-3 text-default-400" />
-            <p className="text-default-400">No notification messages yet. Create your first one!</p>
+          <Card className="p-8 md:p-12 text-center">
+            <Bell className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-3 text-default-400" />
+            <p className="text-default-400 text-sm md:text-base">No notification messages yet. Create your first one!</p>
           </Card>
         ) : (
           Object.entries(messagesByType).map(([type, typeMessages]) => (
-            <Card key={type} className="p-6">
-              <h3 className="text-lg font-semibold mb-4">{getTypeLabel(type)}</h3>
+            <Card key={type} className="p-4 md:p-6">
+              <h3 className="text-base md:text-lg font-semibold mb-4">{getTypeLabel(type)}</h3>
               <div className="space-y-3">
                 {typeMessages.map((msg) => (
                   <div 
                     key={msg.id} 
-                    className={`p-4 border rounded-lg ${msg.is_active ? 'border-2 border-green-500 bg-green-50 dark:bg-green-950/20' : 'bg-default-50 dark:bg-default-100/50'}`}
+                    className={`p-3 md:p-4 border rounded-lg ${msg.is_active ? 'border-2 border-green-500 bg-green-50 dark:bg-green-950/20' : 'bg-default-50 dark:bg-default-100/50'}`}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-medium text-default-900 dark:text-default-100">{msg.title}</h4>
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                          <h4 className="font-medium text-default-900 dark:text-default-100 text-sm md:text-base wrap-break-word">{msg.title}</h4>
                           {msg.is_active && (
-                            <span className="px-2 py-0.5 text-xs font-medium bg-green-500/20 text-green-600 dark:text-green-400 rounded">
+                            <span className="px-2 py-0.5 text-xs font-medium bg-green-500/20 text-green-600 dark:text-green-400 rounded w-fit">
                               ACTIVE
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-default-600 dark:text-default-400 mb-2">{msg.message}</p>
+                        <p className="text-xs md:text-sm text-default-600 dark:text-default-400 mb-2 wrap-break-word">{msg.message}</p>
                         <div className="text-xs text-default-500 dark:text-default-500">
                           Created: {new Date(msg.created_at).toLocaleDateString()}
                         </div>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex flex-row md:flex-col lg:flex-row gap-2 shrink-0">
                         {msg.is_active ? (
                           <Button
                             size="sm"
-                            className="bg-red-600 text-white hover:bg-red-700"
+                            className="bg-red-600 text-white hover:bg-red-700 min-w-0"
                             onPress={() => handleDeactivate(msg.id)}
                           >
-                            <PowerOff className="h-4 w-4" />
+                            <PowerOff className="h-3 w-3 md:h-4 md:w-4" />
+                            <span className="hidden sm:inline ml-1">Deactivate</span>
                           </Button>
                         ) : (
                           <Button
                             size="sm"
-                            className="bg-green-600 text-white hover:bg-green-700"
+                            className="bg-green-600 text-white hover:bg-green-700 min-w-0"
                             onPress={() => handleActivate(msg.id, msg.notification_type)}
                           >
-                            <Power className="h-4 w-4" />
+                            <Power className="h-3 w-3 md:h-4 md:w-4" />
+                            <span className="hidden sm:inline ml-1">Activate</span>
                           </Button>
                         )}
                         
                         <Button
                           size="sm"
+                          variant="ghost"
                           onPress={() => startEdit(msg)}
+                          className="min-w-0"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-3 w-3 md:h-4 md:w-4" />
+                          <span className="hidden sm:inline ml-1">Edit</span>
                         </Button>
                         
                         <Button
                           size="sm"
-                          className="bg-red-600 text-white hover:bg-red-700"
+                          className="bg-red-600 text-white hover:bg-red-700 min-w-0"
                           onPress={() => handleDelete(msg.id)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
+                          <span className="hidden sm:inline ml-1">Delete</span>
                         </Button>
                       </div>
                     </div>
