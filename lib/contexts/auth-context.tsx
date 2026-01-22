@@ -71,11 +71,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = await requestNotificationPermission();
       if (token) {
         await saveFCMToken(userId, token);
-        console.log('FCM token saved successfully');
+        console.log('✅ FCM token saved successfully');
+      } else {
+        console.log('ℹ️ FCM token setup skipped (notifications disabled or unavailable)');
       }
     } catch (err: unknown) {
+      // This should not happen anymore with the updated requestNotificationPermission
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      console.warn('FCM token setup skipped:', errorMessage);
+      console.warn('⚠️ FCM token setup failed:', errorMessage);
     } finally {
       // Reset flag after delay to allow retry if needed
       setTimeout(() => {

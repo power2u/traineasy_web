@@ -14,6 +14,7 @@ import {
 } from '@/app/actions/profile';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { NotificationSettings } from '@/components/notifications/notification-settings';
+import { MealTimingSettings, type MealTimes } from '@/components/profile/meal-timing-settings';
 
 export default function ProfilePage() {
   const { user, signOut } = useAuth();
@@ -140,6 +141,35 @@ export default function ProfilePage() {
       setSaveMessage('An error occurred');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleMealTimingSave = async (mealTimes: MealTimes) => {
+    if (!user) return;
+
+    try {
+      const mealTimingData = {
+        breakfast_time: mealTimes.breakfast_time,
+        snack1_time: mealTimes.snack1_time,
+        lunch_time: mealTimes.lunch_time,
+        snack2_time: mealTimes.snack2_time,
+        dinner_time: mealTimes.dinner_time,
+        timezone: mealTimes.timezone,
+        theme: mealTimes.theme,
+        meal_times_configured: true,
+      };
+
+      const result = await updateProfile(user.id, mealTimingData);
+
+      if (result.success) {
+        // Reload data to get updated meal times
+        await loadData();
+      } else {
+        throw new Error(result.error || 'Failed to save meal timing settings');
+      }
+    } catch (error) {
+      console.error('Failed to save meal timing settings:', error);
+      throw error; // Re-throw so the component can handle the error
     }
   };
 
@@ -272,6 +302,23 @@ export default function ProfilePage() {
       <Card className="p-3 mb-3 md:p-6 md:mb-6">
         <NotificationSettings />
       </Card>
+
+      {/* Meal Timing Settings */}
+      <div className="mb-3 md:mb-6">
+        <MealTimingSettings 
+          userId={user?.id || ''}
+          initialMealTimes={preferences ? {
+            breakfast_time: preferences.breakfast_time || '08:00',
+            snack1_time: preferences.snack1_time || '10:30',
+            lunch_time: preferences.lunch_time || '13:00',
+            snack2_time: preferences.snack2_time || '16:00',
+            dinner_time: preferences.dinner_time || '19:00',
+            timezone: preferences.timezone || 'Asia/Kolkata',
+            theme: preferences.theme || 'dark',
+          } : null}
+          onSave={handleMealTimingSave}
+        />
+      </div>
 
       {/* Medical Information */}
       <Card className="p-3 mb-3 md:p-6 md:mb-6">

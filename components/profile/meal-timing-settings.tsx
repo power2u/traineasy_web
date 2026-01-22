@@ -1,131 +1,401 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Card, Input, Button } from '@heroui/react';
-import { getMealTimes, setMealTimes, type MealTimes } from '@/app/actions/meal-timing';
+import { useState, useCallback, useEffect } from 'react';
+import { Button, Select, Label, Description, ListBox, Card } from '@heroui/react';
+import { Clock, Globe, Palette, Settings, Edit3, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { COMMON_TIMEZONES } from '@/lib/utils/timezone';
+import { useTheme } from '@/lib/contexts/theme-context';
 
 interface MealTimingSettingsProps {
   userId: string;
+  initialMealTimes?: MealTimes | null;
+  onSave?: (mealTimes: MealTimes) => Promise<void>;
 }
 
+export interface MealTimes {
+  breakfast_time: string;
+  snack1_time: string;
+  lunch_time: string;
+  snack2_time: string;
+  dinner_time: string;
+  timezone: string;
+  theme?: 'light' | 'dark' | 'system';
+}
+
+const DEFAULT_MEAL_TIMES: MealTimes = {
+  breakfast_time: '08:00',
+  snack1_time: '10:30',
+  lunch_time: '13:00',
+  snack2_time: '16:00',
+  dinner_time: '19:00',
+  timezone: 'Asia/Kolkata',
+  theme: 'dark',
+};
+
+const THEME_OPTIONS = [
+  { value: 'light', label: '☀️ Light Mode', description: 'Clean and bright interface' },
+  { value: 'dark', label: '🌙 Dark Mode', description: 'Easy on the eyes' },
+  { value: 'system', label: '🔄 System', description: 'Follow device settings' },
+] as const;
+
 const MEAL_CONFIG = [
-  { key: 'breakfast_time', label: 'Breakfast', icon: '🌅', description: 'Morning meal' },
-  { key: 'snack1_time', label: 'Snack 1', icon: '🍎', description: 'Mid-morning snack' },
+  { key: 'breakfast_time', label: 'Breakfast', icon: '🌅', description: 'Start your day right' },
+  { key: 'snack1_time', label: 'Morning Snack', icon: '🍎', description: 'Mid-morning energy boost' },
   { key: 'lunch_time', label: 'Lunch', icon: '☀️', description: 'Midday meal' },
-  { key: 'snack2_time', label: 'Snack 2', icon: '🍪', description: 'Afternoon snack' },
+  { key: 'snack2_time', label: 'Afternoon Snack', icon: '🍪', description: 'Afternoon fuel' },
   { key: 'dinner_time', label: 'Dinner', icon: '🌙', description: 'Evening meal' },
 ] as const;
 
-export function MealTimingSettings({ userId }: MealTimingSettingsProps) {
-  const [mealTimes, setMealTimesState] = useState<MealTimes>({
-    breakfast_time: '08:00',
-    snack1_time: '10:30',
-    lunch_time: '13:00',
-    snack2_time: '16:00',
-    dinner_time: '19:00',
-    timezone: 'Asia/Kolkata', // Default timezone
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTimingSettingsProps) {
+  const [mealTimes, setMealTimes] = useState<MealTimes>(initialMealTimes || DEFAULT_MEAL_TIMES);
+  const [editingMealTimes, setEditingMealTimes] = useState<MealTimes>(initialMealTimes || DEFAULT_MEAL_TIMES);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const { theme: currentTheme } = useTheme();
 
+  // Initialize with current data or defaults
   useEffect(() => {
-    loadMealTimes();
-  }, [userId]);
-
-  const loadMealTimes = async () => {
-    setIsLoading(true);
-    try {
-      const result = await getMealTimes(userId);
-      if (result.success && result.mealTimes) {
-        // Convert TIME format (HH:MM:SS) to HH:MM for input
-        const times = result.mealTimes;
-        setMealTimesState({
-          breakfast_time: times.breakfast_time.substring(0, 5),
-          snack1_time: times.snack1_time.substring(0, 5),
-          lunch_time: times.lunch_time.substring(0, 5),
-          snack2_time: times.snack2_time.substring(0, 5),
-          dinner_time: times.dinner_time.substring(0, 5),
-          timezone: times.timezone || 'Asia/Kolkata', // Include timezone from server
-        });
+    if (initialMealTimes) {
+      setMealTimes(initialMealTimes);
+      setEditingMealTimes(initialMealTimes);
+    } else {
+      // Auto-detect timezone if no initial data
+      try {
+        const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const isSupported = COMMON_TIMEZONES.some(tz => tz.value === detectedTimezone);
+        const timezone = isSupported ? detectedTimezone : 'Asia/Kolkata';
+        
+        const defaultTimes = { 
+          ...DEFAULT_MEAL_TIMES, 
+          timezone,
+          theme: currentTheme
+        };
+        
+        setMealTimes(defaultTimes);
+        setEditingMealTimes(defaultTimes);
+      } catch (error) {
+        console.warn('[MealTimingSettings] Failed to detect timezone:', error);
       }
-    } catch (error) {
-      console.error('Failed to load meal times:', error);
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [initialMealTimes, currentTheme]);
+
+  // Check for unsaved changes
+  useEffect(() => {
+    const hasChanges = JSON.stringify(mealTimes) !== JSON.stringify(editingMealTimes);
+    setHasUnsavedChanges(hasChanges);
+  }, [mealTimes, editingMealTimes]);
 
   const handleTimeChange = useCallback((key: keyof MealTimes, value: string) => {
-    setMealTimesState(prev => ({ ...prev, [key]: value }));
+    setEditingMealTimes(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      const result = await setMealTimes(userId, mealTimes);
-      if (result.success) {
-        toast.success('Meal times updated successfully! 🍽️');
-      } else {
-        throw new Error(result.error);
-      }
-    } catch (error) {
-      toast.error('Failed to update meal times');
-      console.error('Failed to save meal times:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const handleTimezoneChange = useCallback((timezone: string) => {
+    setEditingMealTimes(prev => ({ ...prev, timezone }));
+  }, []);
 
-  if (isLoading) {
-    return (
-      <Card className="p-6">
-        <div className="flex items-center justify-center py-8">
-          <div className="text-default-500">Loading meal times...</div>
-        </div>
-      </Card>
-    );
-  }
+  const handleThemeChange = useCallback((theme: 'light' | 'dark' | 'system') => {
+    setEditingMealTimes(prev => ({ ...prev, theme }));
+  }, []);
+
+  const handleOpenDialog = useCallback(() => {
+    setEditingMealTimes(mealTimes); // Reset editing state to current saved state
+    setIsDialogOpen(true);
+  }, [mealTimes]);
+
+  const handleCloseDialog = useCallback(() => {
+    if (hasUnsavedChanges) {
+      const confirmClose = window.confirm('You have unsaved changes. Are you sure you want to close without saving?');
+      if (!confirmClose) return;
+    }
+    setIsDialogOpen(false);
+    setEditingMealTimes(mealTimes); // Reset to saved state
+  }, [hasUnsavedChanges, mealTimes]);
+
+  const handleSave = useCallback(async () => {
+    setIsSubmitting(true);
+    try {
+      console.log('[MealTimingSettings] Saving meal times:', editingMealTimes);
+      
+      if (onSave) {
+        await onSave(editingMealTimes);
+      }
+      
+      // Update the main state with saved values
+      setMealTimes(editingMealTimes);
+      setIsDialogOpen(false);
+      
+      toast.success('Meal timing settings saved successfully! 🍽️');
+    } catch (error) {
+      toast.error('Failed to save settings. Please try again.');
+      console.error('[MealTimingSettings] Failed to save meal times:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [editingMealTimes, onSave]);
+
+  const handleReset = useCallback(() => {
+    const confirmReset = window.confirm('Are you sure you want to reset all settings to defaults?');
+    if (confirmReset) {
+      setEditingMealTimes(DEFAULT_MEAL_TIMES);
+      toast.info('Settings reset to defaults');
+    }
+  }, []);
 
   return (
-    <Card className="p-6">
-      <div className="mb-4">
-        <h2 className="text-xl font-semibold mb-2">Meal Timing</h2>
-        <p className="text-sm text-default-500">
-          Set your preferred meal times. We'll send you reminders if you forget to log your meals.
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        {MEAL_CONFIG.map((meal) => (
-          <div 
-            key={meal.key}
-            className="flex items-center gap-4 p-3 rounded-lg border border-default-200"
-          >
-            <div className="text-2xl">{meal.icon}</div>
-            <div className="flex-1">
-              <div className="font-medium text-sm">{meal.label}</div>
-              <div className="text-xs text-default-500">{meal.description}</div>
+    <>
+      {/* Summary Card */}
+      <Card className="p-3 md:p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
+              <Settings className="w-5 h-5 text-primary" />
             </div>
-            <input
-              type="time"
-              value={mealTimes[meal.key]}
-              onChange={(e) => handleTimeChange(meal.key, e.target.value)}
-              className="w-32 px-2 py-1 text-sm bg-default-100 rounded border border-default-200 focus:outline-none focus:border-blue-500"
-            />
+            <div>
+              <h2 className="text-lg font-semibold">Meal Timing & Preferences</h2>
+              <p className="text-sm text-default-500">
+                Manage your meal schedules and notification preferences
+              </p>
+            </div>
           </div>
-        ))}
-      </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onPress={handleOpenDialog}
+            className="min-w-0 flex items-center gap-2"
+          >
+            <Edit3 className="w-4 h-4" />
+            Edit
+          </Button>
+        </div>
 
-      <div className="mt-6 flex justify-end">
-        <Button
-          variant="primary"
-          onPress={handleSave}
-          isDisabled={isSaving}
-        >
-          {isSaving ? 'Saving...' : 'Save Meal Times'}
-        </Button>
-      </div>
-    </Card>
+        {/* Current Settings Summary */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm">
+            <Globe className="w-4 h-4 text-default-500" />
+            <span className="text-default-600">Timezone:</span>
+            <span className="font-medium">{mealTimes.timezone}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <Palette className="w-4 h-4 text-default-500" />
+            <span className="text-default-600">Theme:</span>
+            <span className="font-medium capitalize">{mealTimes.theme || 'dark'}</span>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-3">
+            {MEAL_CONFIG.map((meal) => (
+              <div key={meal.key} className="flex items-center gap-1 px-2 py-1 bg-content2 rounded-md text-xs">
+                <span>{meal.icon}</span>
+                <span className="font-medium">{mealTimes[meal.key]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      {/* Edit Dialog */}
+      {isDialogOpen && (
+        <>
+          {/* Backdrop */}
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={handleCloseDialog} />
+          
+          {/* Dialog */}
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-background border border-divider rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+              {/* Dialog Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold">Edit Meal Timing Settings</h2>
+                  <p className="text-sm text-default-500 mt-1">
+                    Customize your meal schedules, timezone, and theme preferences
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onPress={handleCloseDialog}
+                  className="min-w-0"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+
+              {/* Dialog Body */}
+              <div className="space-y-6">
+                {/* Info Card */}
+                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="text-2xl">💡</div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-sm mb-1 text-foreground">About meal reminders</h3>
+                      <p className="text-xs text-foreground/70">
+                        We'll send you gentle reminders if you forget to mark your meals as completed. 
+                        This helps you stay consistent with your nutrition tracking!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Timezone Selection */}
+                <div className="space-y-2">
+                  <Select
+                    selectedKey={editingMealTimes.timezone}
+                    onSelectionChange={(key) => {
+                      if (key) handleTimezoneChange(key as string);
+                    }}
+                  >
+                    <Label className="text-sm font-medium text-foreground">
+                      <Globe className="w-4 h-4 inline mr-2" />
+                      Your Timezone
+                    </Label>
+                    <Select.Trigger className="w-full">
+                      <Select.Value />
+                      <Select.Indicator />
+                    </Select.Trigger>
+                    <Description className="text-xs text-foreground/60">
+                      This ensures you get reminders at the right time in your local timezone.
+                    </Description>
+                    <Select.Popover className="max-h-60 overflow-y-auto">
+                      <ListBox>
+                        {COMMON_TIMEZONES.map((tz) => (
+                          <ListBox.Item key={tz.value} id={tz.value}>
+                            <Label>{tz.label}</Label>
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                </div>
+
+                {/* Theme Selection */}
+                <div className="space-y-2">
+                  <Select
+                    selectedKey={editingMealTimes.theme || 'dark'}
+                    onSelectionChange={(key) => {
+                      if (key) handleThemeChange(key as 'light' | 'dark' | 'system');
+                    }}
+                  >
+                    <Label className="text-sm font-medium text-foreground">
+                      <Palette className="w-4 h-4 inline mr-2" />
+                      App Theme
+                    </Label>
+                    <Select.Trigger className="w-full">
+                      <Select.Value />
+                      <Select.Indicator />
+                    </Select.Trigger>
+                    <Description className="text-xs text-foreground/60">
+                      Choose your preferred appearance for the app.
+                    </Description>
+                    <Select.Popover>
+                      <ListBox>
+                        {THEME_OPTIONS.map((themeOption) => (
+                          <ListBox.Item key={themeOption.value} id={themeOption.value}>
+                            <Label>{themeOption.label}</Label>
+                            <Description className="text-xs text-foreground/60">
+                              {themeOption.description}
+                            </Description>
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                </div>
+
+                {/* Meal Time Inputs */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-foreground mb-3">Meal Times</h3>
+                  {MEAL_CONFIG.map((meal) => (
+                    <div 
+                      key={meal.key}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-divider hover:border-primary/50 transition-colors bg-content1"
+                    >
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
+                        <span className="text-lg">{meal.icon}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm text-foreground">{meal.label}</div>
+                        <div className="text-xs text-foreground/60 truncate">{meal.description}</div>
+                      </div>
+                      <div className="flex items-center gap-2 bg-content2 rounded-lg px-3 py-2 border border-divider">
+                        <Clock className="w-4 h-4 text-foreground/60" />
+                        <input
+                          type="time"
+                          value={editingMealTimes[meal.key]}
+                          onChange={(e) => handleTimeChange(meal.key, e.target.value)}
+                          className="w-20 text-sm font-medium bg-transparent text-foreground border-none outline-none focus:ring-0"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Unsaved Changes Warning */}
+                {hasUnsavedChanges && (
+                  <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <div className="text-lg">⚠️</div>
+                      <div className="flex-1">
+                        <p className="text-sm text-warning-600 dark:text-warning-400 font-medium">
+                          You have unsaved changes
+                        </p>
+                        <p className="text-xs text-warning-600/70 dark:text-warning-400/70 mt-1">
+                          Don't forget to save your changes before closing this dialog.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Dialog Footer */}
+              <div className="flex flex-col gap-3 pt-6 border-t border-divider mt-6 sm:flex-row">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onPress={handleSave}
+                  isDisabled={isSubmitting || !hasUnsavedChanges}
+                  className="flex-1"
+                >
+                  {isSubmitting ? 'Saving...' : hasUnsavedChanges ? 'Save Changes' : 'No Changes'}
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  onPress={handleReset}
+                  isDisabled={isSubmitting}
+                  className="sm:w-auto sm:min-w-[120px]"
+                >
+                  Reset to Defaults
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  onPress={handleCloseDialog}
+                  isDisabled={isSubmitting}
+                  className="sm:w-auto sm:min-w-[80px]"
+                >
+                  Cancel
+                </Button>
+              </div>
+
+              {/* Footer Note */}
+              <div className="bg-default/10 border border-default/20 rounded-lg p-3 mt-4">
+                <div className="flex items-start gap-2">
+                  <div className="text-lg">⏰</div>
+                  <div className="flex-1">
+                    <p className="text-xs text-foreground/70">
+                      Changes will take effect immediately after saving. You'll receive notifications based on your updated schedule.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }

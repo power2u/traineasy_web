@@ -11,11 +11,17 @@ export async function requestNotificationPermission(): Promise<string | null> {
     console.log('🔔 Starting FCM token request...');
     
     if (!messaging) {
-      console.error('❌ Firebase messaging not supported or not initialized');
-      throw new Error('Firebase messaging not available');
+      console.warn('⚠️ Firebase messaging not supported or not initialized');
+      return null;
     }
 
     console.log('✅ Firebase messaging initialized');
+
+    // Check if notifications are supported
+    if (!('Notification' in window)) {
+      console.warn('⚠️ Notifications not supported in this browser');
+      return null;
+    }
 
     // Request permission
     console.log('📋 Requesting notification permission...');
@@ -23,8 +29,8 @@ export async function requestNotificationPermission(): Promise<string | null> {
     console.log('📋 Permission result:', permission);
     
     if (permission !== 'granted') {
-      console.warn('⚠️ Notification permission denied');
-      throw new Error('Notification permission denied');
+      console.warn('⚠️ Notification permission denied or dismissed by user');
+      return null; // Return null instead of throwing error
     }
 
     // Get FCM token
@@ -32,8 +38,8 @@ export async function requestNotificationPermission(): Promise<string | null> {
     console.log('🔑 VAPID key present:', !!vapidKey);
     
     if (!vapidKey) {
-      console.error('❌ VAPID key not configured in environment variables');
-      throw new Error('VAPID key not configured');
+      console.warn('⚠️ VAPID key not configured in environment variables');
+      return null;
     }
 
     console.log('🎫 Requesting FCM token from Firebase...');
@@ -43,17 +49,23 @@ export async function requestNotificationPermission(): Promise<string | null> {
       console.log('✅ FCM Token received:', token.substring(0, 20) + '...');
       return token;
     } else {
-      console.error('❌ No registration token available');
-      throw new Error('Failed to get FCM token');
+      console.warn('⚠️ No registration token available from Firebase');
+      return null;
     }
   } catch (error: any) {
-    console.error('❌ Error getting FCM token:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      stack: error.stack,
-    });
-    throw error;
+    // Log the error but don't throw it - this allows the app to continue functioning
+    console.warn('⚠️ FCM token request failed (this is normal if notifications are disabled):', error.message);
+    
+    // Only log detailed error info in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack,
+      });
+    }
+    
+    return null; // Return null instead of throwing
   }
 }
 
@@ -81,7 +93,24 @@ export function onForegroundMessage(callback: (payload: any) => void) {
  */
 export function areNotificationsEnabled(): boolean {
   if (typeof window === 'undefined') return false;
+  if (!('Notification' in window)) return false;
   return Notification.permission === 'granted';
+}
+
+/**
+ * Get current notification permission status
+ */
+export function getNotificationPermissionStatus(): 'granted' | 'denied' | 'default' | 'unsupported' {
+  if (typeof window === 'undefined') return 'unsupported';
+  if (!('Notification' in window)) return 'unsupported';
+  return Notification.permission;
+}
+
+/**
+ * Check if the browser supports notifications
+ */
+export function isNotificationSupported(): boolean {
+  return typeof window !== 'undefined' && 'Notification' in window;
 }
 
 /**
@@ -107,11 +136,12 @@ export async function removeFCMToken(userId: string, removeAll: boolean = false)
     let currentToken = null;
     
     // If not removing all tokens, get current browser's token
-    if (!removeAll) {
+    if (!removeAll && messaging) {
       try {
-        currentToken = await getToken(messaging!, { 
-          vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY 
-        });
+        const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+        if (vapidKey) {
+          currentToken = await getToken(messaging, { vapidKey });
+        }
       } catch (error) {
         console.warn('Could not get current token for removal:', error);
       }
@@ -126,7 +156,7 @@ export async function removeFCMToken(userId: string, removeAll: boolean = false)
 
     return true; // If no token to remove, consider it successful
   } catch (error) {
-    console.error('Error removing FCM token:', error);
-    return false;
+    console.warn('Error removing FCM token:', error);
+    return false; // Return false but don't throw
   }
 }

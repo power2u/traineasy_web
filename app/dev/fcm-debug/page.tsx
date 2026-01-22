@@ -45,10 +45,19 @@ export default function FCMDebugPage() {
           await loadTokens();
         }
       } else {
-        setMessage('❌ Failed to get token. Check console for errors.');
+        // Check permission status to provide better feedback
+        const permission = Notification.permission;
+        if (permission === 'denied') {
+          setMessage('❌ Notifications are blocked. Please enable them in browser settings and refresh the page.');
+        } else if (permission === 'default') {
+          setMessage('⚠️ Notification permission was not granted. Please try again.');
+        } else {
+          setMessage('ℹ️ Could not get FCM token. This may be normal if notifications are disabled.');
+        }
       }
     } catch (error: any) {
-      setMessage(`❌ Error: ${error.message}`);
+      // This should rarely happen now with graceful error handling
+      setMessage(`❌ Unexpected error: ${error.message}`);
     } finally {
       setLoading(false);
     }
