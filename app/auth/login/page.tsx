@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { Button, TextField, Label, Input, Card, Text } from '@heroui/react';
 import { getAuthErrorMessage } from '@/lib/utils/auth-helpers';
@@ -9,8 +9,16 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { signIn, loading } = useAuth();
+  const { signIn, loading: authLoading } = useAuth();
   const [localError, setLocalError] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Avoid hydration mismatch by waiting for mount or defaulting to safe state
+  const loading = !isMounted || authLoading;
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();

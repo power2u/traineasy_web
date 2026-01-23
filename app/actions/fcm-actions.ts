@@ -1,26 +1,27 @@
 'use server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function saveFCMToken(token: string) {
   try {
-    // Get the current user using the regular client
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
       throw new Error('User not authenticated');
     }
 
+    const userId = (session.user as any).id;
+
     // Use admin client for database operations to bypass RLS
     const adminClient = createAdminClient();
-    
+
     // Check if token already exists for this user
     const { data: existingToken } = await adminClient
       .from('fcm_tokens')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('token', token)
       .single();
 
@@ -33,7 +34,7 @@ export async function saveFCMToken(token: string) {
     const { error: insertError } = await adminClient
       .from('fcm_tokens')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         token: token,
         created_at: new Date().toISOString()
       });
@@ -54,21 +55,21 @@ export async function saveFCMToken(token: string) {
 
 export async function removeFCMToken(token: string) {
   try {
-    // Get the current user using the regular client
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
       throw new Error('User not authenticated');
     }
 
+    const userId = (session.user as any).id;
+
     // Use admin client for database operations to bypass RLS
     const adminClient = createAdminClient();
-    
+
     const { error } = await adminClient
       .from('fcm_tokens')
       .delete()
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('token', token);
 
     if (error) {
@@ -87,21 +88,21 @@ export async function removeFCMToken(token: string) {
 
 export async function getUserPreferences() {
   try {
-    // Get the current user using the regular client
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
       throw new Error('User not authenticated');
     }
 
+    const userId = (session.user as any).id;
+
     // Use admin client for database operations to bypass RLS
     const adminClient = createAdminClient();
-    
+
     const { data, error } = await adminClient
       .from('user_preferences')
       .select('*')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
 
     if (error && error.code !== 'PGRST116') {
@@ -119,22 +120,22 @@ export async function getUserPreferences() {
 
 export async function updateUserPreferences(preferences: any) {
   try {
-    // Get the current user using the regular client
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
       throw new Error('User not authenticated');
     }
 
+    const userId = (session.user as any).id;
+
     // Use admin client for database operations to bypass RLS
     const adminClient = createAdminClient();
-    
+
     // Check if row exists first
     const { data: existing } = await adminClient
       .from('user_preferences')
       .select('id')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
 
     if (existing) {
@@ -142,18 +143,18 @@ export async function updateUserPreferences(preferences: any) {
       const { error } = await adminClient
         .from('user_preferences')
         .update(preferences)
-        .eq('id', user.id);
-      
+        .eq('id', userId);
+
       if (error) throw error;
     } else {
       // Row doesn't exist, insert it
       const { error } = await adminClient
         .from('user_preferences')
         .insert({
-          id: user.id,
+          id: userId,
           ...preferences,
         });
-      
+
       if (error) throw error;
     }
 

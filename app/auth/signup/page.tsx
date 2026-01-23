@@ -1,11 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { Button, TextField, Label, Input, Card, Text } from '@heroui/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getAuthErrorMessage } from '@/lib/utils/auth-helpers';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function SignupPage() {
@@ -17,7 +15,6 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,29 +33,22 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: {
-            display_name: displayName,
-            full_name: displayName,
-          },
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          email,
+          password,
+          full_name: displayName,
+        }),
       });
 
-      if (signUpError) {
-        // Handle specific error cases
-        if (signUpError.message.includes('already registered')) {
-          throw new Error('This email is already registered. Please sign in instead.');
-        }
-        throw signUpError;
-      }
+      const data = await res.json();
 
-      // Check if user already exists (Supabase returns user even if already exists)
-      if (data.user && data.user.identities && data.user.identities.length === 0) {
-        throw new Error('This email is already registered. Please sign in instead.');
+      if (!res.ok) {
+        throw new Error(data.error || 'Registration failed');
       }
 
       setSuccess(true);
@@ -66,26 +56,9 @@ export default function SignupPage() {
         router.push('/auth/login');
       }, 2000);
     } catch (err: any) {
-      const errorMsg = getAuthErrorMessage(err);
-      setError(errorMsg);
+      setError(err.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGoogleSignup = async () => {
-    try {
-      setError(null);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-      if (error) throw error;
-    } catch (err: any) {
-      const errorMsg = getAuthErrorMessage(err);
-      setError(errorMsg);
     }
   };
 
@@ -99,14 +72,13 @@ export default function SignupPage() {
           <img src="/logo.png" alt="Fitness Tracker" className="h-16 w-16 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-foreground">Account Created!</h1>
           <Text className="mt-2 text-default-500">
-            Check your email to verify your account. Redirecting to login...
+            Your account has been created. Redirecting to login...
           </Text>
         </Card>
       </div>
     );
   }
 
-  // Disable public signup
   return (
     <div className="flex min-h-screen items-center justify-center p-4 bg-background">
       <div className="fixed top-4 right-4 z-50">
@@ -115,31 +87,8 @@ export default function SignupPage() {
       <Card className="w-full max-w-md p-8">
         <div className="mb-6 text-center">
           <img src="/logo.png" alt="Fitness Tracker" className="h-16 w-16 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-foreground">Sign Up Disabled</h1>
-          <Text className="mt-2 text-default-500">
-            New user registration is currently disabled. Please contact an administrator to create an account.
-          </Text>
-        </div>
-
-        <div className="space-y-4">
-          <Link href="/auth/login" className="block">
-            <Button variant="primary" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium">
-              Go to Sign In
-            </Button>
-          </Link>
-        </div>
-      </Card>
-    </div>
-  );
-
-  // Original signup form (disabled)
-  /*
-  return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md p-8">
-        <div className="mb-6 text-center">
-          <h1 className="text-3xl font-bold">Create Account</h1>
-          <Text className="mt-2 text-gray-400">Start tracking your fitness journey</Text>
+          <h1 className="text-3xl font-bold text-foreground">Create Account</h1>
+          <Text className="mt-2 text-default-500">Start tracking your fitness journey</Text>
         </div>
 
         <form onSubmit={handleSignup} className="space-y-4">
@@ -164,49 +113,24 @@ export default function SignupPage() {
           </TextField>
 
           {error && (
-            <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-500">
+            <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20">
               <div className="font-semibold mb-1">⚠️ Sign Up Failed</div>
               <div>{error}</div>
-              {error.includes('already registered') && (
-                <div className="mt-3 flex flex-col gap-2">
-                  <Link href="/auth/login" className="text-blue-400 hover:underline text-xs font-medium">
-                    → Go to Sign In page
-                  </Link>
-                  <Text className="text-xs text-gray-400">
-                    Or use "Continue with Google" if you signed up with Google
-                  </Text>
-                </div>
-              )}
             </div>
           )}
 
           <Button
             type="submit"
             variant="primary"
-            className="w-full"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium"
             isDisabled={loading}
           >
             {loading ? 'Creating account...' : 'Sign Up'}
           </Button>
         </form>
 
-        <div className="my-6 flex items-center gap-4">
-          <div className="h-px flex-1 bg-gray-700" />
-          <Text className="text-sm text-gray-400">OR</Text>
-          <div className="h-px flex-1 bg-gray-700" />
-        </div>
-
-        <Button
-          variant="secondary"
-          className="w-full"
-          onClick={handleGoogleSignup}
-          isDisabled={loading}
-        >
-          Continue with Google
-        </Button>
-
         <div className="mt-6 text-center text-sm">
-          <Text className="text-gray-400">
+          <Text className="text-default-500">
             Already have an account?{' '}
             <Link href="/auth/login" className="text-blue-500 hover:underline">
               Sign in
@@ -216,5 +140,4 @@ export default function SignupPage() {
       </Card>
     </div>
   );
-  */
 }

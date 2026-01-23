@@ -10,6 +10,7 @@ export interface UserPreferences {
   full_name?: string;
   date_of_birth?: string;
   phone?: string;
+  password_change_required?: boolean;
   // Medical Information
   blood_group?: string;
   allergies?: string;
@@ -71,9 +72,19 @@ export interface UserPlan {
   created_at: string;
 }
 
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+
+// ... existing imports
+
 // Get user preferences (includes profile data)
 export async function getProfile(userId: string) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || (session.user as any).id !== userId) {
+      return { success: false, error: "Unauthorized" };
+    }
+
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -98,6 +109,11 @@ export async function getProfile(userId: string) {
 // Update user preferences (includes profile data)
 export async function updateProfile(userId: string, profileData: Partial<UserProfile>) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || (session.user as any).id !== userId) {
+      return { success: false, error: "Unauthorized" };
+    }
+
     const supabase = await createClient();
 
     console.log('[updateProfile] Updating for user:', userId);
@@ -146,10 +162,10 @@ export async function updateProfile(userId: string, profileData: Partial<UserPro
     // Update cron jobs if notification preferences changed
     const notificationFields = ['notifications_enabled', 'meal_reminders_enabled', 'water_reminders_enabled', 'weight_reminders_enabled', 'breakfast_time', 'snack1_time', 'lunch_time', 'snack2_time', 'dinner_time'];
     const hasNotificationChanges = notificationFields.some(field => profileData.hasOwnProperty(field));
-    
+
     if (hasNotificationChanges) {
       // Update cron jobs asynchronously (don't wait for it)
-      updateUserCronJobs(userId).catch(error => 
+      updateUserCronJobs(userId).catch(error =>
         console.error('Failed to update cron jobs:', error)
       );
     }
@@ -399,7 +415,7 @@ export async function updatePreferences(
 export async function getUserNotificationPreferences(userId?: string) {
   try {
     const supabase = await createClient();
-    
+
     let targetUserId = userId;
     if (!targetUserId) {
       const { data: { user } } = await supabase.auth.getUser();
@@ -462,7 +478,7 @@ export async function updateUserNotificationPreferences(
 ) {
   try {
     const supabase = await createClient();
-    
+
     let targetUserId = userId;
     if (!targetUserId) {
       const { data: { user } } = await supabase.auth.getUser();
@@ -471,7 +487,7 @@ export async function updateUserNotificationPreferences(
     }
 
     const result = await updatePreferences(targetUserId, preferences);
-    
+
     if (result.success) {
       return { success: true, successMessage: 'Notification preferences updated successfully' };
     } else {
