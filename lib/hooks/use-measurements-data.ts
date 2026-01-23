@@ -7,9 +7,10 @@ interface UseMeasurementsDataOptions {
   userId: string | null;
   measurementType: MeasurementType;
   days?: number;
+  initialData?: BodyMeasurement[];
 }
 
-export function useMeasurementsData({ userId, measurementType, days = 90 }: UseMeasurementsDataOptions) {
+export function useMeasurementsData({ userId, measurementType, days = 90, initialData }: UseMeasurementsDataOptions) {
   const queryClient = useQueryClient();
 
   // Fetch measurements with React Query
@@ -17,6 +18,7 @@ export function useMeasurementsData({ userId, measurementType, days = 90 }: UseM
     queryKey: ['measurements', userId, measurementType, days],
     queryFn: () => measurementsService.getMeasurements(userId!, measurementType, days),
     enabled: !!userId,
+    initialData: initialData,
     staleTime: 60000, // Consider data fresh for 1 minute
     gcTime: 300000, // Keep in cache for 5 minutes (renamed from cacheTime)
   });
@@ -32,14 +34,14 @@ export function useMeasurementsData({ userId, measurementType, days = 90 }: UseM
   // Get weekly average (computed from measurements data)
   const weeklyAverage = useMemo(() => {
     if (measurements.length === 0) return null;
-    
+
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
     const weekAgoStr = weekAgo.toISOString().split('T')[0];
-    
+
     const weekData = measurements.filter(m => m.date >= weekAgoStr);
     if (weekData.length === 0) return null;
-    
+
     const sum = weekData.reduce((acc, curr) => acc + curr.value, 0);
     return sum / weekData.length;
   }, [measurements]);
@@ -47,14 +49,14 @@ export function useMeasurementsData({ userId, measurementType, days = 90 }: UseM
   // Get monthly average (computed from measurements data)
   const monthlyAverage = useMemo(() => {
     if (measurements.length === 0) return null;
-    
+
     const monthAgo = new Date();
     monthAgo.setDate(monthAgo.getDate() - 30);
     const monthAgoStr = monthAgo.toISOString().split('T')[0];
-    
+
     const monthData = measurements.filter(m => m.date >= monthAgoStr);
     if (monthData.length === 0) return null;
-    
+
     const sum = monthData.reduce((acc, curr) => acc + curr.value, 0);
     return sum / monthData.length;
   }, [measurements]);

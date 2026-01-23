@@ -1,120 +1,73 @@
-'use client';
-
-import { useAuthUser, useAuthLoading } from '@/lib/contexts/auth-context';
-import { useRouter } from 'next/navigation';
-import { useEffect, useMemo } from 'react';
-import { Button, Card, Text, Spinner } from '@heroui/react';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import { Button, Card, Text } from '@heroui/react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
-import { weightService } from '@/lib/services/weight-service';
+import { getLatestWeightLog } from '@/app/actions/weight';
 import { getTodayWaterCount, getWaterTarget } from '@/app/actions/water';
 import { getTodayMeals } from '@/app/actions/meals';
 import { getActiveMembership } from '@/app/actions/memberships';
 import { Droplet, Utensils, Scale, Calendar, AlertCircle } from 'lucide-react';
-
 import { EnableNotificationsButton } from '@/components/settings/enable-notifications-button';
 
-export default function DashboardPage() {
-  const user = useAuthUser();
-  const loading = useAuthLoading();
-  const router = useRouter();
+export default async function DashboardPage() {
+  const session = await getServerSession(authOptions);
 
-  // Check if user is admin
-  const isAdmin = useMemo(() => {
-    if (!user) return false;
-    const role = user.raw_app_meta_data?.role || user.raw_user_meta_data?.role;
-    return role === 'super_admin';
-  }, [user]);
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth/login');
-    }
-  }, [user, loading, router]);
-
-  // Parallel data fetching with React Query
-  // Skip membership check for admins
-  const { data: membership, isLoading: isLoadingMembership } = useQuery({
-    queryKey: ['membership', 'active', user?.id],
-    queryFn: async () => {
-      const result = await getActiveMembership(user!.id);
-      return result.success ? result.membership : null;
-    },
-    enabled: !!user && !isAdmin,
-  });
-
-  const { data: latestWeight, isLoading: isLoadingWeight } = useQuery({
-    queryKey: ['weight', 'latest', user?.id],
-    queryFn: () => weightService.getLatestLog(user!.id),
-    enabled: !!user,
-  });
-
-  const { data: waterCount = 0, isLoading: isLoadingWater } = useQuery({
-    queryKey: ['water', 'today-count', user?.id],
-    queryFn: async () => {
-      const result = await getTodayWaterCount(user!.id);
-      return result.success ? result.count : 0;
-    },
-    enabled: !!user,
-  });
-
-  const { data: waterTarget = 14, isLoading: isLoadingWaterTarget } = useQuery({
-    queryKey: ['water', 'target', user?.id],
-    queryFn: async () => {
-      const result = await getWaterTarget(user!.id);
-      return result.success ? result.target : 14;
-    },
-    enabled: !!user,
-  });
-
-  const { data: mealsCompleted = 0, isLoading: isLoadingMeals } = useQuery({
-    queryKey: ['meals', 'today-completed', user?.id],
-    queryFn: async () => {
-      const result = await getTodayMeals(user!.id);
-      if (result.success && result.meals) {
-        const meals = result.meals;
-        return (
-          (meals.breakfast_completed ? 1 : 0) +
-          (meals.snack1_completed ? 1 : 0) +
-          (meals.lunch_completed ? 1 : 0) +
-          (meals.snack2_completed ? 1 : 0) +
-          (meals.dinner_completed ? 1 : 0)
-        );
-      }
-      return 0;
-    },
-    enabled: !!user,
-  });
-
-  // Check if any data is still loading
-  const isAnyDataLoading = isLoadingWeight || isLoadingWater || isLoadingWaterTarget || isLoadingMeals;
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Spinner size="lg" />
-      </div>
-    );
+  if (!session || !session.user) {
+    redirect('/auth/login');
   }
 
-  if (!user) {
-    return null;
+  const user = session.user;
+  const userId = (user as any).id;
+
+  // Check if user is admin - handle both location of role
+  const isAdmin =
+    (user as any).raw_app_meta_data?.role === 'super_admin' ||
+    (user as any).raw_user_meta_data?.role === 'super_admin' ||
+    (user as any).role === 'super_admin';
+
+  // Parallel data fetching
+  const [
+    membershipResult,
+    latestWeight,
+    waterCountResult,
+    waterTargetResult,
+    mealsResult
+  ] = await Promise.all([
+    !isAdmin ? getActiveMembership(userId) : Promise.resolve({ success: true, membership: null }),
+    getLatestWeightLog(userId),
+    getTodayWaterCount(userId),
+    getWaterTarget(userId),
+    getTodayMeals(userId)
+  ]);
+
+  const membership = membershipResult.success ? membershipResult.membership : null;
+  const latestWeightLog = latestWeight.success ? latestWeight.log : null;
+  const waterCount = waterCountResult.success ? waterCountResult.count : 0;
+  const waterTarget = waterTargetResult.success ? waterTargetResult.target : 14;
+
+  // Calculate meals completed
+  let mealsCompleted = 0;
+  if (mealsResult.success && mealsResult.meals) {
+    const meals = mealsResult.meals;
+    mealsCompleted =
+      (meals.breakfast_completed ? 1 : 0) +
+      (meals.snack1_completed ? 1 : 0) +
+      (meals.lunch_completed ? 1 : 0) +
+      (meals.snack2_completed ? 1 : 0) +
+      (meals.dinner_completed ? 1 : 0);
   }
 
   return (
     <>
       <div className="mb-4">
         <h2 className="text-xl font-bold md:text-3xl">
-          Welcome back, {user.displayName || user.email?.split('@')[0]}!
+          Welcome back, {user.name || user.email?.split('@')[0]}!
         </h2>
         {/* Show membership info only for non-admin users */}
         {!isAdmin && (
           <>
-            {isLoadingMembership ? (
-              <div className="mt-2 flex items-center gap-2">
-                <div className="h-1 w-24 bg-default-200 rounded animate-pulse"></div>
-              </div>
-            ) : membership && !membership.is_expired ? (
+            {membership && !membership.is_expired ? (
               <div className="mt-2 flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary md:h-5 md:w-5" />
                 <Text className="text-sm font-semibold text-primary md:text-base">
@@ -180,7 +133,7 @@ export default function DashboardPage() {
       )}
 
       {/* No Membership Warning - Only for non-admin users */}
-      {!isAdmin && !membership && !isLoadingMembership && (
+      {!isAdmin && !membership && (
         <Card className="mb-4 border-warning/50 bg-warning/10 p-3 md:p-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 shrink-0 text-warning md:h-6 md:w-6" />
@@ -204,20 +157,11 @@ export default function DashboardPage() {
             <Droplet className="h-6 w-6 text-blue-400 md:h-8 md:w-8" />
           </div>
           <div className="mb-3 md:mb-4">
-            {isAnyDataLoading ? (
-              <div className="space-y-2">
-                <div className="h-8 w-16 bg-default-200 rounded animate-pulse md:h-10 md:w-20"></div>
-                <div className="h-3 w-24 bg-default-200 rounded animate-pulse md:h-4 md:w-28"></div>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold md:text-4xl">{waterCount}</div>
-                <Text className="text-xs text-muted-foreground md:text-sm">glasses today</Text>
-              </>
-            )}
+            <div className="text-2xl font-bold md:text-4xl">{waterCount}</div>
+            <Text className="text-xs text-muted-foreground md:text-sm">glasses today</Text>
           </div>
           <Link href="/water">
-            <Button variant="primary" size="sm" className="w-full md:text-base" isDisabled={isAnyDataLoading}>
+            <Button variant="primary" size="sm" className="w-full md:text-base">
               Track Water
             </Button>
           </Link>
@@ -230,20 +174,11 @@ export default function DashboardPage() {
             <Utensils className="h-6 w-6 text-orange-400 md:h-8 md:w-8" />
           </div>
           <div className="mb-3 md:mb-4">
-            {isAnyDataLoading ? (
-              <div className="space-y-2">
-                <div className="h-8 w-16 bg-default-200 rounded animate-pulse md:h-10 md:w-20"></div>
-                <div className="h-3 w-28 bg-default-200 rounded animate-pulse md:h-4 md:w-32"></div>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold md:text-4xl">{mealsCompleted}/5</div>
-                <Text className="text-xs text-muted-foreground md:text-sm">meals completed</Text>
-              </>
-            )}
+            <div className="text-2xl font-bold md:text-4xl">{mealsCompleted}/5</div>
+            <Text className="text-xs text-muted-foreground md:text-sm">meals completed</Text>
           </div>
           <Link href="/meals">
-            <Button variant="primary" size="sm" className="w-full md:text-base" isDisabled={isAnyDataLoading}>
+            <Button variant="primary" size="sm" className="w-full md:text-base">
               Track Meals
             </Button>
           </Link>
@@ -256,18 +191,13 @@ export default function DashboardPage() {
             <Scale className="h-6 w-6 text-green-400 md:h-8 md:w-8" />
           </div>
           <div className="mb-3 md:mb-4">
-            {isAnyDataLoading ? (
-              <div className="space-y-2">
-                <div className="h-8 w-20 bg-default-200 rounded animate-pulse md:h-10 md:w-24"></div>
-                <div className="h-3 w-32 bg-default-200 rounded animate-pulse md:h-4 md:w-36"></div>
-              </div>
-            ) : latestWeight ? (
+            {latestWeightLog ? (
               <>
                 <div className="text-2xl font-bold md:text-4xl">
-                  {latestWeight.weight.toFixed(1)}
+                  {latestWeightLog.weight.toFixed(1)}
                 </div>
                 <Text className="text-xs text-muted-foreground md:text-sm">
-                  {latestWeight.unit} • {new Date(latestWeight.date).toLocaleDateString()}
+                  {latestWeightLog.unit} • {latestWeightLog.date.toLocaleDateString()}
                 </Text>
               </>
             ) : (
@@ -278,8 +208,8 @@ export default function DashboardPage() {
             )}
           </div>
           <Link href="/weight">
-            <Button variant="primary" size="sm" className="w-full md:text-base" isDisabled={isAnyDataLoading}>
-              {latestWeight ? 'View Progress' : 'Log Weight'}
+            <Button variant="primary" size="sm" className="w-full md:text-base">
+              {latestWeightLog ? 'View Progress' : 'Log Weight'}
             </Button>
           </Link>
         </Card>
@@ -288,37 +218,20 @@ export default function DashboardPage() {
       {/* Quick Stats */}
       <Card className="mt-3 p-3 md:mt-6 md:p-6">
         <h3 className="mb-2 text-base font-semibold md:mb-4 md:text-xl">Today's Summary</h3>
-        {isAnyDataLoading ? (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="space-y-2">
-              <div className="h-3 w-16 bg-default-200 rounded animate-pulse md:h-4 md:w-20"></div>
-              <div className="h-6 w-24 bg-default-200 rounded animate-pulse md:h-8 md:w-28"></div>
-            </div>
-            <div className="space-y-2">
-              <div className="h-3 w-20 bg-default-200 rounded animate-pulse md:h-4 md:w-24"></div>
-              <div className="h-6 w-16 bg-default-200 rounded animate-pulse md:h-8 md:w-20"></div>
-            </div>
-            <div className="space-y-2">
-              <div className="h-3 w-24 bg-default-200 rounded animate-pulse md:h-4 md:w-28"></div>
-              <div className="h-6 w-12 bg-default-200 rounded animate-pulse md:h-8 md:w-16"></div>
-            </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <Text className="text-[10px] text-muted-foreground md:text-sm">Water Goal</Text>
+            <div className="mt-0.5 text-lg font-bold md:text-2xl">{waterCount} / {waterTarget} glasses</div>
           </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div>
-              <Text className="text-[10px] text-muted-foreground md:text-sm">Water Goal</Text>
-              <div className="mt-0.5 text-lg font-bold md:text-2xl">{waterCount} / {waterTarget} glasses</div>
-            </div>
-            <div>
-              <Text className="text-[10px] text-muted-foreground md:text-sm">Meals Today</Text>
-              <div className="mt-0.5 text-lg font-bold md:text-2xl">{mealsCompleted}/5</div>
-            </div>
-            <div>
-              <Text className="text-[10px] text-muted-foreground md:text-sm">Completion Rate</Text>
-              <div className="mt-0.5 text-lg font-bold md:text-2xl">{Math.round((mealsCompleted / 5) * 100)}%</div>
-            </div>
+          <div>
+            <Text className="text-[10px] text-muted-foreground md:text-sm">Meals Today</Text>
+            <div className="mt-0.5 text-lg font-bold md:text-2xl">{mealsCompleted}/5</div>
           </div>
-        )}
+          <div>
+            <Text className="text-[10px] text-muted-foreground md:text-sm">Completion Rate</Text>
+            <div className="mt-0.5 text-lg font-bold md:text-2xl">{Math.round((mealsCompleted / 5) * 100)}%</div>
+          </div>
+        </div>
       </Card>
     </>
   );

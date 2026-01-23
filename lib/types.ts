@@ -154,6 +154,23 @@ export type MeasurementType =
   | 'shoulders'
   | 'neck';
 
+export const MEASUREMENT_TYPES: MeasurementType[] = [
+  'weight',
+  'biceps_left',
+  'biceps_right',
+  'chest',
+  'waist',
+  'hips',
+  'thighs_left',
+  'thighs_right',
+  'calves_left',
+  'calves_right',
+  'forearms_left',
+  'forearms_right',
+  'shoulders',
+  'neck',
+];
+
 export interface BodyMeasurement {
   id: string;
   user_id: string;

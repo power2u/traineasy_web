@@ -140,12 +140,15 @@ export async function getTodayWaterTotal(userId: string) {
 
 export async function getWaterTarget(userId: string) {
   try {
-    const supabase = await createClient();
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const supabase = createAdminClient();
 
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const { data: { user }, error } = await supabase.auth.admin.getUserById(userId);
 
     if (error || !user) {
-      throw new Error('User not found');
+      // Fallback or throw
+      console.warn(`[getWaterTarget] User not found for ID: ${userId}, error: ${error?.message}`);
+      return { success: true, target: 14 };
     }
 
     const target = user.user_metadata?.water_target_glasses || 14; // Default 3.5L (14 glasses)

@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 
 interface WellnessCheckInProps {
   userId: string;
+  initialCheckIn?: Partial<WellnessCheckIn>;
 }
 
 const FEELING_OPTIONS = [
@@ -33,8 +34,8 @@ const POSITIVE_FEELINGS = [
   { key: 'feeling_strong', label: 'Strong', icon: '💪' },
 ];
 
-export function WellnessCheckIn({ userId }: WellnessCheckInProps) {
-  const [checkIn, setCheckIn] = useState<Partial<WellnessCheckIn>>({
+export function WellnessCheckIn({ userId, initialCheckIn }: WellnessCheckInProps) {
+  const [checkIn, setCheckIn] = useState<Partial<WellnessCheckIn>>(initialCheckIn || {
     feeling_bloated: false,
     feeling_low_energy: false,
     feeling_hungry: false,
@@ -45,12 +46,14 @@ export function WellnessCheckIn({ userId }: WellnessCheckInProps) {
     feeling_satisfied: false,
     feeling_strong: false,
   });
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!initialCheckIn);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    loadTodayCheckIn();
-  }, [userId]);
+    if (!initialCheckIn) {
+      loadTodayCheckIn();
+    }
+  }, [userId, initialCheckIn]);
 
   const loadTodayCheckIn = async () => {
     setIsLoading(true);
@@ -116,11 +119,10 @@ export function WellnessCheckIn({ userId }: WellnessCheckInProps) {
                 key={option.value}
                 onClick={() => handleFeelingSelect(option.value)}
                 disabled={isSaving}
-                className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all flex-1 ${
-                  isSelected
+                className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all flex-1 ${isSelected
                     ? 'border-primary bg-primary/10'
                     : 'border-default-200 hover:border-default-300'
-                }`}
+                  }`}
               >
                 <Icon className={`w-6 h-6 md:w-8 md:h-8 ${isSelected ? 'text-primary' : option.color}`} />
                 <span className="text-xs font-medium">{option.label}</span>
@@ -144,11 +146,10 @@ export function WellnessCheckIn({ userId }: WellnessCheckInProps) {
                 key={symptom.key}
                 onClick={() => toggleSymptom(symptom.key)}
                 disabled={isSaving}
-                className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-all text-left ${
-                  isSelected
+                className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-all text-left ${isSelected
                     ? 'border-orange-500 bg-orange-500/10'
                     : 'border-default-200 hover:border-default-300'
-                }`}
+                  }`}
               >
                 <span className="text-lg">{symptom.icon}</span>
                 <span className="text-xs font-medium md:text-sm">{symptom.label}</span>
@@ -172,11 +173,10 @@ export function WellnessCheckIn({ userId }: WellnessCheckInProps) {
                 key={feeling.key}
                 onClick={() => toggleSymptom(feeling.key)}
                 disabled={isSaving}
-                className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-all text-left ${
-                  isSelected
+                className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-all text-left ${isSelected
                     ? 'border-green-500 bg-green-500/10'
                     : 'border-default-200 hover:border-default-300'
-                }`}
+                  }`}
               >
                 <span className="text-lg">{feeling.icon}</span>
                 <span className="text-xs font-medium md:text-sm">{feeling.label}</span>

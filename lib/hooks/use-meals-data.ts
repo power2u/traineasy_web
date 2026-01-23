@@ -2,22 +2,28 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getTodayMeals, toggleMeal, getMealsHistory } from '@/app/actions/meals';
 
 interface TodayMeals {
-  id?: string;
+  id: string;
   date: string;
   breakfast_completed: boolean;
-  breakfast_time?: string | null;
+  breakfast_time: string | null;
   snack1_completed: boolean;
-  snack1_time?: string | null;
+  snack1_time: string | null;
   lunch_completed: boolean;
-  lunch_time?: string | null;
+  lunch_time: string | null;
   snack2_completed: boolean;
-  snack2_time?: string | null;
+  snack2_time: string | null;
   dinner_completed: boolean;
-  dinner_time?: string | null;
-  notes?: string | null;
+  dinner_time: string | null;
+  notes: string | null;
 }
 
-export function useMealsData(userId: string) {
+export function useMealsData(
+  userId: string,
+  initialData?: {
+    meals: TodayMeals | null;
+    history: any[];
+  }
+) {
   const queryClient = useQueryClient();
 
   // Fetch today's meals with background sync
@@ -28,6 +34,7 @@ export function useMealsData(userId: string) {
       return result.success ? result.meals : null;
     },
     enabled: !!userId,
+    initialData: initialData?.meals,
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
@@ -39,14 +46,15 @@ export function useMealsData(userId: string) {
       return result.success ? result.history : [];
     },
     enabled: !!userId,
+    initialData: initialData?.history,
   });
 
   // Toggle meal mutation with optimistic updates
   const toggleMutation = useMutation({
-    mutationFn: ({ 
-      mealType, 
-      completed 
-    }: { 
+    mutationFn: ({
+      mealType,
+      completed
+    }: {
       mealType: 'breakfast' | 'snack1' | 'lunch' | 'snack2' | 'dinner';
       completed: boolean;
     }) => toggleMeal(userId, mealType, completed),
@@ -60,10 +68,10 @@ export function useMealsData(userId: string) {
       // Optimistically update
       queryClient.setQueryData(['meals', 'today', userId], (old: TodayMeals | null) => {
         if (!old) return old;
-        
+
         const timeField = `${mealType}_time` as keyof TodayMeals;
         const completedField = `${mealType}_completed` as keyof TodayMeals;
-        
+
         return {
           ...old,
           [completedField]: completed,

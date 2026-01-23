@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback } from 'react';
-import { 
+import {
   getAllWaterEntries,
   addWaterEntry,
   deleteWaterEntry,
@@ -22,14 +22,21 @@ interface LocalWaterState {
   entries: LocalWaterEntry[];
 }
 
-export function useWaterData(userId: string) {
+export function useWaterData(
+  userId: string,
+  initialData?: {
+    count: number;
+    entries: LocalWaterEntry[];
+    target: number;
+  }
+) {
   const queryClient = useQueryClient();
-  
+
   // Local state for immediate updates
   const [localState, setLocalState] = useState<LocalWaterState>({
-    todayCount: 0,
-    todayTotal: 0,
-    entries: [],
+    todayCount: initialData?.count || 0,
+    todayTotal: (initialData?.count || 0) * 250,
+    entries: initialData?.entries || [],
   });
 
   // Fetch all water entries (background sync)
@@ -38,7 +45,7 @@ export function useWaterData(userId: string) {
     queryFn: async () => {
       const result = await getAllWaterEntries(userId);
       if (!result.success || !result.entries) return [];
-      
+
       // Convert to local format
       return result.entries.map(entry => ({
         id: entry.id,
@@ -49,6 +56,7 @@ export function useWaterData(userId: string) {
       }));
     },
     enabled: !!userId,
+    initialData: initialData?.entries,
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
@@ -60,20 +68,22 @@ export function useWaterData(userId: string) {
       return result.success ? result.target : 14;
     },
     enabled: !!userId,
+    initialData: initialData?.target,
   });
 
   // Calculate today's data from server entries
   useEffect(() => {
-    if (serverEntries.length > 0) {
+    // Only update if we have new data that might be different from initial
+    if (serverEntries) {
       const today = new Date().toISOString().split('T')[0];
       const todayEntries = serverEntries.filter(entry => {
         const entryDate = new Date(entry.timestamp).toISOString().split('T')[0];
         return entryDate === today;
       });
-      
+
       const count = todayEntries.reduce((sum, entry) => sum + entry.glassCount, 0);
       const total = count * 250; // Each glass is 250ml
-      
+
       setLocalState({
         todayCount: count,
         todayTotal: total,
@@ -119,7 +129,7 @@ export function useWaterData(userId: string) {
       if (entryToDelete) {
         const today = new Date().toISOString().split('T')[0];
         const entryDate = new Date(entryToDelete.timestamp).toISOString().split('T')[0];
-        
+
         if (entryDate === today) {
           // Update local state immediately
           setLocalState(prev => ({
