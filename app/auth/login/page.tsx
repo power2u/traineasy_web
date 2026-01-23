@@ -58,6 +58,15 @@ export default function LoginPage() {
             <Input type="password" placeholder="Enter your password" />
           </TextField>
 
+          <div className="text-right">
+            <a
+              href="/auth/forgot-password"
+              className="text-sm text-blue-500 hover:text-blue-600 hover:underline"
+            >
+              Forgot Password?
+            </a>
+          </div>
+
           {localError && (
             <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20">
               <div className="font-semibold mb-1">⚠️ Login Failed</div>
