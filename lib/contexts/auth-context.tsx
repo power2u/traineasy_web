@@ -154,16 +154,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [mapUser, updateAuthCache, setupFCMToken, registerUserCronJobs, supabase, router]);
 
   useEffect(() => {
+    // Always listen for auth changes first
+    let authChangeTimeout: NodeJS.Timeout;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event: string, session: { user: User | null } | null) => {
+      // Debounce auth state changes to prevent rapid fire requests
+      clearTimeout(authChangeTimeout);
+      authChangeTimeout = setTimeout(() => {
+        console.log('Auth state changed:', event);
+        handleUserUpdate(session?.user || null);
+      }, 100);
+    });
+
     // Check if we have recent cached auth state
     const now = Date.now();
     if (authCache.timestamp && (now - authCache.timestamp) < CACHE_DURATION && !authCache.loading) {
       setUser(authCache.user);
       setLoading(false);
-      return;
+      // We still return early to skip the redundant getUser() call, 
+      // but the subscription above is already active.
+      return () => {
+        subscription.unsubscribe();
+        clearTimeout(authChangeTimeout);
+      };
     }
 
     // Prevent multiple simultaneous auth checks
-    if (authCheckRef.current) return;
+    if (authCheckRef.current) {
+      return () => {
+        subscription.unsubscribe();
+        clearTimeout(authChangeTimeout);
+      };
+    }
     authCheckRef.current = true;
 
     // Check active session with getUser to ensure fresh data (including banned status)
@@ -179,19 +202,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {
       authCheckRef.current = false;
       updateAuthCache(null, false);
-    });
-
-    // Listen for auth changes (debounced)
-    let authChangeTimeout: NodeJS.Timeout;
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event: string, session: { user: User | null } | null) => {
-      // Debounce auth state changes to prevent rapid fire requests
-      clearTimeout(authChangeTimeout);
-      authChangeTimeout = setTimeout(() => {
-        console.log('Auth state changed:', event);
-        handleUserUpdate(session?.user || null);
-      }, 100);
     });
 
     return () => {
