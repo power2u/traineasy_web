@@ -66,13 +66,15 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
         const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const isSupported = COMMON_TIMEZONES.some(tz => tz.value === detectedTimezone);
         const timezone = isSupported ? detectedTimezone : 'Asia/Kolkata';
-        
-        const defaultTimes = { 
-          ...DEFAULT_MEAL_TIMES, 
+
+        const themeValue = ((currentTheme === 'light' || currentTheme === 'dark' || currentTheme === 'system') ? currentTheme : 'dark') as 'light' | 'dark' | 'system';
+
+        const defaultTimes = {
+          ...DEFAULT_MEAL_TIMES,
           timezone,
-          theme: currentTheme
+          theme: themeValue
         };
-        
+
         setMealTimes(defaultTimes);
         setEditingMealTimes(defaultTimes);
       } catch (error) {
@@ -117,15 +119,15 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
     setIsSubmitting(true);
     try {
       console.log('[MealTimingSettings] Saving meal times:', editingMealTimes);
-      
+
       if (onSave) {
         await onSave(editingMealTimes);
       }
-      
+
       // Update the main state with saved values
       setMealTimes(editingMealTimes);
       setIsDialogOpen(false);
-      
+
       toast.success('Meal timing settings saved successfully! 🍽️');
     } catch (error) {
       toast.error('Failed to save settings. Please try again.');
@@ -199,7 +201,7 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
         <>
           {/* Backdrop */}
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={handleCloseDialog} />
-          
+
           {/* Dialog */}
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-background border border-divider rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -230,7 +232,7 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
                     <div className="flex-1">
                       <h3 className="font-semibold text-sm mb-1 text-foreground">About meal reminders</h3>
                       <p className="text-xs text-foreground/70">
-                        We'll send you gentle reminders if you forget to mark your meals as completed. 
+                        We'll send you gentle reminders if you forget to mark your meals as completed.
                         This helps you stay consistent with your nutrition tracking!
                       </p>
                     </div>
@@ -306,7 +308,7 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
                 <div className="space-y-3">
                   <h3 className="text-sm font-medium text-foreground mb-3">Meal Times</h3>
                   {MEAL_CONFIG.map((meal) => (
-                    <div 
+                    <div
                       key={meal.key}
                       className="flex items-center gap-3 p-3 rounded-lg border border-divider hover:border-primary/50 transition-colors bg-content1"
                     >
@@ -359,7 +361,7 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
                 >
                   {isSubmitting ? 'Saving...' : hasUnsavedChanges ? 'Save Changes' : 'No Changes'}
                 </Button>
-                
+
                 <Button
                   variant="ghost"
                   size="lg"

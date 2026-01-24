@@ -56,15 +56,16 @@ export function MealTimingDialog({ isOpen, onComplete }: MealTimingDialogProps) 
     try {
       const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       console.log('[MealTimingDialog] Detected timezone:', detectedTimezone);
-      
+
       // Check if detected timezone is in our common list, otherwise default to Asia/Kolkata
       const isSupported = COMMON_TIMEZONES.some(tz => tz.value === detectedTimezone);
       const timezone = isSupported ? detectedTimezone : 'Asia/Kolkata';
-      
-      setMealTimes(prev => ({ 
-        ...prev, 
+
+      const themeValue = (currentTheme === 'light' || currentTheme === 'dark' || currentTheme === 'system') ? currentTheme : 'dark';
+      setMealTimes(prev => ({
+        ...prev,
         timezone,
-        theme: currentTheme // Use current theme as default
+        theme: themeValue // Use current theme as default
       }));
     } catch (error) {
       console.warn('[MealTimingDialog] Failed to detect timezone:', error);
@@ -99,14 +100,14 @@ export function MealTimingDialog({ isOpen, onComplete }: MealTimingDialogProps) 
   }, [mealTimes, onComplete]);
 
   console.log('[MealTimingDialog] Render - isOpen:', isOpen);
-  
+
   if (!isOpen) return null;
 
   return (
     <>
       {/* Backdrop */}
       <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
-      
+
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-background border border-divider rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -117,9 +118,9 @@ export function MealTimingDialog({ isOpen, onComplete }: MealTimingDialogProps) 
               Let's personalize your experience with meal schedules, timezone, and theme preferences
             </p>
           </div>
-        
-        {/* Body */}
-        <div className="space-y-4">
+
+          {/* Body */}
+          <div className="space-y-4">
             {/* Info Card */}
             <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
               <div className="flex items-start gap-3">
@@ -127,7 +128,7 @@ export function MealTimingDialog({ isOpen, onComplete }: MealTimingDialogProps) 
                 <div className="flex-1">
                   <h3 className="font-semibold text-sm mb-1 text-foreground">Why meal times?</h3>
                   <p className="text-xs text-foreground/70">
-                    We'll send you a gentle reminder if you forget to mark your meal as completed. 
+                    We'll send you a gentle reminder if you forget to mark your meal as completed.
                     This helps you stay on track with your nutrition goals!
                   </p>
                 </div>
@@ -202,7 +203,7 @@ export function MealTimingDialog({ isOpen, onComplete }: MealTimingDialogProps) 
             {/* Meal Time Inputs */}
             <div className="space-y-3">
               {MEAL_CONFIG.map((meal) => (
-                <div 
+                <div
                   key={meal.key}
                   className="flex items-center gap-3 p-4 rounded-lg border-2 border-divider hover:border-primary/50 transition-colors bg-content1"
                 >
@@ -226,19 +227,19 @@ export function MealTimingDialog({ isOpen, onComplete }: MealTimingDialogProps) 
               ))}
             </div>
 
-          {/* Footer Note */}
-          <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
-            <div className="flex items-start gap-2">
-              <div className="text-lg">⏰</div>
-              <div className="flex-1">
-                <p className="text-xs text-foreground/70">
-                  You can always change these times later in your profile settings.
-                </p>
+            {/* Footer Note */}
+            <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <div className="text-lg">⏰</div>
+                <div className="flex-1">
+                  <p className="text-xs text-foreground/70">
+                    You can always change these times later in your profile settings.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        
+
           {/* Footer */}
           <div className="mt-6 pt-4 border-t border-divider">
             <Button
