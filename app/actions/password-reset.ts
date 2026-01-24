@@ -99,6 +99,8 @@ export async function requestPasswordReset(email: string): Promise<PasswordReset
                     resetLink,
                     userEmail: email,
                     expirationHours: TOKEN_EXPIRATION_HOURS,
+                    baseUrl,
+                    supportEmail: process.env.SMTP_FROM || 'support@traineasy.com',
                 })
             );
 

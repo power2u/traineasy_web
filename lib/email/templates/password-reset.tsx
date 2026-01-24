@@ -17,12 +17,16 @@ interface PasswordResetEmailProps {
     resetLink: string;
     userEmail: string;
     expirationHours?: number;
+    baseUrl: string;
+    supportEmail?: string;
 }
 
 export const PasswordResetEmail = ({
     resetLink,
     userEmail,
     expirationHours = 24,
+    baseUrl,
+    supportEmail = 'teamsouravfitness@gmail.com',
 }: PasswordResetEmailProps) => {
     return (
         <Html>
@@ -33,7 +37,7 @@ export const PasswordResetEmail = ({
                     {/* Logo Section */}
                     <Section style={logoSection}>
                         <Img
-                            src={`${process.env.NEXTAUTH_URL}/logo.png`}
+                            src={`${baseUrl}/logo.png`}
                             width="64"
                             height="64"
                             alt="TrainEasy"
@@ -88,8 +92,8 @@ export const PasswordResetEmail = ({
                     <Section style={footer}>
                         <Text style={footerText}>
                             Need help? Contact us at{' '}
-                            <Link href={`mailto:${process.env.SMTP_FROM}`} style={footerLink}>
-                                {process.env.SMTP_FROM}
+                            <Link href={`mailto:${supportEmail}`} style={footerLink}>
+                                {supportEmail}
                             </Link>
                         </Text>
                         <Text style={footerText}>
