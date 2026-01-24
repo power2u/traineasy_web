@@ -9,7 +9,13 @@ export default withAuth(
     },
     {
         callbacks: {
-            authorized: ({ token }) => !!token,
+            authorized: ({ token }) => {
+                console.log("[Middleware] Token check:", token ? "Exists" : "Missing");
+                if (token) {
+                    console.log("[Middleware] Token Role:", (token as any).role);
+                }
+                return !!token;
+            },
         },
         pages: {
             signIn: "/auth/login",

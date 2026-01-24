@@ -7,6 +7,7 @@ export interface AuthUser {
   provider: 'email' | 'phone' | 'google';
   createdAt: Date;
   displayName?: string;
+  role?: string;
   raw_app_meta_data?: {
     role?: string;
     provider?: string;

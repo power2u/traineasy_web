@@ -15,25 +15,24 @@ const navItems = [
   { href: '/profile', label: 'Profile', icon: User },
 ];
 
-const NavItem = memo(function NavItem({ 
-  href, 
-  label, 
-  icon: Icon, 
-  isActive 
-}: { 
-  href: string; 
-  label: string; 
-  icon: React.ComponentType<{ className?: string }>; 
+const NavItem = memo(function NavItem({
+  href,
+  label,
+  icon: Icon,
+  isActive
+}: {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
   isActive: boolean;
 }) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
-        isActive
+      className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${isActive
           ? 'bg-primary text-primary-foreground'
           : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-      }`}
+        }`}
     >
       <Icon className="h-5 w-5" />
       <span>{label}</span>
@@ -46,8 +45,10 @@ export const Sidebar = memo(function Sidebar() {
   const user = useAuthUser();
 
   // Check if user is super admin - memoized
-  const isSuperAdmin = useMemo(() => 
-    user?.raw_app_meta_data?.role === 'super_admin' || 
+  // Check if user is super admin - memoized
+  const isSuperAdmin = useMemo(() =>
+    (user as any)?.role === 'super_admin' ||
+    user?.raw_app_meta_data?.role === 'super_admin' ||
     user?.raw_user_meta_data?.role === 'super_admin',
     [user]
   );
@@ -61,7 +62,7 @@ export const Sidebar = memo(function Sidebar() {
     return items;
   }, [isSuperAdmin]);
 
-  const displayName = useMemo(() => 
+  const displayName = useMemo(() =>
     user?.displayName || user?.email?.split('@')[0],
     [user]
   );

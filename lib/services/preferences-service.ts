@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client';
 // All data stored in user_preferences table linked to auth.users
 export interface UserPreferences {
   id: string;
+  role: 'user' | 'super_admin';
   // Personal Information
   full_name?: string;
   date_of_birth?: string;
@@ -68,7 +69,7 @@ export class PreferencesService {
   ): Promise<void> {
     console.log('[PreferencesService] Updating preferences for user:', userId);
     console.log('[PreferencesService] Preferences to update:', preferences);
-    
+
     // Check if row exists first
     const { data: existing, error: selectError } = await this.supabase
       .from('user_preferences')
@@ -90,7 +91,7 @@ export class PreferencesService {
 
       console.log('[PreferencesService] Update result:', data);
       console.log('[PreferencesService] Update error:', error);
-      
+
       if (error) throw error;
     } else {
       // Row doesn't exist, insert it
@@ -105,7 +106,7 @@ export class PreferencesService {
 
       console.log('[PreferencesService] Insert result:', data);
       console.log('[PreferencesService] Insert error:', error);
-      
+
       if (error) throw error;
     }
   }
@@ -122,7 +123,7 @@ export class PreferencesService {
   async getGoalWeight(userId: string): Promise<{ weight: number; unit: 'kg' | 'lbs' } | null> {
     const prefs = await this.getPreferences(userId);
     if (!prefs?.goal_weight) return null;
-    
+
     return {
       weight: prefs.goal_weight,
       unit: prefs.goal_weight_unit,
@@ -177,7 +178,7 @@ export class PreferencesService {
   } | null> {
     const prefs = await this.getPreferences(userId);
     if (!prefs?.breakfast_time) return null;
-    
+
     return {
       breakfast_time: prefs.breakfast_time,
       snack1_time: prefs.snack1_time || '10:30:00',

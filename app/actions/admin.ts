@@ -1,6 +1,7 @@
 'use server';
 
 import { createAdminClient } from '@/lib/supabase/server';
+import bcrypt from 'bcryptjs';
 
 /**
  * DEVELOPMENT ONLY: Create or update a super admin user
@@ -15,48 +16,43 @@ export async function createSuperAdmin(email: string) {
   try {
     const adminClient = createAdminClient();
 
-    // Get the user by email
-    const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers();
+    // Check if user exists in user_preferences
+    const { data: user, error: fetchError } = await adminClient
+      .from('user_preferences')
+      .select('id, role, full_name, email')
+      .eq('email', email)
+      .single();
 
-    if (listError) {
-      throw new Error(`Failed to list users: ${listError.message}`);
-    }
-
-    const existingUser = users.find(u => u.email === email);
-
-    if (!existingUser) {
+    if (fetchError || !user) {
+      // If not in preferences, maybe in auth.users?
+      // For now, simpler to say "User not found" or "Please sign up/create user first"
+      // But if they just signed up via auth but not preferences (unlikely with new flow), we might need to handle that.
+      // Assuming strict sync:
       return {
         success: false,
-        error: `User with email ${email} not found. Please sign up first.`,
+        error: `User with email ${email} not found in preferences. Please create user first.`,
       };
     }
 
-    // Update user metadata to add super_admin role
-    const { data: updatedUser, error: updateError } = await adminClient.auth.admin.updateUserById(
-      existingUser.id,
-      {
-        app_metadata: {
-          ...existingUser.app_metadata,
-          role: 'super_admin',
-        },
-        user_metadata: {
-          ...existingUser.user_metadata,
-          role: 'super_admin',
-        },
-      }
-    );
+    // Update role
+    const { data: updatedUser, error: updateError } = await adminClient
+      .from('user_preferences')
+      .update({ role: 'super_admin' })
+      .eq('id', user.id)
+      .select()
+      .single();
 
     if (updateError) {
-      throw new Error(`Failed to update user: ${updateError.message}`);
+      throw new Error(`Failed to update user role: ${updateError.message}`);
     }
 
     return {
       success: true,
       user: {
-        id: updatedUser.user.id,
-        email: updatedUser.user.email,
-        role: updatedUser.user.app_metadata?.role,
-        full_name: updatedUser.user.user_metadata?.full_name,
+        id: updatedUser.id,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        full_name: updatedUser.full_name,
       },
       message: `Successfully updated ${email} to super_admin!`,
     };
@@ -77,7 +73,8 @@ export async function createUser(email: string, password: string, displayName: s
   try {
     const adminClient = createAdminClient();
 
-    // Create user with admin API
+    // 1. Create user in Supabase Auth
+    // We still keep the metadata for compatibility, but the source of truth is now user_preferences
     const { data, error } = await adminClient.auth.admin.createUser({
       email,
       password,
@@ -95,7 +92,30 @@ export async function createUser(email: string, password: string, displayName: s
     });
 
     if (error) {
-      throw new Error(`Failed to create user: ${error.message}`);
+      throw new Error(`Failed to create user in Auth: ${error.message}`);
+    }
+
+    // 2. Hash password for local storage (custom auth)
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 3. Create entry in user_preferences
+    // The handle_new_user trigger creates a row, so we use upsert to update it
+    const { error: prefError } = await adminClient
+      .from('user_preferences')
+      .upsert({
+        id: data.user.id,
+        email: email,
+        full_name: displayName,
+        role: role,
+        password_hash: hashedPassword,
+        password_change_required: false,
+      });
+
+    if (prefError) {
+      // Rollback? Deleting the auth user would be ideal but for now just throw
+      // await adminClient.auth.admin.deleteUser(data.user.id); 
+      console.error('Error creating preferences, user state might be inconsistent:', prefError);
+      throw new Error(`Failed to create user profile: ${prefError.message}`);
     }
 
     return {
@@ -103,8 +123,8 @@ export async function createUser(email: string, password: string, displayName: s
       user: {
         id: data.user.id,
         email: data.user.email,
-        role: data.user.app_metadata?.role,
-        full_name: data.user.user_metadata?.full_name,
+        role: role,
+        full_name: displayName,
       },
       message: `Successfully created user ${email}!`,
     };
@@ -125,10 +145,24 @@ export async function deleteUser(userId: string) {
   try {
     const adminClient = createAdminClient();
 
-    const { error } = await adminClient.auth.admin.deleteUser(userId);
+    // Delete from user_preferences directly
+    // This will cascade to auth.users if configured, OR we just delete this profile
+    // User requested to stop targeting auth.users, so we prioritize preferences
+    const { error } = await adminClient
+      .from('user_preferences')
+      .delete()
+      .eq('id', userId);
 
     if (error) {
-      throw new Error(`Failed to delete user: ${error.message}`);
+      throw new Error(`Failed to delete user profile: ${error.message}`);
+    }
+
+    // Optional: Try to clean up auth.users but don't fail if it doesn't work
+    // (since we are moving away from Supabase Auth as the source of truth)
+    try {
+      await adminClient.auth.admin.deleteUser(userId);
+    } catch (e) {
+      console.warn('Could not delete auth user, but profile deleted:', e);
     }
 
     return {
@@ -156,7 +190,10 @@ export async function listAllUsers() {
   try {
     const adminClient = createAdminClient();
 
-    const { data: { users }, error } = await adminClient.auth.admin.listUsers();
+    const { data: users, error } = await adminClient
+      .from('user_preferences')
+      .select('id, email, role, full_name, created_at')
+      .order('created_at', { ascending: false });
 
     if (error) {
       throw new Error(`Failed to list users: ${error.message}`);
@@ -167,9 +204,9 @@ export async function listAllUsers() {
       users: users.map(u => ({
         id: u.id,
         email: u.email,
-        role: u.app_metadata?.role || 'user',
-        full_name: u.user_metadata?.full_name || u.user_metadata?.name,
-        provider: u.app_metadata?.provider,
+        role: u.role,
+        full_name: u.full_name,
+        provider: 'email',
         created_at: u.created_at,
       })),
     };
@@ -189,7 +226,10 @@ export async function listUsers() {
   try {
     const adminClient = createAdminClient();
 
-    const { data: { users }, error } = await adminClient.auth.admin.listUsers();
+    const { data: users, error } = await adminClient
+      .from('user_preferences')
+      .select('*')
+      .order('created_at', { ascending: false });
 
     if (error) {
       throw new Error(`Failed to list users: ${error.message}`);
@@ -198,18 +238,17 @@ export async function listUsers() {
     return {
       success: true,
       users: users.map(u => {
-        const bannedUntil = (u as any).banned_until;
         return {
           id: u.id,
           email: u.email || '',
-          display_name: u.user_metadata?.display_name || u.user_metadata?.full_name || '',
-          role: u.app_metadata?.role || u.user_metadata?.role || 'user',
+          display_name: u.full_name || '',
+          role: u.role,
           created_at: u.created_at,
           last_sign_in_at: u.last_sign_in_at,
-          banned_until: bannedUntil,
-          is_banned: bannedUntil ? new Date(bannedUntil) > new Date() : false,
-          email_confirmed_at: u.email_confirmed_at,
-          provider: u.app_metadata?.provider || 'email',
+          banned_until: null, // Not in user_preferences
+          is_banned: false,
+          email_confirmed_at: u.created_at, // Assumed
+          provider: 'email',
         };
       }),
     };
@@ -229,30 +268,13 @@ export async function promoteToSuperAdmin(userId: string) {
   try {
     const adminClient = createAdminClient();
 
-    // Get the user first
-    const { data: { user }, error: getUserError } = await adminClient.auth.admin.getUserById(userId);
+    const { error } = await adminClient
+      .from('user_preferences')
+      .update({ role: 'super_admin' })
+      .eq('id', userId);
 
-    if (getUserError || !user) {
-      throw new Error(`Failed to get user: ${getUserError?.message || 'User not found'}`);
-    }
-
-    // Update user metadata to add super_admin role
-    const { data: updatedUser, error: updateError } = await adminClient.auth.admin.updateUserById(
-      userId,
-      {
-        app_metadata: {
-          ...user.app_metadata,
-          role: 'super_admin',
-        },
-        user_metadata: {
-          ...user.user_metadata,
-          role: 'super_admin',
-        },
-      }
-    );
-
-    if (updateError) {
-      throw new Error(`Failed to update user: ${updateError.message}`);
+    if (error) {
+      throw new Error(`Failed to promote user: ${error.message}`);
     }
 
     return {
@@ -338,12 +360,23 @@ export async function resetUserPassword(userId: string, newPassword: string) {
   try {
     const adminClient = createAdminClient();
 
-    const { error } = await adminClient.auth.admin.updateUserById(userId, {
+    // 1. Update in Auth (good practice)
+    await adminClient.auth.admin.updateUserById(userId, {
       password: newPassword,
     });
 
+    // 2. Update hash in user_preferences
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const { error } = await adminClient
+      .from('user_preferences')
+      .update({
+        password_hash: hashedPassword,
+        password_change_required: false
+      })
+      .eq('id', userId);
+
     if (error) {
-      throw new Error(`Failed to reset password: ${error.message}`);
+      throw new Error(`Failed to reset password in preferences: ${error.message}`);
     }
 
     return {

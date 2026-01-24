@@ -5,12 +5,14 @@ declare module "next-auth" {
     interface Session {
         user: {
             id: string
+            role: 'user' | 'super_admin'
             password_change_required?: boolean
         } & DefaultSession["user"]
     }
 
     interface User {
         id: string
+        role: 'user' | 'super_admin'
         full_name?: string
         password_hash?: string
         password_change_required?: boolean
@@ -20,6 +22,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
     interface JWT {
         id: string
+        role: 'user' | 'super_admin'
         password_change_required?: boolean
     }
 }

@@ -16,25 +16,24 @@ const baseNavItems = [
 
 const adminNavItem = { href: '/admin', label: 'Admin', icon: Settings };
 
-const NavItem = memo(function NavItem({ 
-  href, 
-  label, 
-  icon: Icon, 
-  isActive 
-}: { 
-  href: string; 
-  label: string; 
-  icon: React.ComponentType<{ className?: string }>; 
+const NavItem = memo(function NavItem({
+  href,
+  label,
+  icon: Icon,
+  isActive
+}: {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
   isActive: boolean;
 }) {
   return (
     <Link
       href={href}
-      className={`flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[10px] transition-colors ${
-        isActive
+      className={`flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[10px] transition-colors ${isActive
           ? 'text-primary'
           : 'text-muted-foreground active:text-foreground'
-      }`}
+        }`}
     >
       <Icon className="h-6 w-6" />
       <span className="font-medium">{label}</span>
@@ -49,7 +48,7 @@ export const BottomNav = memo(function BottomNav() {
   // Check if user is super admin
   const isAdmin = useMemo(() => {
     if (!user) return false;
-    const role = user.raw_app_meta_data?.role || user.raw_user_meta_data?.role;
+    const role = (user as any).role || user.raw_app_meta_data?.role || user.raw_user_meta_data?.role;
     return role === 'super_admin';
   }, [user]);
 

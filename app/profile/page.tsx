@@ -19,6 +19,15 @@ export default async function ProfilePage() {
     getActivePlan(userId),
   ]);
 
+  console.log(`[ProfilePage] Fetched for ${userId}:`, {
+    profileSuccess: profileResult.success,
+    planSuccess: planResult.success
+  });
+
+  if (!profileResult.success) {
+    console.error(`[ProfilePage] Profile fetch failed:`, profileResult.error);
+  }
+
   const initialProfile = profileResult.success && profileResult.profile ? profileResult.profile : null;
   const initialPlan = planResult.success && planResult.plan ? planResult.plan : null;
 
