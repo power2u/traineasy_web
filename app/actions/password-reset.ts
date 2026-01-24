@@ -89,7 +89,9 @@ export async function requestPasswordReset(email: string): Promise<PasswordReset
         }
 
         // Send password reset email
-        const resetLink = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${token}`;
+        // Ensure NEXTAUTH_URL is defined, fallback to localhost in dev if invalid
+        const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+        const resetLink = `${baseUrl}/auth/reset-password?token=${token}`;
 
         try {
             const emailHtml = await render(

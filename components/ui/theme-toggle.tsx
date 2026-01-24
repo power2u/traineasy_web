@@ -12,8 +12,9 @@ export function ThemeToggle({ showLabel = true }: ThemeToggleProps) {
   const { theme, setTheme } = useTheme();
 
   const cycleTheme = () => {
-    const themes: Array<'light' | 'dark' | 'system'> = ['light', 'dark', 'system'];
-    const currentIndex = themes.indexOf(theme);
+    const themes = ['light', 'dark', 'system'];
+    const currentTheme = theme || 'system';
+    const currentIndex = themes.indexOf(currentTheme);
     const nextIndex = (currentIndex + 1) % themes.length;
     setTheme(themes[nextIndex]);
   };

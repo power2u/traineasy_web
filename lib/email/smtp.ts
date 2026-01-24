@@ -7,8 +7,8 @@ import nodemailer from 'nodemailer';
  */
 const emailConfig = {
     host: process.env.SMTP_SERVER,
-    port: parseInt(process.env.SMTP_PORT || '465'),
-    secure: true, // Use SSL
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: process.env.SMTP_PORT === '465', // True for 465, false for 587
     auth: {
         user: process.env.SMTP_FROM,
         pass: process.env.SMTP_PASS,

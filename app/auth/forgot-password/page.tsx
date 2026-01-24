@@ -1,15 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button, TextField, Label, Input, Card, Text } from '@heroui/react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { requestPasswordReset } from '@/app/actions/password-reset';
+import { CheckCircle2, MailWarning } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [submitted, setSubmitted] = useState(false);
+    const [timer, setTimer] = useState(0);
+
+    // Timer countdown effect
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (timer > 0) {
+            interval = setInterval(() => {
+                setTimer((prev) => prev - 1);
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [timer]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -21,6 +34,7 @@ export default function ForgotPasswordPage() {
 
             if (result.success) {
                 setSubmitted(true);
+                setTimer(60); // Start 60s cooldown
                 setMessage({
                     type: 'success',
                     text: result.message || 'Password reset link sent! Check your email.',
@@ -73,8 +87,8 @@ export default function ForgotPasswordPage() {
                         {message && (
                             <div
                                 className={`rounded-lg p-3 text-sm border ${message.type === 'error'
-                                        ? 'bg-red-500/10 text-red-500 border-red-500/20'
-                                        : 'bg-green-500/10 text-green-500 border-green-500/20'
+                                    ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                                    : 'bg-green-500/10 text-green-500 border-green-500/20'
                                     }`}
                             >
                                 <div className="font-semibold mb-1">
@@ -102,12 +116,24 @@ export default function ForgotPasswordPage() {
                 ) : (
                     <div className="space-y-4">
                         <div className="rounded-lg bg-green-500/10 p-4 text-sm text-green-500 border border-green-500/20">
-                            <div className="font-semibold mb-2">✓ Email Sent!</div>
-                            <div className="mb-3">{message?.text}</div>
-                            <div className="text-xs text-default-500">
-                                If you don't receive an email within a few minutes, please check your spam folder.
+                            <div className="flex items-center gap-2 font-semibold mb-2">
+                                <CheckCircle2 className="w-5 h-5" />
+                                Email Sent!
+                            </div>
+                            <div className="mb-1">{message?.text}</div>
+                        </div>
+
+                        <div className="rounded-lg bg-orange-500/10 p-4 text-sm text-orange-600 border border-orange-500/20 flex items-start gap-3">
+                            <MailWarning className="w-5 h-5 shrink-0 mt-0.5" />
+                            <div>
+                                <span className="font-semibold block mb-1">Check your spam folder</span>
+                                If you don't see the email within a few minutes, please check your <strong>Spam</strong> or <strong>Junk</strong> folder.
                             </div>
                         </div>
+
+                        <p className="text-xs text-center text-default-500 px-2">
+                            Please be patient, email delivery might take 1-2 minutes depending on your provider.
+                        </p>
 
                         <div className="text-center space-y-2">
                             <div>
@@ -121,10 +147,15 @@ export default function ForgotPasswordPage() {
                                         setSubmitted(false);
                                         setMessage(null);
                                         setEmail('');
+                                        setTimer(0);
                                     }}
-                                    className="text-sm text-default-500 hover:text-default-700 hover:underline"
+                                    disabled={timer > 0}
+                                    className={`text-sm ${timer > 0
+                                        ? 'text-default-400 cursor-not-allowed'
+                                        : 'text-default-500 hover:text-default-700 hover:underline'
+                                        }`}
                                 >
-                                    Send another reset link
+                                    {timer > 0 ? `Send another reset link in ${timer}s` : 'Send another reset link'}
                                 </button>
                             </div>
                         </div>
