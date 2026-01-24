@@ -13,9 +13,8 @@ export default async function AdminUsersPage() {
     redirect('/auth/login');
   }
 
-  const user = session.user as any;
-  const role = user.raw_app_meta_data?.role || user.raw_user_meta_data?.role || user.role;
-  const isSuperAdmin = role === 'super_admin';
+  const isSuperAdmin = session.user.role === 'super_admin';
+  const user = session.user;
 
   if (!isSuperAdmin) {
     redirect('/dashboard');

@@ -26,8 +26,7 @@ export async function getAdminUserDetails(userId: string): Promise<AdminUserDeta
         }
 
         // Check if user has admin role
-        const userRole = (session.user as any).role || (session.user as any).raw_app_meta_data?.role;
-        const isSuperAdmin = userRole === 'super_admin';
+        const isSuperAdmin = session.user.role === 'super_admin';
 
         if (!isSuperAdmin) {
             return { success: false, error: 'Admin access required' };
@@ -123,8 +122,7 @@ export async function updateAdminUserProfile(userId: string, profileData: any) {
         }
 
         // Check if user has admin role
-        const userRole = (session.user as any).role || (session.user as any).raw_app_meta_data?.role;
-        const isSuperAdmin = userRole === 'super_admin';
+        const isSuperAdmin = session.user.role === 'super_admin';
 
         if (!isSuperAdmin) {
             return { success: false, error: 'Admin access required' };

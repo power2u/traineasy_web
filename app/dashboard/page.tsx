@@ -18,13 +18,10 @@ export default async function DashboardPage() {
   }
 
   const user = session.user;
-  const userId = (user as any).id;
+  const userId = user.id;
 
-  // Check if user is admin - handle both location of role
-  const isAdmin =
-    (user as any).raw_app_meta_data?.role === 'super_admin' ||
-    (user as any).raw_user_meta_data?.role === 'super_admin' ||
-    (user as any).role === 'super_admin';
+  // Check if user is admin
+  const isAdmin = user.role === 'super_admin';
 
   return (
     <>
