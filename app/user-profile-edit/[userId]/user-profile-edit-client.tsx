@@ -43,15 +43,15 @@ interface UserProfile {
 
 interface UserProfileEditClientProps {
     userId: string;
-    initialProfile: UserProfile;
+    initialData: UserProfile;
 }
 
-export function UserProfileEditClient({ userId, initialProfile }: UserProfileEditClientProps) {
+export function UserProfileEditClient({ userId, initialData }: UserProfileEditClientProps) {
     const router = useRouter();
-    const [userProfile, setUserProfile] = useState<UserProfile>(initialProfile);
+    const [userProfile, setUserProfile] = useState<UserProfile>(initialData);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [editedProfile, setEditedProfile] = useState<Partial<UserProfile>>(initialProfile);
+    const [editedProfile, setEditedProfile] = useState<Partial<UserProfile>>(initialData);
 
     const handleSaveProfile = async () => {
         if (!editedProfile || !userProfile) return;

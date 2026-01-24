@@ -19,7 +19,7 @@ export default async function UserDetailsPage({ params }: PageProps) {
   }
 
   // Check admin role
-  const role = (session.user as any).raw_app_meta_data?.role || (session.user as any).raw_user_meta_data?.role;
+  const role = (session.user as any).role;
   const isSuperAdmin = role === 'super_admin';
 
   if (!isSuperAdmin) {
