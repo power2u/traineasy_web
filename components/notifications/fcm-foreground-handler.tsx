@@ -11,6 +11,12 @@ export function FCMForegroundHandler() {
   useEffect(() => {
     console.log('🔔 Setting up FCM foreground message handler...');
 
+    // Only run if supported and in secure context (required for Service Workers)
+    if (typeof window !== 'undefined' && (!window.isSecureContext && window.location.hostname !== 'localhost')) {
+      console.warn('⚠️ FCM not supported: Insecure context (HTTP) detected. Service workers require HTTPS or localhost.');
+      return;
+    }
+
     const unsubscribe = onForegroundMessage((payload) => {
       console.log('📨 Foreground message received:', payload);
 
@@ -23,7 +29,7 @@ export function FCMForegroundHandler() {
       // Show browser notification
       if ('Notification' in window && Notification.permission === 'granted') {
         console.log('🔔 Showing browser notification:', { title, body });
-        
+
         const notification = new Notification(title, {
           body,
           icon,
@@ -37,7 +43,7 @@ export function FCMForegroundHandler() {
         notification.onclick = (event) => {
           event.preventDefault();
           console.log('🖱️ Notification clicked:', data);
-          
+
           const url = data.url || '/dashboard';
           window.focus();
           window.location.href = url;

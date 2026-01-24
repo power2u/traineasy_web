@@ -6,7 +6,9 @@ import { Button, TextField, Label, Input, Card, Text } from '@heroui/react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { validateResetToken, resetPasswordWithToken } from '@/app/actions/password-reset';
 
-export default function ResetPasswordPage() {
+import { Suspense } from 'react';
+
+function ResetPasswordContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const token = searchParams.get('token');
@@ -191,9 +193,9 @@ export default function ResetPasswordPage() {
                                 <div className="mt-1 h-1 w-full bg-default-200 rounded-full overflow-hidden">
                                     <div
                                         className={`h-full transition-all ${passwordStrength.strength === 1 ? 'bg-red-500 w-1/4' :
-                                                passwordStrength.strength === 2 ? 'bg-orange-500 w-2/4' :
-                                                    passwordStrength.strength === 3 ? 'bg-yellow-500 w-3/4' :
-                                                        'bg-green-500 w-full'
+                                            passwordStrength.strength === 2 ? 'bg-orange-500 w-2/4' :
+                                                passwordStrength.strength === 3 ? 'bg-yellow-500 w-3/4' :
+                                                    'bg-green-500 w-full'
                                             }`}
                                     />
                                 </div>
@@ -208,8 +210,8 @@ export default function ResetPasswordPage() {
                         {message && (
                             <div
                                 className={`rounded-lg p-3 text-sm border ${message.type === 'error'
-                                        ? 'bg-red-500/10 text-red-500 border-red-500/20'
-                                        : 'bg-green-500/10 text-green-500 border-green-500/20'
+                                    ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                                    : 'bg-green-500/10 text-green-500 border-green-500/20'
                                     }`}
                             >
                                 <div className="font-semibold mb-1">
@@ -237,5 +239,20 @@ export default function ResetPasswordPage() {
                 )}
             </Card>
         </div>
+    );
+}
+
+export default function ResetPasswordPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex min-h-screen items-center justify-center p-4 bg-background">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <Text className="mt-4 text-default-500">Loading...</Text>
+                </div>
+            </div>
+        }>
+            <ResetPasswordContent />
+        </Suspense>
     );
 }
