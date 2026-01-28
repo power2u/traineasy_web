@@ -6,6 +6,7 @@ import { Card, Button, Spinner, Chip, TextField, Label, Input, Select, ListBox }
 import { ArrowLeft, Save, Edit, User, Mail, Calendar, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { updateAdminUserProfile } from '@/app/actions/admin-details';
+import { COMMON_TIMEZONES } from '@/lib/utils/timezone';
 
 interface UserProfile {
     id: string;
@@ -376,26 +377,12 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                                 </Select.Trigger>
                                 <Select.Popover>
                                     <ListBox>
-                                        <ListBox.Item id="Asia/Kolkata" textValue="Asia/Kolkata">
-                                            Asia/Kolkata
-                                            <ListBox.ItemIndicator />
-                                        </ListBox.Item>
-                                        <ListBox.Item id="America/New_York" textValue="America/New_York">
-                                            America/New_York
-                                            <ListBox.ItemIndicator />
-                                        </ListBox.Item>
-                                        <ListBox.Item id="Europe/London" textValue="Europe/London">
-                                            Europe/London
-                                            <ListBox.ItemIndicator />
-                                        </ListBox.Item>
-                                        <ListBox.Item id="Asia/Tokyo" textValue="Asia/Tokyo">
-                                            Asia/Tokyo
-                                            <ListBox.ItemIndicator />
-                                        </ListBox.Item>
-                                        <ListBox.Item id="Australia/Sydney" textValue="Australia/Sydney">
-                                            Australia/Sydney
-                                            <ListBox.ItemIndicator />
-                                        </ListBox.Item>
+                                        {COMMON_TIMEZONES.map((tz) => (
+                                            <ListBox.Item key={tz.value} id={tz.value} textValue={tz.label}>
+                                                {tz.label}
+                                                <ListBox.ItemIndicator />
+                                            </ListBox.Item>
+                                        ))}
                                     </ListBox>
                                 </Select.Popover>
                             </Select>

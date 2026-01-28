@@ -2,6 +2,30 @@
 
 import { createAdminClient } from '@/lib/supabase/server';
 import bcrypt from 'bcryptjs';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+
+/**
+ * Helper to ensure the caller is a super admin
+ */
+async function requireSuperAdmin() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.email) {
+    throw new Error('Unauthorized: Please sign in');
+  }
+
+  const adminClient = createAdminClient();
+  const { data: user, error } = await adminClient
+    .from('user_preferences')
+    .select('role')
+    .eq('email', session.user.email)
+    .single();
+
+  if (error || !user || user.role !== 'super_admin') {
+    throw new Error('Unauthorized: Insufficient permissions');
+  }
+}
 
 /**
  * DEVELOPMENT ONLY: Create or update a super admin user
@@ -71,6 +95,7 @@ export async function createSuperAdmin(email: string) {
  */
 export async function createUser(email: string, password: string, displayName: string, role: 'user' | 'super_admin' = 'user') {
   try {
+    await requireSuperAdmin();
     const adminClient = createAdminClient();
 
     // 1. Create user in Supabase Auth
@@ -143,6 +168,7 @@ export async function createUser(email: string, password: string, displayName: s
  */
 export async function deleteUser(userId: string) {
   try {
+    await requireSuperAdmin();
     const adminClient = createAdminClient();
 
     // Delete from user_preferences directly
@@ -188,6 +214,7 @@ export async function listAllUsers() {
   }
 
   try {
+    await requireSuperAdmin();
     const adminClient = createAdminClient();
 
     const { data: users, error } = await adminClient
@@ -224,6 +251,7 @@ export async function listAllUsers() {
  */
 export async function listUsers() {
   try {
+    await requireSuperAdmin();
     const adminClient = createAdminClient();
 
     const { data: users, error } = await adminClient
@@ -266,6 +294,7 @@ export async function listUsers() {
  */
 export async function promoteToSuperAdmin(userId: string) {
   try {
+    await requireSuperAdmin();
     const adminClient = createAdminClient();
 
     const { error } = await adminClient
@@ -295,6 +324,7 @@ export async function promoteToSuperAdmin(userId: string) {
  */
 export async function disableUser(userId: string) {
   try {
+    await requireSuperAdmin();
     const adminClient = createAdminClient();
 
     // Ban the user for 100 years (effectively permanent)
@@ -330,6 +360,7 @@ export async function disableUser(userId: string) {
  */
 export async function enableUser(userId: string) {
   try {
+    await requireSuperAdmin();
     const adminClient = createAdminClient();
 
     const { error } = await adminClient.auth.admin.updateUserById(userId, {
@@ -358,6 +389,7 @@ export async function enableUser(userId: string) {
  */
 export async function resetUserPassword(userId: string, newPassword: string) {
   try {
+    await requireSuperAdmin();
     const adminClient = createAdminClient();
 
     // 1. Update in Auth (good practice)
