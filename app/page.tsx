@@ -20,8 +20,8 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Spinner size="lg"  />
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Spinner size="lg" className="w-12 h-12" />
       </div>
     );
   }
@@ -31,10 +31,10 @@ export default function Home() {
       <main className="flex flex-col items-center gap-8 text-center max-w-6xl mx-auto">
         {/* Hero Section */}
         <div className="flex flex-col items-center gap-6">
-          <img 
-            src="/logo.png" 
-            alt="Fitness Tracker" 
-            className="h-20 w-20 mb-2 drop-shadow-lg" 
+          <img
+            src="/logo.png"
+            alt="Fitness Tracker"
+            className="h-20 w-20 mb-2 drop-shadow-lg"
           />
           <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary via-primary to-info bg-clip-text text-transparent">
             Fitness Tracker
@@ -48,9 +48,9 @@ export default function Home() {
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 mt-6">
           <Link href="/auth/signup">
-            <Button 
-              size="lg" 
-              variant="ghost" 
+            <Button
+              size="lg"
+              variant="ghost"
               className="min-w-[140px] font-medium"
               style={{
                 backgroundColor: 'var(--muted)',
@@ -62,8 +62,8 @@ export default function Home() {
             </Button>
           </Link>
           <Link href="/auth/login">
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               variant="primary"
               className="min-w-[140px] font-medium"
               style={{

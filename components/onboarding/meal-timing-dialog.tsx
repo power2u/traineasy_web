@@ -138,7 +138,7 @@ export function MealTimingDialog({ isOpen, onComplete }: MealTimingDialogProps) 
             {/* Timezone Selection */}
             <div className="space-y-2">
               <Select
-                defaultSelectedKey={mealTimes.timezone}
+                selectedKey={mealTimes.timezone}
                 onSelectionChange={(key) => {
                   if (key) handleTimezoneChange(key as string);
                 }}
@@ -169,7 +169,7 @@ export function MealTimingDialog({ isOpen, onComplete }: MealTimingDialogProps) 
             {/* Theme Selection */}
             <div className="space-y-2">
               <Select
-                defaultSelectedKey={mealTimes.theme || 'dark'}
+                selectedKey={mealTimes.theme || 'dark'}
                 onSelectionChange={(key) => {
                   if (key) handleThemeChange(key as 'light' | 'dark' | 'system');
                 }}

@@ -55,7 +55,7 @@ export function ProfileClient({ initialProfile, initialPlan }: ProfileClientProp
         setSaveMessage('');
 
         try {
-            const dataToSave = {
+            const dataToSave: Partial<UserPreferences> = {
                 // Profile fields
                 full_name: fullName || undefined,
                 date_of_birth: dateOfBirth || undefined,
@@ -85,8 +85,7 @@ export function ProfileClient({ initialProfile, initialPlan }: ProfileClientProp
 
             if (result.success) {
                 setSaveMessage('Profile saved successfully!');
-                // Ideally we update the local state which is already done via inputs
-                // Refresh router to re-fetch usage of this data elsewhere if needed
+                setPreferences(prev => prev ? { ...prev, ...dataToSave } : null);
                 router.refresh();
                 setTimeout(() => setSaveMessage(''), 3000);
             } else {
@@ -105,23 +104,21 @@ export function ProfileClient({ initialProfile, initialPlan }: ProfileClientProp
         if (!user) return;
 
         try {
-            const mealTimingData = {
+            const mealTimingData: Partial<UserPreferences> = {
                 breakfast_time: mealTimes.breakfast_time,
                 snack1_time: mealTimes.snack1_time,
                 lunch_time: mealTimes.lunch_time,
                 snack2_time: mealTimes.snack2_time,
                 dinner_time: mealTimes.dinner_time,
                 timezone: mealTimes.timezone,
-                theme: mealTimes.theme,
+                theme: mealTimes.theme || 'dark',
                 meal_times_configured: true,
             };
 
             const result = await updateProfile(user.id, mealTimingData);
 
             if (result.success) {
-                // We refreshed the page, or we could pass a callback to update preferences locally
-                // But since we are moving away from local fetching, we might just trust the update
-                // or refresh the router
+                setPreferences(prev => prev ? { ...prev, ...mealTimingData } : null);
                 router.refresh();
             } else {
                 throw new Error(result.error || 'Failed to save meal timing settings');
