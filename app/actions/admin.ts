@@ -4,6 +4,9 @@ import { createAdminClient } from '@/lib/supabase/server';
 import bcrypt from 'bcryptjs';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { sendEmail } from '@/lib/email/smtp';
+import { render } from '@react-email/render';
+import { WelcomeEmail } from '@/lib/email/templates/welcome-user';
 
 /**
  * Helper to ensure the caller is a super admin
@@ -162,6 +165,39 @@ export async function createUser(email: string, password: string, displayName: s
       throw new Error(`Failed to create user profile: ${prefError.message}`);
     }
 
+    // 4. Send Welcome Email
+    try {
+      const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+      const loginUrl = `${baseUrl}/auth/signin`;
+
+      const emailHtml = await render(
+        WelcomeEmail({
+          userEmail: email,
+          userName: displayName,
+          password: password, // Sending initial password
+          loginUrl,
+          baseUrl,
+          supportEmail: process.env.SMTP_FROM || 'support@traineasy.com',
+        })
+      );
+
+      const emailResult = await sendEmail({
+        to: email,
+        subject: 'Welcome to TrainEasy! 🚀',
+        html: emailHtml,
+        text: `Welcome to TrainEasy! Your account has been created.\n\nLogin Email: ${email}\nPassword: ${password}\n\nLogin here: ${loginUrl}`,
+      });
+
+      if (emailResult.success) {
+        console.log(`[createUser] Welcome email sent to ${email}`);
+      } else {
+        console.warn(`[createUser] Failed to send welcome email: ${emailResult.error}`);
+      }
+    } catch (emailError) {
+      console.error('[createUser] Error sending welcome email:', emailError);
+      // Non-blocking error
+    }
+
     return {
       success: true,
       user: {
@@ -170,7 +206,7 @@ export async function createUser(email: string, password: string, displayName: s
         role: role,
         full_name: displayName,
       },
-      message: `Successfully created user ${email}!`,
+      message: `Successfully created user ${email} and sent welcome email!`,
     };
   } catch (error: any) {
     console.error('Error creating user:', error);
