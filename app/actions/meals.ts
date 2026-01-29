@@ -1,9 +1,20 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { updateLastActive } from "@/lib/utils/activity-tracker";
+
+async function checkAuth(userId: string) {
+  const session = await getServerSession(authOptions);
+  if (!session || (session.user as any).id !== userId) {
+    throw new Error("Unauthorized");
+  }
+}
 
 export async function getTodayMeals(userId: string) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
     const today = new Date().toISOString().split('T')[0];
 
@@ -23,20 +34,20 @@ export async function getTodayMeals(userId: string) {
       success: true,
       meals: data
         ? {
-            id: data.id,
-            date: data.date,
-            breakfast_completed: data.breakfast_completed,
-            breakfast_time: data.breakfast_time,
-            snack1_completed: data.snack1_completed,
-            snack1_time: data.snack1_time,
-            lunch_completed: data.lunch_completed,
-            lunch_time: data.lunch_time,
-            snack2_completed: data.snack2_completed,
-            snack2_time: data.snack2_time,
-            dinner_completed: data.dinner_completed,
-            dinner_time: data.dinner_time,
-            notes: data.notes,
-          }
+          id: data.id,
+          date: data.date,
+          breakfast_completed: data.breakfast_completed,
+          breakfast_time: data.breakfast_time,
+          snack1_completed: data.snack1_completed,
+          snack1_time: data.snack1_time,
+          lunch_completed: data.lunch_completed,
+          lunch_time: data.lunch_time,
+          snack2_completed: data.snack2_completed,
+          snack2_time: data.snack2_time,
+          dinner_completed: data.dinner_completed,
+          dinner_time: data.dinner_time,
+          notes: data.notes,
+        }
         : null,
     };
   } catch (error: any) {
@@ -50,6 +61,7 @@ export async function toggleMeal(
   completed: boolean
 ) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
     const today = new Date().toISOString().split('T')[0];
 
@@ -86,6 +98,9 @@ export async function toggleMeal(
       if (error) throw error;
     }
 
+    // Track activity
+    await updateLastActive(userId);
+
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -94,6 +109,7 @@ export async function toggleMeal(
 
 export async function getMealReminders(userId: string) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -124,6 +140,7 @@ export async function setMealReminder(
   reminderTime: string
 ) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
 
     // Upsert (insert or update)
@@ -149,12 +166,28 @@ export async function setMealReminder(
 
 export async function toggleReminderActive(reminderId: string, isActive: boolean) {
   try {
+    // We need to verify that this reminder belongs to the user.
+    // Fetch user from session
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      throw new Error("Unauthorized");
+    }
+    const userId = (session.user as any).id;
+
     const supabase = await createClient();
+
+    // Verify ownership indirectly by using user_id in the update query (if possible) or check first?
+    // Safer to check ownership or include user_id in the condition
+
+    // Attempt update with user_id check
+    // We don't have user_id on the record unless we select it first, OR we assume we can add .eq('user_id', userId) to update
+    // But table 'meal_reminders' has 'user_id' column.
 
     const { error } = await supabase
       .from('meal_reminders')
       .update({ is_active: isActive })
-      .eq('id', reminderId);
+      .eq('id', reminderId)
+      .eq('user_id', userId); // SECURITY: Ensure we only update own reminders
 
     if (error) throw error;
 
@@ -166,6 +199,7 @@ export async function toggleReminderActive(reminderId: string, isActive: boolean
 
 export async function getMealsHistory(userId: string, limit = 30) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
 
     const { data, error } = await supabase

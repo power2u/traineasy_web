@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { MeasurementType, BodyMeasurement } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export interface MeasurementsData {
     measurements: BodyMeasurement[];
@@ -16,7 +18,15 @@ export interface MeasurementsData {
     canLogToday: boolean;
 }
 
+async function checkAuth(userId: string) {
+    const session = await getServerSession(authOptions);
+    if (!session || (session.user as any).id !== userId) {
+        throw new Error("Unauthorized");
+    }
+}
+
 export async function getMeasurementsData(userId: string, type: MeasurementType, days: number = 90): Promise<MeasurementsData> {
+    await checkAuth(userId);
     const supabase = await createClient();
 
     // 1. Fetch Preferences
@@ -82,6 +92,7 @@ export async function saveMeasurementAction(
     unit: string,
     notes?: string
 ) {
+    await checkAuth(userId);
     const supabase = await createClient();
     const today = new Date().toISOString().split('T')[0];
 
@@ -103,6 +114,7 @@ export async function saveMeasurementAction(
 }
 
 export async function deleteMeasurementAction(id: string, userId: string) {
+    await checkAuth(userId);
     const supabase = await createClient();
 
     const { error } = await supabase

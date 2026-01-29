@@ -1,6 +1,9 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { updateLastActive } from "@/lib/utils/activity-tracker";
 
 export interface WaterIntakeEntry {
   id: string;
@@ -10,8 +13,16 @@ export interface WaterIntakeEntry {
   createdAt: Date;
 }
 
+async function checkAuth(userId: string) {
+  const session = await getServerSession(authOptions);
+  if (!session || (session.user as any).id !== userId) {
+    throw new Error("Unauthorized");
+  }
+}
+
 export async function getTodayWaterEntries(userId: string) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
     const today = new Date().toISOString().split('T')[0];
 
@@ -42,6 +53,7 @@ export async function getTodayWaterEntries(userId: string) {
 
 export async function getAllWaterEntries(userId: string, limit = 50) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -70,6 +82,7 @@ export async function getAllWaterEntries(userId: string, limit = 50) {
 
 export async function addWaterEntry(userId: string, glassCount: number = 1) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -83,6 +96,9 @@ export async function addWaterEntry(userId: string, glassCount: number = 1) {
       .single();
 
     if (error) throw error;
+
+    // Track activity
+    await updateLastActive(userId);
 
     return {
       success: true,
@@ -101,12 +117,20 @@ export async function addWaterEntry(userId: string, glassCount: number = 1) {
 
 export async function deleteWaterEntry(entryId: string) {
   try {
+    // Verify ownership
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      throw new Error("Unauthorized");
+    }
+    const userId = (session.user as any).id;
+
     const supabase = await createClient();
 
     const { error } = await supabase
       .from('water_intake')
       .delete()
-      .eq('id', entryId);
+      .eq('id', entryId)
+      .eq('user_id', userId); // SECURITY: Ensure ownership
 
     if (error) throw error;
 
@@ -118,6 +142,7 @@ export async function deleteWaterEntry(entryId: string) {
 
 export async function getTodayWaterCount(userId: string) {
   try {
+    // Check auth implicitly by calling getTodayWaterEntries which checks it
     const result = await getTodayWaterEntries(userId);
     if (!result.success) throw new Error(result.error);
     return { success: true, count: result.entries?.length || 0 };
@@ -128,6 +153,7 @@ export async function getTodayWaterCount(userId: string) {
 
 export async function getTodayWaterTotal(userId: string) {
   try {
+    // Check auth implicitly by calling getTodayWaterEntries which checks it
     const result = await getTodayWaterEntries(userId);
     if (!result.success) throw new Error(result.error);
     const totalGlasses = (result.entries || []).reduce((sum, entry) => sum + entry.glassCount, 0);
@@ -140,6 +166,7 @@ export async function getTodayWaterTotal(userId: string) {
 
 export async function getWaterTarget(userId: string) {
   try {
+    await checkAuth(userId);
     const { createAdminClient } = await import('@/lib/supabase/admin');
     const supabase = createAdminClient();
 
@@ -161,6 +188,7 @@ export async function getWaterTarget(userId: string) {
 
 export async function updateWaterTarget(userId: string, targetGlasses: number) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
 
     const { error } = await supabase.auth.updateUser({

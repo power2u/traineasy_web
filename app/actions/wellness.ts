@@ -1,6 +1,8 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export interface WellnessCheckIn {
   id?: string;
@@ -21,8 +23,16 @@ export interface WellnessCheckIn {
   updated_at?: string;
 }
 
+async function checkAuth(userId: string) {
+  const session = await getServerSession(authOptions);
+  if (!session || (session.user as any).id !== userId) {
+    throw new Error("Unauthorized");
+  }
+}
+
 export async function getTodayWellnessCheckIn(userId: string) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
     const today = new Date().toISOString().split('T')[0];
 
@@ -56,6 +66,7 @@ export async function saveWellnessCheckIn(
   checkInData: Partial<WellnessCheckIn>
 ) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
     const today = new Date().toISOString().split('T')[0];
 
@@ -103,6 +114,7 @@ export async function saveWellnessCheckIn(
 
 export async function getWellnessHistory(userId: string, limit = 7) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
 
     const { data, error } = await supabase

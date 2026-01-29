@@ -1,8 +1,8 @@
-import { createClient } from '@/lib/supabase/client';
 import type { BodyMeasurement, MeasurementType } from '@/lib/types';
+import { createAdminClient } from '../supabase/server';
 
 class MeasurementsService {
-  private supabase = createClient();
+  private supabase = createAdminClient();
 
   // Get measurements for a specific type
   async getMeasurements(

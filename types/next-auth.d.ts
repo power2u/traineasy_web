@@ -7,6 +7,7 @@ declare module "next-auth" {
             id: string
             role: 'user' | 'super_admin'
             password_change_required?: boolean
+            hasActiveMembership?: boolean
         } & DefaultSession["user"]
     }
 
@@ -16,6 +17,7 @@ declare module "next-auth" {
         full_name?: string
         password_hash?: string
         password_change_required?: boolean
+        hasActiveMembership?: boolean
     }
 }
 
@@ -24,5 +26,6 @@ declare module "next-auth/jwt" {
         id: string
         role: 'user' | 'super_admin'
         password_change_required?: boolean
+        hasActiveMembership?: boolean
     }
 }

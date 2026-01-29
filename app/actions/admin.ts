@@ -11,7 +11,7 @@ import { WelcomeEmail } from '@/lib/email/templates/welcome-user';
 /**
  * Helper to ensure the caller is a super admin
  */
-async function requireSuperAdmin() {
+export async function requireSuperAdmin() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.email) {

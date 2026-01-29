@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireSuperAdmin } from './admin';
 
 export interface MotivationBanner {
   id: string;
@@ -61,6 +62,7 @@ export async function getActiveBanner() {
 // Admin: Get all banners
 export async function getAllBanners() {
   try {
+    await requireSuperAdmin();
     const adminClient = createAdminClient();
 
     const { data, error } = await adminClient
@@ -98,6 +100,7 @@ export async function createBanner(
 ) {
   try {
     const session = await getServerSession(authOptions);
+    await requireSuperAdmin();
 
     if (!session || !session.user) {
       throw new Error('Not authenticated');
@@ -141,6 +144,7 @@ export async function updateBanner(
   expiresAt: string | null
 ) {
   try {
+    await requireSuperAdmin();
     const adminClient = createAdminClient();
 
     const { data, error } = await adminClient
@@ -173,6 +177,7 @@ export async function updateBanner(
 // Admin: Activate banner (deactivates all others)
 export async function activateBanner(id: string) {
   try {
+    await requireSuperAdmin();
     const adminClient = createAdminClient();
 
     // First, deactivate all banners
@@ -208,6 +213,7 @@ export async function activateBanner(id: string) {
 // Admin: Deactivate banner
 export async function deactivateBanner(id: string) {
   try {
+    await requireSuperAdmin();
     const adminClient = createAdminClient();
 
     const { data, error } = await adminClient
@@ -236,6 +242,7 @@ export async function deactivateBanner(id: string) {
 // Admin: Delete banner
 export async function deleteBanner(id: string) {
   try {
+    await requireSuperAdmin();
     const adminClient = createAdminClient();
 
     const { error } = await adminClient

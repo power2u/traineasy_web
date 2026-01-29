@@ -38,7 +38,7 @@ export function convertWeight(
   toUnit: 'kg' | 'lbs'
 ): number {
   if (fromUnit === toUnit) return weight;
-  
+
   if (toUnit === 'kg') {
     return toKg(weight, fromUnit);
   } else {
@@ -121,7 +121,7 @@ export function calculateAverageWeight(
   weights: Array<{ weight: number; unit: 'kg' | 'lbs' }>
 ): number {
   if (weights.length === 0) return 0;
-  
+
   const weightsKg = normalizeWeightsToKg(weights);
   const sum = weightsKg.reduce((acc, w) => acc + w, 0);
   return sum / weightsKg.length;
@@ -134,7 +134,7 @@ export function findMinMaxWeights(
   weights: Array<{ weight: number; unit: 'kg' | 'lbs' }>
 ): { min: number; max: number } {
   if (weights.length === 0) return { min: 0, max: 0 };
-  
+
   const weightsKg = normalizeWeightsToKg(weights);
   return {
     min: Math.min(...weightsKg),
@@ -156,11 +156,21 @@ export function calculateProgressPercentage(
   const currentKg = toKg(currentWeight, currentUnit);
   const startKg = toKg(startWeight, startUnit);
   const goalKg = toKg(goalWeight, goalUnit);
-  
+
   const totalChange = Math.abs(goalKg - startKg);
   const currentChange = Math.abs(currentKg - startKg);
-  
+
   if (totalChange === 0) return 100;
-  
+
   return Math.min(100, (currentChange / totalChange) * 100);
+}
+
+/**
+ * Get BMI Category based on BMI value
+ */
+export function getBMICategory(bmi: number): string {
+  if (bmi < 18.5) return 'Underweight';
+  if (bmi < 25) return 'Normal';
+  if (bmi < 30) return 'Overweight';
+  return 'Obese';
 }

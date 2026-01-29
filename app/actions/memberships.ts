@@ -1,7 +1,9 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { enableUser, disableUser } from './admin';
+import { enableUser, disableUser, requireSuperAdmin } from './admin';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export interface UserMembership {
   id: string;
@@ -20,9 +22,24 @@ export interface UserMembership {
   notes?: string;
 }
 
+async function verifyUserOrAdmin(userId: string) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) throw new Error("Unauthorized");
+
+  if ((session.user as any).id === userId) return; // Own data
+
+  // Check if admin
+  try {
+    await requireSuperAdmin();
+  } catch {
+    throw new Error("Unauthorized");
+  }
+}
+
 // Get active membership for current user
 export async function getActiveMembership(userId: string) {
   try {
+    await verifyUserOrAdmin(userId);
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -46,6 +63,7 @@ export async function getActiveMembership(userId: string) {
 // Check if user has active membership
 export async function hasActiveMembership(userId: string) {
   try {
+    await verifyUserOrAdmin(userId);
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -66,6 +84,7 @@ export async function hasActiveMembership(userId: string) {
 // Get all memberships for a user (admin or own)
 export async function getUserMemberships(userId: string) {
   try {
+    await verifyUserOrAdmin(userId);
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -95,6 +114,7 @@ export async function createMembership(data: {
   notes?: string;
 }) {
   try {
+    await requireSuperAdmin();
     const supabase = await createClient();
 
     // First, deactivate any existing active memberships (using function)
@@ -150,6 +170,7 @@ export async function updateMembership(
   }
 ) {
   try {
+    await requireSuperAdmin();
     const supabase = await createClient();
 
     const { error } = await supabase
@@ -169,6 +190,7 @@ export async function updateMembership(
 // Cancel membership (admin only)
 export async function cancelMembership(membershipId: string) {
   try {
+    await requireSuperAdmin();
     const supabase = await createClient();
 
     const { error } = await supabase
@@ -188,6 +210,12 @@ export async function cancelMembership(membershipId: string) {
 // Expire old memberships (can be called by cron job)
 export async function expireOldMemberships() {
   try {
+    // This action is likely called by an external cron service/Supabase Cron
+    // If exposed as an API route, verify key.
+    // If exposed as Server Action, it should probably be Admin Only or verifiable.
+    // For now, assume Admin Only to prevent abuse.
+    await requireSuperAdmin();
+
     const supabase = await createClient();
 
     const { error } = await supabase.rpc('expire_old_memberships');
@@ -204,6 +232,7 @@ export async function expireOldMemberships() {
 // Get membership statistics for admin dashboard
 export async function getMembershipStats() {
   try {
+    await requireSuperAdmin();
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -232,6 +261,7 @@ export async function getMembershipStats() {
 // Sync membership status: Expire memberships and disable users
 export async function syncMembershipStatus() {
   try {
+    await requireSuperAdmin();
     const supabase = await createClient();
     const today = new Date().toISOString().split('T')[0];
 

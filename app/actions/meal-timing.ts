@@ -1,6 +1,8 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export interface MealTimes {
   breakfast_time: string;
@@ -18,10 +20,18 @@ function convertToTimeFormat(time: string): string {
   return `${time}:00`;
 }
 
+async function checkAuth(userId: string) {
+  const session = await getServerSession(authOptions);
+  if (!session || (session.user as any).id !== userId) {
+    throw new Error("Unauthorized");
+  }
+}
+
 export async function getMealTimes(userId: string) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
-    
+
     const { data, error } = await supabase
       .from('user_preferences')
       .select('breakfast_time, snack1_time, lunch_time, snack2_time, dinner_time, timezone')
@@ -29,7 +39,7 @@ export async function getMealTimes(userId: string) {
       .single();
 
     if (error) throw error;
-    
+
     return { success: true, mealTimes: data };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -38,8 +48,9 @@ export async function getMealTimes(userId: string) {
 
 export async function setMealTimes(userId: string, mealTimes: MealTimes) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
-    
+
     // Convert time format and include timezone and theme
     const formattedTimes = {
       breakfast_time: convertToTimeFormat(mealTimes.breakfast_time),
@@ -66,7 +77,7 @@ export async function setMealTimes(userId: string, mealTimes: MealTimes) {
       );
 
     if (error) throw error;
-    
+
     return { success: true };
   } catch (error: any) {
     console.error('[setMealTimes] Error:', error);
@@ -76,8 +87,9 @@ export async function setMealTimes(userId: string, mealTimes: MealTimes) {
 
 export async function isMealTimesConfigured(userId: string) {
   try {
+    await checkAuth(userId);
     const supabase = await createClient();
-    
+
     const { data, error } = await supabase
       .from('user_preferences')
       .select('meal_times_configured')
@@ -85,7 +97,7 @@ export async function isMealTimesConfigured(userId: string) {
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
-    
+
     return { success: true, configured: data?.meal_times_configured || false };
   } catch (error: any) {
     return { success: false, error: error.message, configured: false };

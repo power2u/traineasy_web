@@ -2,9 +2,8 @@
 
 import { useState, useCallback, useMemo, memo } from 'react';
 import { Card, Text, Button, TextField, Label, Input } from '@heroui/react';
-import { preferencesService } from '@/lib/services/preferences-service';
-import { weightService } from '@/lib/services/weight-service';
-import { convertWeight } from '@/lib/utils/unit-conversion';
+import { updateProfile } from '@/app/actions/profile';
+import { convertWeight, calculateBMI, getBMICategory } from '@/lib/utils/unit-conversion';
 import { Ruler } from 'lucide-react';
 
 interface BMICardProps {
@@ -42,7 +41,9 @@ export const BMICard = memo(function BMICard({ userId, currentWeight, heightCm, 
     setError(null);
 
     try {
-      await preferencesService.setHeight(userId, heightNum);
+      const result = await updateProfile(userId, { height_cm: heightNum });
+      if (!result.success) throw new Error(result.error);
+
       setIsEditing(false);
       onUpdate();
     } catch (err: any) {
@@ -60,13 +61,13 @@ export const BMICard = memo(function BMICard({ userId, currentWeight, heightCm, 
 
   const bmiData = useMemo(() => {
     if (!currentWeight || !heightCm) return null;
-    
-    // Convert current weight to kg for BMI calculation
-    const weightKg = convertWeight(currentWeight, unit, 'kg');
-    
-    const bmi = weightService.calculateBMI(weightKg, heightCm);
-    const category = weightService.getBMICategory(bmi);
-    
+
+    // BMI Calc typically handles conversion internally if util is smart, but here manual conv is safest if utilizing simple formula
+    // Actually the new calculateBMI util takes unit arg, so using that.
+
+    const bmi = calculateBMI(currentWeight, unit, heightCm);
+    const category = getBMICategory(bmi);
+
     return { bmi, category };
   }, [currentWeight, heightCm, unit]);
 

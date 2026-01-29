@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, memo } from 'react';
 import { Card, Text, Button, TextField, Label, Input } from '@heroui/react';
-import { preferencesService } from '@/lib/services/preferences-service';
+import { updateProfile } from '@/app/actions/profile';
 
 interface GoalWeightCardProps {
   userId: string;
@@ -30,7 +30,12 @@ export const GoalWeightCard = memo(function GoalWeightCard({ userId, currentWeig
     setError(null);
 
     try {
-      await preferencesService.setGoalWeight(userId, goalNum, unit);
+      const result = await updateProfile(userId, {
+        goal_weight: goalNum,
+        goal_weight_unit: unit
+      });
+      if (!result.success) throw new Error(result.error);
+
       setIsEditing(false);
       onUpdate();
     } catch (err: any) {
@@ -48,15 +53,15 @@ export const GoalWeightCard = memo(function GoalWeightCard({ userId, currentWeig
 
   const progress = useMemo(() => {
     if (!currentWeight || !goalWeight || !startingWeight) return null;
-    
+
     const remaining = Math.abs(currentWeight - goalWeight);
     const isGoalLower = goalWeight < startingWeight;
-    
+
     // Calculate progress based on starting weight
     const totalToChange = Math.abs(startingWeight - goalWeight);
     const changedSoFar = Math.abs(startingWeight - currentWeight);
     const percentage = totalToChange > 0 ? Math.min(100, (changedSoFar / totalToChange) * 100) : 0;
-    
+
     return {
       remaining,
       isGoalLower,
@@ -132,12 +137,12 @@ export const GoalWeightCard = memo(function GoalWeightCard({ userId, currentWeig
                 <Text className="text-gray-400">Starting</Text>
                 <Text className="font-semibold">{startingWeight.toFixed(1)} {unit}</Text>
               </div>
-              
+
               <div className="flex items-center justify-between text-sm">
                 <Text className="text-gray-400">Current</Text>
                 <Text className="font-semibold">{currentWeight.toFixed(1)} {unit}</Text>
               </div>
-              
+
               <div className="flex items-center justify-between text-sm">
                 <Text className="text-gray-400">Remaining</Text>
                 <Text className="font-semibold">

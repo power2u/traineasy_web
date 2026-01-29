@@ -1,5 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { weightService } from '@/lib/services/weight-service';
+import {
+  getWeightLogs,
+  getLatestWeightLog,
+  getWeightStatistics,
+  checkCanLogToday,
+  createWeightLog,
+  deleteWeightLog
+} from '@/app/actions/weight';
 import type { WeightLog } from '@/lib/types';
 
 export function useWeightData(userId: string) {
@@ -8,7 +15,11 @@ export function useWeightData(userId: string) {
   // Fetch weight logs with background sync
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['weight', 'logs', userId],
-    queryFn: () => weightService.getLogs(userId, 30),
+    queryFn: async () => {
+      const result = await getWeightLogs(userId, 30);
+      if (!result.success) throw new Error(result.error);
+      return result.logs || [];
+    },
     enabled: !!userId,
     refetchInterval: 30000, // Refetch every 30 seconds
   });
@@ -16,42 +27,54 @@ export function useWeightData(userId: string) {
   // Fetch latest log
   const { data: latestLog } = useQuery({
     queryKey: ['weight', 'latest', userId],
-    queryFn: () => weightService.getLatestLog(userId),
+    queryFn: async () => {
+      const result = await getLatestWeightLog(userId);
+      if (!result.success && result.error) throw new Error(result.error);
+      return result.log || null;
+    },
     enabled: !!userId,
   });
 
-  // Fetch weekly average
-  const { data: weeklyAverage } = useQuery({
-    queryKey: ['weight', 'weekly-average', userId],
-    queryFn: () => weightService.getWeeklyAverage(userId),
-    enabled: !!userId,
-  });
-
-  // Fetch monthly average
-  const { data: monthlyAverage } = useQuery({
-    queryKey: ['weight', 'monthly-average', userId],
-    queryFn: () => weightService.getMonthlyAverage(userId),
+  // Fetch statistics (weekly/monthly average)
+  const { data: stats } = useQuery({
+    queryKey: ['weight', 'statistics', userId],
+    queryFn: async () => {
+      const result = await getWeightStatistics(userId);
+      if (!result.success) throw new Error(result.error);
+      return {
+        weeklyAverage: result.weeklyAverage,
+        monthlyAverage: result.monthlyAverage
+      };
+    },
     enabled: !!userId,
   });
 
   // Check if can log today
   const { data: canLogToday = true } = useQuery({
     queryKey: ['weight', 'can-log-today', userId],
-    queryFn: () => weightService.canLogToday(userId),
+    queryFn: async () => {
+      const result = await checkCanLogToday(userId);
+      if (!result.success) throw new Error(result.error);
+      return result.canLog;
+    },
     enabled: !!userId,
   });
 
   // Create log mutation with optimistic updates
   const createMutation = useMutation({
-    mutationFn: ({ 
-      weight, 
-      unit, 
-      notes 
-    }: { 
-      weight: number; 
-      unit: 'kg' | 'lbs'; 
+    mutationFn: async ({
+      weight,
+      unit,
+      notes
+    }: {
+      weight: number;
+      unit: 'kg' | 'lbs';
       notes?: string;
-    }) => weightService.createLog(userId, weight, unit, notes),
+    }) => {
+      const result = await createWeightLog(userId, weight, unit, notes);
+      if (!result.success) throw new Error(result.error);
+      return result.log!;
+    },
     onMutate: async (newLog) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['weight', 'logs', userId] });
@@ -95,15 +118,17 @@ export function useWeightData(userId: string) {
       // Always refetch after error or success
       queryClient.invalidateQueries({ queryKey: ['weight', 'logs', userId] });
       queryClient.invalidateQueries({ queryKey: ['weight', 'latest', userId] });
-      queryClient.invalidateQueries({ queryKey: ['weight', 'weekly-average', userId] });
-      queryClient.invalidateQueries({ queryKey: ['weight', 'monthly-average', userId] });
+      queryClient.invalidateQueries({ queryKey: ['weight', 'statistics', userId] });
       queryClient.invalidateQueries({ queryKey: ['weight', 'can-log-today', userId] });
     },
   });
 
   // Delete log mutation with optimistic updates
   const deleteMutation = useMutation({
-    mutationFn: (logId: string) => weightService.deleteLog(logId, userId),
+    mutationFn: async (logId: string) => {
+      const result = await deleteWeightLog(logId);
+      if (!result.success) throw new Error(result.error);
+    },
     onMutate: async (logId) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['weight', 'logs', userId] });
@@ -128,8 +153,7 @@ export function useWeightData(userId: string) {
       // Always refetch after error or success
       queryClient.invalidateQueries({ queryKey: ['weight', 'logs', userId] });
       queryClient.invalidateQueries({ queryKey: ['weight', 'latest', userId] });
-      queryClient.invalidateQueries({ queryKey: ['weight', 'weekly-average', userId] });
-      queryClient.invalidateQueries({ queryKey: ['weight', 'monthly-average', userId] });
+      queryClient.invalidateQueries({ queryKey: ['weight', 'statistics', userId] });
       queryClient.invalidateQueries({ queryKey: ['weight', 'can-log-today', userId] });
     },
   });
@@ -137,8 +161,8 @@ export function useWeightData(userId: string) {
   return {
     logs,
     latestLog,
-    weeklyAverage,
-    monthlyAverage,
+    weeklyAverage: stats?.weeklyAverage || null,
+    monthlyAverage: stats?.monthlyAverage || null,
     canLogToday,
     isLoading,
     createLog: createMutation.mutateAsync,

@@ -1,9 +1,11 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { requireSuperAdmin } from './admin';
 
 export async function listPackages() {
   try {
+    await requireSuperAdmin();
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -29,6 +31,7 @@ export async function listPackages() {
 
 export async function createPackage(name: string, price: number, durationDays: number) {
   try {
+    await requireSuperAdmin();
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -60,6 +63,7 @@ export async function createPackage(name: string, price: number, durationDays: n
 
 export async function togglePackageStatus(packageId: string, isActive: boolean) {
   try {
+    await requireSuperAdmin();
     const supabase = await createClient();
 
     const { error } = await supabase
@@ -84,6 +88,7 @@ export async function togglePackageStatus(packageId: string, isActive: boolean) 
 
 export async function assignPackageToUser(userId: string, packageId: string) {
   try {
+    await requireSuperAdmin();
     const supabase = await createClient();
 
     // Get package details

@@ -67,7 +67,10 @@ export const authOptions: NextAuthOptions = {
                     // Update last_sign_in_at
                     const { error: updateError } = await supabase
                         .from("user_preferences")
-                        .update({ last_sign_in_at: new Date().toISOString() })
+                        .update({
+                            last_sign_in_at: new Date().toISOString(),
+                            last_active_at: new Date().toISOString()
+                        })
                         .eq("id", user.id);
 
                     if (updateError) {
@@ -138,11 +141,49 @@ export const authOptions: NextAuthOptions = {
                 }
             }
 
+            // Fetch Active Membership Status (if not already set or on update)
+            if (token.id && token.hasActiveMembership === undefined) {
+                // Optimization: Admins always have active membership access
+                if (token.role === 'super_admin') {
+                    token.hasActiveMembership = true;
+                } else {
+                    try {
+                        const supabase = createClient(
+                            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                            process.env.SUPABASE_SERVICE_ROLE_KEY!
+                        );
+
+                        // Check for ANY active membership
+                        const { data: membership } = await supabase
+                            .from("user_memberships")
+                            .select("status")
+                            .eq("user_id", token.id)
+                            .eq("status", "active")
+                            .limit(1)
+                            .maybeSingle(); // Use maybeSingle correctly
+
+                        // If we found a row with status 'active', they have a membership
+                        token.hasActiveMembership = !!membership;
+                        // console.log(`[Auth] JWT: Checked membership for ${token.id}. Active? ${token.hasActiveMembership}`);
+
+                    } catch (err) {
+                        console.error("[Auth] JWT: Failed to fetch membership status", err);
+                        // Default to false on error to be safe, or true? Safe is false (deny access).
+                        token.hasActiveMembership = false;
+                    }
+                }
+            }
+
+
             if (trigger === "update" && session) {
                 // Allow client to update the session (e.g. after password change)
                 if (session.user) {
                     token.password_change_required = session.user.password_change_required;
                     if (session.user.role) token.role = session.user.role;
+                    // Allow manual update of membership status if needed
+                    if (session.user.hasActiveMembership !== undefined) {
+                        token.hasActiveMembership = session.user.hasActiveMembership;
+                    }
                 }
             }
             return token;
@@ -152,6 +193,7 @@ export const authOptions: NextAuthOptions = {
                 session.user.id = token.id as string;
                 session.user.role = token.role as 'user' | 'super_admin';
                 session.user.password_change_required = token.password_change_required as boolean;
+                session.user.hasActiveMembership = token.hasActiveMembership as boolean;
             }
             return session;
         },
