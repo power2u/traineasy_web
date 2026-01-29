@@ -25,7 +25,7 @@ export interface NotificationMessage {
 export async function getActiveNotificationMessage(notificationType: string) {
   try {
     const supabase = await createClient();
-    
+
     const { data, error } = await supabase
       .from('notification_messages')
       .select('*')
@@ -56,7 +56,7 @@ export async function getActiveNotificationMessage(notificationType: string) {
 export async function getAllNotificationMessages() {
   try {
     const adminClient = createAdminClient();
-    
+
     const { data, error } = await adminClient
       .from('notification_messages')
       .select('*')
@@ -80,6 +80,12 @@ export async function getAllNotificationMessages() {
 }
 
 // Admin: Create notification message
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+
+// ... (existing code)
+
+// Admin: Create notification message
 export async function createNotificationMessage(
   notificationType: string,
   title: string,
@@ -89,15 +95,14 @@ export async function createNotificationMessage(
   isEnabled?: boolean
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
       throw new Error('Not authenticated');
     }
 
     const adminClient = createAdminClient();
-    
+
     const { data, error } = await adminClient
       .from('notification_messages')
       .insert({
@@ -107,7 +112,7 @@ export async function createNotificationMessage(
         schedule_time: scheduleTime || null,
         repeat_pattern: repeatPattern || 'daily',
         is_enabled: isEnabled !== undefined ? isEnabled : true,
-        created_by: user.id,
+        created_by: session.user.id,
         is_active: false,
       })
       .select()
@@ -137,7 +142,7 @@ export async function updateNotificationMessage(
 ) {
   try {
     const adminClient = createAdminClient();
-    
+
     const { data, error } = await adminClient
       .from('notification_messages')
       .update({
@@ -169,7 +174,7 @@ export async function updateNotificationMessage(
 export async function activateNotificationMessage(id: string, notificationType: string) {
   try {
     const adminClient = createAdminClient();
-    
+
     // First, deactivate all messages of the same type
     await adminClient
       .from('notification_messages')
@@ -179,7 +184,7 @@ export async function activateNotificationMessage(id: string, notificationType: 
     // Then activate the selected one
     const { data, error } = await adminClient
       .from('notification_messages')
-      .update({ 
+      .update({
         is_active: true,
         updated_at: new Date().toISOString(),
       })
@@ -207,10 +212,10 @@ export async function activateNotificationMessage(id: string, notificationType: 
 export async function deactivateNotificationMessage(id: string) {
   try {
     const adminClient = createAdminClient();
-    
+
     const { data, error } = await adminClient
       .from('notification_messages')
-      .update({ 
+      .update({
         is_active: false,
         updated_at: new Date().toISOString(),
       })
@@ -238,7 +243,7 @@ export async function deactivateNotificationMessage(id: string) {
 export async function deleteNotificationMessage(id: string) {
   try {
     const adminClient = createAdminClient();
-    
+
     const { error } = await adminClient
       .from('notification_messages')
       .delete()

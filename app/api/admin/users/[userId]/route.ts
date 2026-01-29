@@ -1,25 +1,23 @@
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    
     // Check if user is authenticated and is admin
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check if user has admin role
-    const role = user.app_metadata?.role || user.user_metadata?.role;
-    const isSuperAdmin = role === 'super_admin';
-    
+    const isSuperAdmin = session.user.role === 'super_admin';
+
     if (!isSuperAdmin) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
@@ -28,7 +26,7 @@ export async function GET(
 
     // Create admin client for database operations (bypasses RLS)
     const adminClient = createAdminClient();
-    
+
     // Test admin client connection with a simple query
     console.log('Testing admin client connection...');
     try {
@@ -36,29 +34,30 @@ export async function GET(
         .from('user_preferences')
         .select('id')
         .limit(1);
-      console.log('Admin client connection test:', { 
-        success: !connectionError, 
-        error: connectionError?.message 
+      console.log('Admin client connection test:', {
+        success: !connectionError,
+        error: connectionError?.message
       });
     } catch (connError) {
       console.error('Admin client connection failed:', connError);
     }
 
     // First, verify the user exists in Supabase Auth
-    const { data: authUser, error: authUserError } = await supabase.auth.admin.getUserById(userId);
-    
+    const { data: authUser, error: authUserError } = await adminClient.auth.admin.getUserById(userId);
+
     if (authUserError || !authUser.user) {
       console.error('Auth user query error:', authUserError);
-      return NextResponse.json({ 
-        error: 'User not found in authentication system', 
+      return NextResponse.json({
+        error: 'User not found in authentication system',
         details: authUserError?.message || 'User does not exist',
-        userId: userId 
+        userId: userId
       }, { status: 404 });
     }
 
     // Get user profile and preferences using admin client
     const { data: profile, error: profileError } = await adminClient
       .from('user_preferences')
+
       .select('*')
       .eq('id', userId)
       .single();
@@ -67,56 +66,56 @@ export async function GET(
     let userProfile = profile;
     if (profileError) {
       console.log(`Profile error for user ${userId}:`, profileError);
-      
+
       if (profileError.code === 'PGRST116') { // No rows returned
         console.log(`Creating user_preferences record for user ${userId}`);
-      
-      const newProfile = {
-        id: authUser.user.id,
-        full_name: authUser.user.user_metadata?.full_name || authUser.user.email?.split('@')[0] || 'Unknown User',
-        preferred_unit: 'kg',
-        theme: 'dark',
-        timezone: 'Asia/Kolkata',
-        notifications_enabled: true,
-        meal_reminders_enabled: true,
-        water_reminders_enabled: true,
-        weight_reminders_enabled: true,
-        meal_times_configured: false,
-        breakfast_time: '08:00:00',
-        snack1_time: '10:30:00',
-        lunch_time: '13:00:00',
-        snack2_time: '16:00:00',
-        dinner_time: '19:00:00'
-      };
 
-      // Insert the new profile into the database using admin client
-      const { data: insertedProfile, error: insertError } = await adminClient
-        .from('user_preferences')
-        .insert(newProfile)
-        .select()
-        .single();
+        const newProfile = {
+          id: authUser.user.id,
+          full_name: authUser.user.user_metadata?.full_name || authUser.user.email?.split('@')[0] || 'Unknown User',
+          preferred_unit: 'kg',
+          theme: 'dark',
+          timezone: 'Asia/Kolkata',
+          notifications_enabled: true,
+          meal_reminders_enabled: true,
+          water_reminders_enabled: true,
+          weight_reminders_enabled: true,
+          meal_times_configured: false,
+          breakfast_time: '08:00:00',
+          snack1_time: '10:30:00',
+          lunch_time: '13:00:00',
+          snack2_time: '16:00:00',
+          dinner_time: '19:00:00'
+        };
 
-      if (insertError) {
-        console.error('Error creating user profile:', insertError);
-        // If insert fails, return the basic profile without saving
-        userProfile = newProfile;
+        // Insert the new profile into the database using admin client
+        const { data: insertedProfile, error: insertError } = await adminClient
+          .from('user_preferences')
+          .insert(newProfile)
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error creating user profile:', insertError);
+          // If insert fails, return the basic profile without saving
+          userProfile = newProfile;
+        } else {
+          userProfile = insertedProfile;
+        }
       } else {
-        userProfile = insertedProfile;
+        // Different error - not "no rows returned"
+        console.error('Profile query error:', profileError);
+        return NextResponse.json({
+          error: 'Error fetching user profile',
+          details: profileError.message,
+          code: profileError.code,
+          userId: userId
+        }, { status: 500 });
       }
     } else {
-      // Different error - not "no rows returned"
-      console.error('Profile query error:', profileError);
-      return NextResponse.json({ 
-        error: 'Error fetching user profile', 
-        details: profileError.message,
-        code: profileError.code,
-        userId: userId 
-      }, { status: 500 });
+      // Profile found successfully
+      console.log(`Found existing profile for user ${userId}`);
     }
-  } else {
-    // Profile found successfully
-    console.log(`Found existing profile for user ${userId}`);
-  }
 
     // Weight logs are now stored in body_measurements table with measurement_type = 'weight'
     // No separate weight_logs table needed
@@ -140,11 +139,11 @@ export async function GET(
       .from('body_measurements')
       .select('id')
       .limit(1);
-    
-    console.log('Body measurements table test:', { 
-      tableExists: !testError, 
+
+    console.log('Body measurements table test:', {
+      tableExists: !testError,
       hasData: tableTest && tableTest.length > 0,
-      error: testError 
+      error: testError
     });
 
     // Get all user's body measurements

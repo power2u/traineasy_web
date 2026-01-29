@@ -418,9 +418,9 @@ export async function getUserNotificationPreferences(userId?: string) {
 
     let targetUserId = userId;
     if (!targetUserId) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      targetUserId = user.id;
+      const session = await getServerSession(authOptions);
+      if (!session || !session.user) throw new Error('Not authenticated');
+      targetUserId = session.user.id;
     }
 
     const { data, error } = await supabase
@@ -481,9 +481,9 @@ export async function updateUserNotificationPreferences(
 
     let targetUserId = userId;
     if (!targetUserId) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      targetUserId = user.id;
+      const session = await getServerSession(authOptions);
+      if (!session || !session.user) throw new Error('Not authenticated');
+      targetUserId = session.user.id;
     }
 
     const result = await updatePreferences(targetUserId, preferences);

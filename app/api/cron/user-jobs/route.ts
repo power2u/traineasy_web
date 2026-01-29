@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cronManager } from '@/lib/cron/local-cron-manager';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 /**
  * Get all cron jobs for a user
@@ -14,6 +16,23 @@ export async function GET(request: Request) {
       return NextResponse.json(
         { error: 'User ID is required' },
         { status: 400 }
+      );
+    }
+
+    // Security Check: Verify Authentication & Authorization
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Please sign in' },
+        { status: 401 }
+      );
+    }
+
+    if (session.user.id !== userId) {
+      return NextResponse.json(
+        { error: 'Forbidden: You can only view your own jobs' },
+        { status: 403 }
       );
     }
 
@@ -46,6 +65,23 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'User ID and enabled status are required' },
         { status: 400 }
+      );
+    }
+
+    // Security Check: Verify Authentication & Authorization
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Please sign in' },
+        { status: 401 }
+      );
+    }
+
+    if (session.user.id !== userId) {
+      return NextResponse.json(
+        { error: 'Forbidden: You can only modify your own jobs' },
+        { status: 403 }
       );
     }
 

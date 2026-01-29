@@ -1,25 +1,23 @@
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    
     // Check if user is authenticated and is admin
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check if user has admin role
-    const role = user.app_metadata?.role || user.user_metadata?.role;
-    const isSuperAdmin = role === 'super_admin';
-    
+    const isSuperAdmin = session.user.role === 'super_admin';
+
     if (!isSuperAdmin) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
@@ -39,7 +37,7 @@ export async function PUT(
       ...updateData
     } = profileData;
 
-    console.log(`[Admin Profile Update] ${user.email} updating profile for user ${userId}`);
+    console.log(`[Admin Profile Update] ${session.user.email} updating profile for user ${userId}`);
 
     // Use upsert to handle both update and insert cases
     const upsertData = {
@@ -49,18 +47,18 @@ export async function PUT(
 
     const { data: updatedProfile, error: updateError } = await adminClient
       .from('user_preferences')
-      .upsert(upsertData, { 
+      .upsert(upsertData, {
         onConflict: 'id',
-        ignoreDuplicates: false 
+        ignoreDuplicates: false
       })
       .select()
       .single();
 
     if (updateError) {
       console.error('Profile upsert error:', updateError);
-      return NextResponse.json({ 
-        error: 'Failed to update profile', 
-        details: updateError.message 
+      return NextResponse.json({
+        error: 'Failed to update profile',
+        details: updateError.message
       }, { status: 500 });
     }
 

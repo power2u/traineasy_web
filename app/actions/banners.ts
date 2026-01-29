@@ -18,7 +18,7 @@ export interface MotivationBanner {
 export async function getActiveBanner() {
   try {
     const supabase = await createClient();
-    
+
     const { data, error } = await supabase
       .from('motivation_banners')
       .select('*')
@@ -62,7 +62,7 @@ export async function getActiveBanner() {
 export async function getAllBanners() {
   try {
     const adminClient = createAdminClient();
-    
+
     const { data, error } = await adminClient
       .from('motivation_banners')
       .select('*')
@@ -85,28 +85,33 @@ export async function getAllBanners() {
 }
 
 // Admin: Create banner
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+
+// ... (imports remain)
+
+// Admin: Create banner
 export async function createBanner(
   title: string,
   message: string,
   expiresAt: string | null
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
       throw new Error('Not authenticated');
     }
 
     const adminClient = createAdminClient();
-    
+
     const { data, error } = await adminClient
       .from('motivation_banners')
       .insert({
         title,
         message,
         expires_at: expiresAt,
-        created_by: user.id,
+        created_by: session.user.id,
         is_active: false,
       })
       .select()
@@ -137,7 +142,7 @@ export async function updateBanner(
 ) {
   try {
     const adminClient = createAdminClient();
-    
+
     const { data, error } = await adminClient
       .from('motivation_banners')
       .update({
@@ -169,7 +174,7 @@ export async function updateBanner(
 export async function activateBanner(id: string) {
   try {
     const adminClient = createAdminClient();
-    
+
     // First, deactivate all banners
     await adminClient
       .from('motivation_banners')
@@ -204,7 +209,7 @@ export async function activateBanner(id: string) {
 export async function deactivateBanner(id: string) {
   try {
     const adminClient = createAdminClient();
-    
+
     const { data, error } = await adminClient
       .from('motivation_banners')
       .update({ is_active: false })
@@ -232,7 +237,7 @@ export async function deactivateBanner(id: string) {
 export async function deleteBanner(id: string) {
   try {
     const adminClient = createAdminClient();
-    
+
     const { error } = await adminClient
       .from('motivation_banners')
       .delete()

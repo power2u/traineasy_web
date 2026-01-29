@@ -1,14 +1,32 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendPushNotification } from '@/lib/firebase/admin';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 /**
  * Test endpoint to send a real notification to verify FCM integration
  */
 export async function POST(request: Request) {
   try {
+    // Security Check: Verify Super Admin
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const adminClient = createAdminClient();
-    
+
+    const { data: adminUser, error: adminError } = await adminClient
+      .from('user_preferences')
+      .select('role')
+      .eq('email', session.user.email)
+      .single();
+
+    if (adminError || !adminUser || adminUser.role !== 'super_admin') {
+      return NextResponse.json({ error: 'Forbidden: Super Admin access required' }, { status: 403 });
+    }
+
     // Get a test user with FCM tokens
     const { data: users, error: usersError } = await adminClient
       .from('user_preferences')
@@ -29,9 +47,9 @@ export async function POST(request: Request) {
       .eq('user_id', testUser.id);
 
     if (tokensError || !tokens || tokens.length === 0) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'No FCM tokens found for test user',
-        user: testUser 
+        user: testUser
       }, { status: 404 });
     }
 

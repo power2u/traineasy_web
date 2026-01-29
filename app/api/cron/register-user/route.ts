@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cronManager } from '@/lib/cron/local-cron-manager';
 import { createClient } from '@/lib/supabase/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 /**
  * Register cron jobs for a user when they sign up or update preferences
@@ -17,15 +19,34 @@ export async function POST(request: Request) {
       );
     }
 
+    // Security Check: Verify Authentication & Authorization
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Please sign in' },
+        { status: 401 }
+      );
+    }
+
+    // Use session user id
+    if (session.user.id !== userId) {
+      return NextResponse.json(
+        { error: 'Forbidden: You can only register your own jobs' },
+        { status: 403 }
+      );
+    }
+
     // Verify user exists
     const supabase = await createClient();
-    const { data: user, error: userError } = await supabase
+    const { data: existingUser, error: userError } = await supabase
       .from('user_preferences')
       .select('id')
+      // ... (rest of the code)
       .eq('id', userId)
       .single();
 
-    if (userError || !user) {
+    if (userError || !existingUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -71,6 +92,24 @@ export async function PUT(request: Request) {
       );
     }
 
+    // Security Check: Verify Authentication & Authorization
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Please sign in' },
+        { status: 401 }
+      );
+    }
+
+    if (user.id !== userId) {
+      return NextResponse.json(
+        { error: 'Forbidden: You can only update your own jobs' },
+        { status: 403 }
+      );
+    }
+
     // Update cron jobs immediately (bypasses daily limit for preference changes)
     const result = await cronManager.updateUserCronJobs(userId);
 
@@ -107,6 +146,24 @@ export async function DELETE(request: Request) {
       return NextResponse.json(
         { error: 'User ID is required' },
         { status: 400 }
+      );
+    }
+
+    // Security Check: Verify Authentication & Authorization
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Please sign in' },
+        { status: 401 }
+      );
+    }
+
+    if (user.id !== userId) {
+      return NextResponse.json(
+        { error: 'Forbidden: You can only remove your own jobs' },
+        { status: 403 }
       );
     }
 

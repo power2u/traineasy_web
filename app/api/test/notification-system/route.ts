@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 /**
  * Test endpoint to verify the unified notification system
@@ -8,7 +10,24 @@ import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
  */
 export async function GET() {
   try {
+    // Security Check: Verify Super Admin
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const adminClient = createAdminClient();
+
+    const { data: adminUser, error: adminError } = await adminClient
+      .from('user_preferences')
+      .select('role')
+      .eq('email', session.user.email)
+      .single();
+
+    if (adminError || !adminUser || adminUser.role !== 'super_admin') {
+      return NextResponse.json({ error: 'Forbidden: Super Admin access required' }, { status: 403 });
+    }
+
     const results: any = {
       timestamp: new Date().toISOString(),
       tests: {},
@@ -17,22 +36,22 @@ export async function GET() {
 
     // Test 1: Database Structure
     results.tests.database_structure = await testDatabaseStructure(adminClient);
-    
+
     // Test 2: Scheduling Configuration
     results.tests.scheduling_config = await testSchedulingConfiguration(adminClient);
-    
+
     // Test 3: User Data Availability
     results.tests.user_data = await testUserDataAvailability(adminClient);
-    
+
     // Test 4: FCM Token Availability
     results.tests.fcm_tokens = await testFCMTokenAvailability(adminClient);
-    
+
     // Test 5: Timezone Logic
     results.tests.timezone_logic = await testTimezoneLogic();
-    
+
     // Test 6: Notification Message Processing
     results.tests.message_processing = await testMessageProcessing(adminClient);
-    
+
     // Test 7: Scheduling Logic Simulation
     results.tests.scheduling_simulation = await testSchedulingSimulation(adminClient);
 
@@ -76,8 +95,8 @@ async function testDatabaseStructure(adminClient: any) {
 
     return {
       passed: missingColumns.length === 0,
-      message: missingColumns.length === 0 
-        ? 'All required columns exist' 
+      message: missingColumns.length === 0
+        ? 'All required columns exist'
         : `Missing columns: ${missingColumns.join(', ')}`,
       details: { required: requiredColumns, existing: existingColumns, missing: missingColumns }
     };
@@ -116,11 +135,11 @@ async function testSchedulingConfiguration(adminClient: any) {
 
     return {
       passed: issues.length === 0,
-      message: issues.length === 0 
-        ? `All ${configs.length} active notifications properly configured` 
+      message: issues.length === 0
+        ? `All ${configs.length} active notifications properly configured`
         : `Configuration issues found`,
-      details: { 
-        total_active: configs.length, 
+      details: {
+        total_active: configs.length,
         issues: issues,
         configurations: configs
       }
@@ -156,12 +175,12 @@ async function testUserDataAvailability(adminClient: any) {
 
     return {
       passed: users.length > 0 && issues.length === 0,
-      message: users.length === 0 
+      message: users.length === 0
         ? 'No users with notifications enabled found'
-        : issues.length === 0 
+        : issues.length === 0
           ? `${users.length} users ready for notifications`
           : `User data issues found`,
-      details: { 
+      details: {
         total_users: users.length,
         issues: issues,
         sample_users: users.slice(0, 3)
@@ -189,10 +208,10 @@ async function testFCMTokenAvailability(adminClient: any) {
 
     return {
       passed: tokenStats.length > 0,
-      message: tokenStats.length === 0 
+      message: tokenStats.length === 0
         ? 'No FCM tokens found - notifications cannot be delivered'
         : `${tokenStats.length} FCM tokens for ${uniqueUsers} users`,
-      details: { 
+      details: {
         total_tokens: tokenStats.length,
         unique_users: uniqueUsers
       }
@@ -266,7 +285,7 @@ async function testMessageProcessing(adminClient: any) {
 
     return {
       passed: true,
-      message: hasPlaceholders 
+      message: hasPlaceholders
         ? `Placeholder processing working correctly`
         : `No placeholders found in sample message`,
       details: {
@@ -306,7 +325,7 @@ async function testSchedulingSimulation(adminClient: any) {
       if (!config.schedule_time) return;
 
       const [scheduleHour, scheduleMinute] = config.schedule_time.split(':').map(Number);
-      
+
       // Simulate if this notification would be sent now
       let wouldSend = false;
       let reason = '';

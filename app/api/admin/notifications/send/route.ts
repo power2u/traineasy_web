@@ -1,29 +1,31 @@
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 import { sendPushNotification } from '@/lib/firebase/admin';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    
     // Check if user is authenticated and is admin
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check if user has admin role
-    const role = user.app_metadata?.role || user.user_metadata?.role;
-    const isSuperAdmin = role === 'super_admin';
-    
+    const isSuperAdmin = session.user.role === 'super_admin';
+
     if (!isSuperAdmin) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    // Try to get user profile using admin client (optional for admin operations)
     const adminClient = createAdminClient();
+    // Use session user info
+    const user = {
+      id: session.user.id,
+      email: session.user.email
+    };
     const { data: profile } = await adminClient
       .from('user_preferences')
       .select('id, full_name')
@@ -93,7 +95,7 @@ export async function POST(request: Request) {
       totalTokens: uniqueTokens.length,
       successCount: result.successCount || 0,
       failureCount: result.failureCount || 0,
-      message: result.success 
+      message: result.success
         ? `Notification sent successfully to ${result.successCount || 0} out of ${uniqueTokens.length} devices`
         : result.error || 'Failed to send notification',
     });
@@ -101,8 +103,8 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Error in admin notification send:', error);
     return NextResponse.json(
-      { 
-        error: 'Internal server error', 
+      {
+        error: 'Internal server error',
         details: error.message,
         success: false,
         totalTokens: 0,
