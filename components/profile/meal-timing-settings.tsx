@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { Button, Select, Label, Description, ListBox, Card } from '@heroui/react';
-import { Clock, Globe, Palette, Settings, Edit3, X } from 'lucide-react';
+import { Clock, Settings, Edit3, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { COMMON_TIMEZONES } from '@/lib/utils/timezone';
 import { useTheme } from '@/lib/contexts/theme-context';
@@ -175,16 +175,7 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
 
         {/* Current Settings Summary */}
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm">
-            <Globe className="w-4 h-4 text-default-500" />
-            <span className="text-default-600">Timezone:</span>
-            <span className="font-medium">{mealTimes.timezone}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Palette className="w-4 h-4 text-default-500" />
-            <span className="text-default-600">Theme:</span>
-            <span className="font-medium capitalize">{mealTimes.theme || 'dark'}</span>
-          </div>
+          {/* Timezone and Theme display removed */}
           <div className="flex flex-wrap gap-2 mt-3">
             {MEAL_CONFIG.map((meal) => (
               <div key={meal.key} className="flex items-center gap-1 px-2 py-1 bg-content2 rounded-md text-xs">
@@ -239,70 +230,7 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
                   </div>
                 </div>
 
-                {/* Timezone Selection */}
-                <div className="space-y-2">
-                  <Select
-                    selectedKey={editingMealTimes.timezone}
-                    onSelectionChange={(key) => {
-                      if (key) handleTimezoneChange(key as string);
-                    }}
-                  >
-                    <Label className="text-sm font-medium text-foreground">
-                      <Globe className="w-4 h-4 inline mr-2" />
-                      Your Timezone
-                    </Label>
-                    <Select.Trigger className="w-full">
-                      <Select.Value />
-                      <Select.Indicator />
-                    </Select.Trigger>
-                    <Description className="text-xs text-foreground/60">
-                      This ensures you get reminders at the right time in your local timezone.
-                    </Description>
-                    <Select.Popover className="max-h-60 overflow-y-auto">
-                      <ListBox>
-                        {COMMON_TIMEZONES.map((tz) => (
-                          <ListBox.Item key={tz.value} id={tz.value}>
-                            <Label>{tz.label}</Label>
-                          </ListBox.Item>
-                        ))}
-                      </ListBox>
-                    </Select.Popover>
-                  </Select>
-                </div>
-
-                {/* Theme Selection */}
-                <div className="space-y-2">
-                  <Select
-                    selectedKey={editingMealTimes.theme || 'dark'}
-                    onSelectionChange={(key) => {
-                      if (key) handleThemeChange(key as 'light' | 'dark' | 'system');
-                    }}
-                  >
-                    <Label className="text-sm font-medium text-foreground">
-                      <Palette className="w-4 h-4 inline mr-2" />
-                      App Theme
-                    </Label>
-                    <Select.Trigger className="w-full">
-                      <Select.Value />
-                      <Select.Indicator />
-                    </Select.Trigger>
-                    <Description className="text-xs text-foreground/60">
-                      Choose your preferred appearance for the app.
-                    </Description>
-                    <Select.Popover>
-                      <ListBox>
-                        {THEME_OPTIONS.map((themeOption) => (
-                          <ListBox.Item key={themeOption.value} id={themeOption.value}>
-                            <Label>{themeOption.label}</Label>
-                            <Description className="text-xs text-foreground/60">
-                              {themeOption.description}
-                            </Description>
-                          </ListBox.Item>
-                        ))}
-                      </ListBox>
-                    </Select.Popover>
-                  </Select>
-                </div>
+                {/* Timezone and Theme selection removed as they are now auto-handled */}
 
                 {/* Meal Time Inputs */}
                 <div className="space-y-3">

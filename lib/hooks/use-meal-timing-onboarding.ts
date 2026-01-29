@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { isMealTimesConfigured, setMealTimes, type MealTimes } from '@/app/actions/meal-timing';
-import { 
-  saveMealTimesToStorage 
+import {
+  saveMealTimesToStorage,
+  getDefaultMealTimes
 } from '@/lib/utils/meal-timing-storage';
 import { useTheme } from '@/lib/contexts/theme-context';
 
@@ -9,32 +10,6 @@ export function useMealTimingOnboarding(userId: string | undefined) {
   const [showDialog, setShowDialog] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const { setTheme } = useTheme();
-
-  useEffect(() => {
-    async function checkOnboardingStatus() {
-      if (!userId) {
-        setIsChecking(false);
-        return;
-      }
-
-      try {
-        // Always check server for the meal_times_configured flag
-        // This is the source of truth
-        const result = await isMealTimesConfigured(userId);
-        
-        if (result.success && !result.configured) {
-          // meal_times_configured is false, show dialog
-          setShowDialog(true);
-        }
-      } catch (error) {
-        console.error('Failed to check meal timing onboarding status:', error);
-      } finally {
-        setIsChecking(false);
-      }
-    }
-
-    checkOnboardingStatus();
-  }, [userId]);
 
   const handleComplete = useCallback(async (mealTimes: MealTimes) => {
     if (!userId) return;
@@ -51,9 +26,9 @@ export function useMealTimingOnboarding(userId: string | undefined) {
 
       // Then sync to server and set meal_times_configured = true
       const result = await setMealTimes(userId, mealTimes);
-      
+
       console.log('[useMealTimingOnboarding] Save result:', result);
-      
+
       if (result.success) {
         console.log('[useMealTimingOnboarding] Closing dialog...');
         setShowDialog(false);
@@ -67,6 +42,49 @@ export function useMealTimingOnboarding(userId: string | undefined) {
       throw error;
     }
   }, [userId, setTheme]);
+
+  useEffect(() => {
+    async function checkOnboardingStatus() {
+      if (!userId) {
+        setIsChecking(false);
+        return;
+      }
+
+      try {
+        // Always check server for the meal_times_configured flag
+        const result = await isMealTimesConfigured(userId);
+
+        if (result.success && !result.configured) {
+          console.log('[useMealTimingOnboarding] Meal times not configured. Auto-configuring...');
+
+          // Auto-detect timezone
+          let timezone = 'Asia/Kolkata';
+          try {
+            timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
+          } catch (e) {
+            console.warn('Failed to detect timezone, using default');
+          }
+
+          // Get default times and prepare data
+          const defaults = getDefaultMealTimes();
+          const mealTimesToSave: MealTimes = {
+            ...defaults,
+            timezone,
+            theme: 'dark', // Default preference
+          };
+
+          // Silently save
+          await handleComplete(mealTimesToSave);
+        }
+      } catch (error) {
+        console.error('Failed to check/auto-configure meal timing:', error);
+      } finally {
+        setIsChecking(false);
+      }
+    }
+
+    checkOnboardingStatus();
+  }, [userId, handleComplete]);
 
   return {
     showDialog,

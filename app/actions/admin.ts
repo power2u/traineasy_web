@@ -125,6 +125,24 @@ export async function createUser(email: string, password: string, displayName: s
 
     // 3. Create entry in user_preferences
     // The handle_new_user trigger creates a row, so we use upsert to update it
+
+    // Get creator ID if available (from session)
+    const session = await getServerSession(authOptions);
+    let createdBy = null;
+
+    if (session?.user?.email) {
+      // We need to resolve email to ID for the created_by reference
+      const { data: creator } = await adminClient
+        .from('user_preferences')
+        .select('id')
+        .eq('email', session.user.email)
+        .single();
+
+      if (creator) {
+        createdBy = creator.id;
+      }
+    }
+
     const { error: prefError } = await adminClient
       .from('user_preferences')
       .upsert({
@@ -134,6 +152,7 @@ export async function createUser(email: string, password: string, displayName: s
         role: role,
         password_hash: hashedPassword,
         password_change_required: false,
+        created_by: createdBy // Track who created this user
       });
 
     if (prefError) {

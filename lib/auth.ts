@@ -73,6 +73,8 @@ export const authOptions: NextAuthOptions = {
                     if (updateError) {
                         console.error("[Auth] Failed to update sign-in time:", updateError);
                         // Non-blocking error
+                    } else {
+                        console.log("[Auth] Successfully updated last_sign_in_at for user:", user.id);
                     }
 
                     console.log("[Auth] Authorize returning:", {
