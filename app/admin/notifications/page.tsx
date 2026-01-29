@@ -4,13 +4,14 @@ import { useState } from 'react';
 import { Card, Button, Input, TextArea, Chip, Spinner, TextField, Label } from '@heroui/react';
 import { toast } from 'sonner';
 import Link from 'next/link';
- 
+
 interface NotificationResult {
   success: boolean;
   totalTokens: number;
   successCount: number;
   failureCount: number;
   message: string;
+  details?: { error: string; count: number }[];
 }
 
 export default function AdminNotificationsPage() {
@@ -48,7 +49,7 @@ export default function AdminNotificationsPage() {
 
       setResult(data);
       toast.success(`Notification sent to ${data.successCount} devices!`);
-      
+
       // Clear form on success
       setTitle('');
       setMessage('');
@@ -70,9 +71,9 @@ export default function AdminNotificationsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-       <Link href="/admin/notifications/custom-templates" ><Button  
-            
-            
+          <Link href="/admin/notifications/custom-templates" ><Button
+
+
             className="bg-green-600 text-white hover:bg-green-700"
           >
             Manage Messages
@@ -132,29 +133,44 @@ export default function AdminNotificationsPage() {
                 {result.success ? 'Success' : 'Failed'}
               </Chip>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <span className="text-default-500">Total Tokens:</span>
               <span className="font-medium">{result.totalTokens}</span>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <span className="text-default-500">Successfully Sent:</span>
               <span className="font-medium text-green-600">{result.successCount}</span>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <span className="text-default-500">Failed:</span>
               <span className="font-medium text-red-600">{result.failureCount}</span>
             </div>
-            
-            <div className="mt-4">
-              <span className="text-default-500">Message:</span>
-              <p className="text-sm mt-1 p-3 bg-default-100 rounded-lg">
-                {result.message}
-              </p>
-            </div>
+
           </div>
+
+          <div className="mt-4">
+            <span className="text-default-500">Message:</span>
+            <p className="text-sm mt-1 p-3 bg-default-100 rounded-lg">
+              {result.message}
+            </p>
+          </div>
+
+          {result.details && result.details.length > 0 && (
+            <div className="mt-4">
+              <span className="text-default-500">Error Details:</span>
+              <div className="mt-1 space-y-2">
+                {result.details.map((detail, idx) => (
+                  <div key={idx} className="p-3 bg-red-50 text-red-800 rounded-lg text-sm flex justify-between">
+                    <span>{detail.error}</span>
+                    <span className="font-semibold">{detail.count}x</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </Card>
       )}
     </div>

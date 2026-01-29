@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { localNotificationManager } from '@/lib/notifications/local-notifications';
 import { useAuthUser } from '@/lib/contexts/auth-context';
+import { requestNotificationPermission as requestFCMToken, saveFCMToken } from '@/lib/firebase/messaging';
 
 /**
  * Hook to manage local notifications without FCM dependency
@@ -16,10 +17,24 @@ export function useLocalNotifications() {
 
     try {
       const success = await localNotificationManager.initialize();
+
+      // Check if we already have permission, if so, ensure token is registered
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          console.log('Permission already granted, syncing FCM token...');
+          const token = await requestFCMToken();
+          if (token) {
+            await saveFCMToken(user.id, token);
+            console.log('FCM Token synced on initialization');
+          }
+        } catch (fcmError) {
+          console.error('Error syncing FCM token on init:', fcmError);
+        }
+      }
+
       if (success) {
-        console.log('Local notifications initialized successfully (FCM-based system)');
+        console.log('Local notifications initialized successfully');
         isInitialized.current = true;
-        // Note: Not starting polling - we use FCM for notifications
       } else {
         console.warn('Failed to initialize local notifications');
       }
@@ -33,7 +48,7 @@ export function useLocalNotifications() {
     // Disabled: We're using FCM for notifications, not browser polling
     console.log('Browser notification polling disabled - using FCM system');
     return;
-    
+
     /* ORIGINAL CODE - DISABLED
     if (!user || pollingRef.current) return;
 
@@ -71,8 +86,25 @@ export function useLocalNotifications() {
 
   // Request notification permission
   const requestPermission = useCallback(async () => {
-    return await localNotificationManager.requestPermission();
-  }, []);
+    try {
+      // First try to get FCM token (this triggers the permission prompt)
+      const token = await requestFCMToken();
+
+      const permission = Notification.permission;
+
+      if (permission === 'granted' && token && user) {
+        // Save the token
+        await saveFCMToken(user.id, token);
+        return 'granted';
+      }
+
+      // Fallback to local manager if FCM fails or just to return status
+      return await localNotificationManager.requestPermission();
+    } catch (error) {
+      console.error('Error requesting permission:', error);
+      return Notification.permission;
+    }
+  }, [user]);
 
   // Show a test notification
   const showTestNotification = useCallback(async () => {
@@ -166,7 +198,7 @@ export function useLocalNotifications() {
     showTestNotification,
     showMealReminder,
     showWaterReminder,
-    
+
     // Control
     startPolling,
     stopPolling,

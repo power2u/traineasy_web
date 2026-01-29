@@ -23,6 +23,12 @@ function initializeFirebaseAdmin() {
   // Option 2: Use service account JSON as environment variable
   if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+
+    // Fix private_key formatted with literal \n
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+
     app = initializeApp({
       credential: cert(serviceAccount),
     });
@@ -100,6 +106,10 @@ export async function sendPushNotification({
     response.responses.forEach((resp, idx) => {
       if (!resp.success && resp.error) {
         const errorCode = resp.error.code;
+        const errorMessage = resp.error.message;
+
+        console.error(`Failed to send to token ${uniqueTokens[idx].substring(0, 15)}...: ${errorCode} - ${errorMessage}`);
+
         // These error codes indicate the token is invalid and should be removed
         if (
           errorCode === 'messaging/registration-token-not-registered' ||

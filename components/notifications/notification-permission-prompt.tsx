@@ -12,7 +12,6 @@ interface NotificationPermissionPromptProps {
 export function NotificationPermissionPrompt({ onClose }: NotificationPermissionPromptProps) {
   const user = useAuthUser();
   const { isSupported, permissionStatus, requestPermission } = useLocalNotifications();
-  const [isVisible, setIsVisible] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
@@ -21,32 +20,21 @@ export function NotificationPermissionPrompt({ onClose }: NotificationPermission
   const isIOSChrome = isIOS && /CriOS/.test(navigator.userAgent);
   const isIOSSafari = isIOS && /Safari/.test(navigator.userAgent) && !/CriOS/.test(navigator.userAgent);
 
-  useEffect(() => {
-    // Show prompt if user is logged in, notifications are supported, and permission is default
-    if (user && isSupported && permissionStatus === 'default') {
-      // Delay showing the prompt to avoid overwhelming the user
-      const timer = setTimeout(() => {
-        setIsVisible(true);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [user, isSupported, permissionStatus]);
+
 
   const handleRequestPermission = async () => {
     setIsRequesting(true);
-    
+
     try {
       const permission = await requestPermission();
-      
+
       if (permission === 'granted') {
-        setIsVisible(false);
         onClose?.();
       } else if (permission === 'denied') {
         // Show iOS instructions if on iOS and permission was denied
         if (isIOS) {
           setShowIOSInstructions(true);
         } else {
-          setIsVisible(false);
           onClose?.();
         }
       }
@@ -62,12 +50,11 @@ export function NotificationPermissionPrompt({ onClose }: NotificationPermission
   };
 
   const handleClose = () => {
-    setIsVisible(false);
     setShowIOSInstructions(false);
     onClose?.();
   };
 
-  if (!isVisible || !user || !isSupported) {
+  if (!user || !isSupported) {
     return null;
   }
 
@@ -129,7 +116,7 @@ export function NotificationPermissionPrompt({ onClose }: NotificationPermission
 
             <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
               <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                <strong>Note:</strong> Notifications only work when the app is installed as a PWA on iOS. 
+                <strong>Note:</strong> Notifications only work when the app is installed as a PWA on iOS.
                 Regular browser tabs don't support notifications.
               </p>
             </div>
@@ -168,7 +155,7 @@ export function NotificationPermissionPrompt({ onClose }: NotificationPermission
           <p className="text-gray-600 dark:text-gray-300">
             Hi {user.displayName}! 👋
           </p>
-          
+
           <p className="text-gray-600 dark:text-gray-300">
             Stay on track with your fitness goals! Enable notifications to get:
           </p>

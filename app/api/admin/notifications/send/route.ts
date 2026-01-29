@@ -90,6 +90,22 @@ export async function POST(request: Request) {
         .in('token', result.invalidTokens);
     }
 
+    // Aggregate error details
+    const errorDetails: Record<string, number> = {};
+    if (result.responses) {
+      result.responses.forEach((resp: any) => {
+        if (!resp.success && resp.error) {
+          const msg = resp.error.message || resp.error.code || 'Unknown error';
+          errorDetails[msg] = (errorDetails[msg] || 0) + 1;
+        }
+      });
+    }
+
+    const details = Object.entries(errorDetails).map(([error, count]) => ({
+      error,
+      count
+    }));
+
     return NextResponse.json({
       success: result.success,
       totalTokens: uniqueTokens.length,
@@ -98,6 +114,7 @@ export async function POST(request: Request) {
       message: result.success
         ? `Notification sent successfully to ${result.successCount || 0} out of ${uniqueTokens.length} devices`
         : result.error || 'Failed to send notification',
+      details,
     });
 
   } catch (error: any) {

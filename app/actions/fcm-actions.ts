@@ -33,7 +33,7 @@ export async function saveFCMToken(token: string) {
     // Insert new token
     const { error: insertError } = await adminClient
       .from('fcm_tokens')
-      .insert({
+      .upsert({
         user_id: userId,
         token: token,
         created_at: new Date().toISOString()
