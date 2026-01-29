@@ -19,7 +19,7 @@ export class LocalCronManager {
   private readonly cronJobPrefix = 'fitness_tracker_';
   private readonly scriptPath = path.join(process.cwd(), 'scripts', 'send-notification.mjs');
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): LocalCronManager {
     if (!LocalCronManager.instance) {
@@ -28,11 +28,20 @@ export class LocalCronManager {
     return LocalCronManager.instance;
   }
 
+  private isWindows(): boolean {
+    return process.platform === 'win32';
+  }
+
   /**
    * Register cron jobs for a new user based on their preferences
    * Uses device local time (ignores timezone complexity)
    */
   async registerUserCronJobs(userId: string): Promise<{ success: boolean; message: string }> {
+    if (this.isWindows()) {
+      console.warn('Cron jobs are not supported on Windows environments (local development)');
+      return { success: true, message: 'Skipped cron registration (Windows not supported)' };
+    }
+
     try {
       const supabase = await createClient();
 
@@ -48,11 +57,11 @@ export class LocalCronManager {
         const lastUpdate = new Date(existingJobs[0].updated_at);
         const today = new Date();
         const isSameDay = lastUpdate.toDateString() === today.toDateString();
-        
+
         if (isSameDay) {
-          return { 
-            success: true, 
-            message: `Cron jobs already updated today for user ${userId}` 
+          return {
+            success: true,
+            message: `Cron jobs already updated today for user ${userId}`
           };
         }
       }
@@ -87,7 +96,7 @@ export class LocalCronManager {
           if (meal.time) {
             const [hours, minutes] = meal.time.split(':');
             const cronExpression = `${minutes} ${hours} * * *`; // Daily at specific time (local server time)
-            
+
             cronJobs.push({
               user_id: userId,
               notification_type: meal.type,
@@ -171,9 +180,9 @@ export class LocalCronManager {
         }
       }
 
-      return { 
-        success: true, 
-        message: `Registered ${cronJobs.length} cron jobs for user ${userId} (updated today)` 
+      return {
+        success: true,
+        message: `Registered ${cronJobs.length} cron jobs for user ${userId} (updated today)`
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -186,6 +195,10 @@ export class LocalCronManager {
    * Remove all cron jobs for a user
    */
   async removeUserCronJobs(userId: string): Promise<{ success: boolean; message: string }> {
+    if (this.isWindows()) {
+      return { success: true, message: 'Skipped cron removal (Windows not supported)' };
+    }
+
     try {
       const supabase = await createClient();
 
@@ -225,6 +238,10 @@ export class LocalCronManager {
    * Update cron jobs when user preferences change (no daily limit)
    */
   async updateUserCronJobs(userId: string): Promise<{ success: boolean; message: string }> {
+    if (this.isWindows()) {
+      return { success: true, message: 'Skipped cron update (Windows not supported)' };
+    }
+
     try {
       const supabase = await createClient();
 
@@ -258,7 +275,7 @@ export class LocalCronManager {
           if (meal.time) {
             const [hours, minutes] = meal.time.split(':');
             const cronExpression = `${minutes} ${hours} * * *`; // Daily at specific time (local server time)
-            
+
             cronJobs.push({
               user_id: userId,
               notification_type: meal.type,
@@ -342,9 +359,9 @@ export class LocalCronManager {
         }
       }
 
-      return { 
-        success: true, 
-        message: `Updated ${cronJobs.length} cron jobs for user ${userId} (preference change)` 
+      return {
+        success: true,
+        message: `Updated ${cronJobs.length} cron jobs for user ${userId} (preference change)`
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -360,17 +377,17 @@ export class LocalCronManager {
     try {
       const jobName = `${this.cronJobPrefix}${userId}_${notificationType}`;
       const command = `node ${this.scriptPath} ${userId} ${notificationType}`;
-      
+
       // Create cron job entry (no timezone prefix - uses local server time)
       const cronEntry = `# ${jobName}\n${cronExpression} ${command}`;
-      
+
       // Add to crontab
       const { stdout: currentCrontab } = await execAsync('crontab -l 2>/dev/null || echo ""');
-      
+
       // Check if job already exists
       if (!currentCrontab.includes(jobName)) {
         const newCrontab = currentCrontab.trim() + '\n' + cronEntry + '\n';
-        
+
         // Write new crontab
         await execAsync(`echo "${newCrontab}" | crontab -`);
         console.log(`Added cron job: ${jobName} (local time)`);
@@ -387,14 +404,14 @@ export class LocalCronManager {
   private async removeSystemCronJob(userId: string, notificationType: string): Promise<void> {
     try {
       const jobName = `${this.cronJobPrefix}${userId}_${notificationType}`;
-      
+
       // Get current crontab
       const { stdout: currentCrontab } = await execAsync('crontab -l 2>/dev/null || echo ""');
-      
+
       // Remove lines containing the job name
       const lines = currentCrontab.split('\n');
       const filteredLines = lines.filter(line => !line.includes(jobName));
-      
+
       if (filteredLines.length !== lines.length) {
         const newCrontab = filteredLines.join('\n');
         await execAsync(`echo "${newCrontab}" | crontab -`);
@@ -412,7 +429,7 @@ export class LocalCronManager {
   async getUserCronJobs(userId: string): Promise<UserCronJob[]> {
     try {
       const supabase = await createClient();
-      
+
       const { data, error } = await supabase
         .from('user_cron_jobs')
         .select('*')
@@ -436,6 +453,10 @@ export class LocalCronManager {
    * Disable/Enable cron jobs for a user
    */
   async toggleUserCronJobs(userId: string, enabled: boolean): Promise<{ success: boolean; message: string }> {
+    if (this.isWindows()) {
+      return { success: true, message: 'Skipped cron toggle (Windows not supported)' };
+    }
+
     try {
       const supabase = await createClient();
 
@@ -455,7 +476,7 @@ export class LocalCronManager {
 
         // Remove from system crontab
         await this.removeUserCronJobs(userId);
-        
+
         return { success: true, message: 'Cron jobs disabled' };
       }
     } catch (error: unknown) {

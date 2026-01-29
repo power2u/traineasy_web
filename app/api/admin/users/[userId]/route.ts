@@ -42,80 +42,24 @@ export async function GET(
       console.error('Admin client connection failed:', connError);
     }
 
-    // First, verify the user exists in Supabase Auth
-    const { data: authUser, error: authUserError } = await adminClient.auth.admin.getUserById(userId);
-
-    if (authUserError || !authUser.user) {
-      console.error('Auth user query error:', authUserError);
-      return NextResponse.json({
-        error: 'User not found in authentication system',
-        details: authUserError?.message || 'User does not exist',
-        userId: userId
-      }, { status: 404 });
-    }
-
     // Get user profile and preferences using admin client
     const { data: profile, error: profileError } = await adminClient
       .from('user_preferences')
-
       .select('*')
       .eq('id', userId)
       .single();
 
-    // If user doesn't have preferences yet, create one in the database
-    let userProfile = profile;
-    if (profileError) {
-      console.log(`Profile error for user ${userId}:`, profileError);
-
-      if (profileError.code === 'PGRST116') { // No rows returned
-        console.log(`Creating user_preferences record for user ${userId}`);
-
-        const newProfile = {
-          id: authUser.user.id,
-          full_name: authUser.user.user_metadata?.full_name || authUser.user.email?.split('@')[0] || 'Unknown User',
-          preferred_unit: 'kg',
-          theme: 'dark',
-          timezone: 'Asia/Kolkata',
-          notifications_enabled: true,
-          meal_reminders_enabled: true,
-          water_reminders_enabled: true,
-          weight_reminders_enabled: true,
-          meal_times_configured: false,
-          breakfast_time: '08:00:00',
-          snack1_time: '10:30:00',
-          lunch_time: '13:00:00',
-          snack2_time: '16:00:00',
-          dinner_time: '19:00:00'
-        };
-
-        // Insert the new profile into the database using admin client
-        const { data: insertedProfile, error: insertError } = await adminClient
-          .from('user_preferences')
-          .insert(newProfile)
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error('Error creating user profile:', insertError);
-          // If insert fails, return the basic profile without saving
-          userProfile = newProfile;
-        } else {
-          userProfile = insertedProfile;
-        }
-      } else {
-        // Different error - not "no rows returned"
-        console.error('Profile query error:', profileError);
-        return NextResponse.json({
-          error: 'Error fetching user profile',
-          details: profileError.message,
-          code: profileError.code,
-          userId: userId
-        }, { status: 500 });
-      }
-    } else {
-      // Profile found successfully
-      console.log(`Found existing profile for user ${userId}`);
+    if (profileError || !profile) {
+      console.error('Profile query error:', profileError);
+      return NextResponse.json({
+        error: 'User profile not found',
+        details: profileError?.message || 'User does not exist in preferences',
+        userId: userId
+      }, { status: 404 });
     }
+
+    const userProfile = profile;
+    console.log(`Found existing profile for user ${userId}`);
 
     // Weight logs are now stored in body_measurements table with measurement_type = 'weight'
     // No separate weight_logs table needed

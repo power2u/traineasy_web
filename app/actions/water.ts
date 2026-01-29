@@ -167,20 +167,21 @@ export async function getTodayWaterTotal(userId: string) {
 export async function getWaterTarget(userId: string) {
   try {
     await checkAuth(userId);
-    const { createAdminClient } = await import('@/lib/supabase/admin');
-    const supabase = createAdminClient();
+    const supabase = await createClient();
 
-    const { data: { user }, error } = await supabase.auth.admin.getUserById(userId);
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('daily_water_target')
+      .eq('id', userId)
+      .single();
 
-    if (error || !user) {
-      // Fallback or throw
-      console.warn(`[getWaterTarget] User not found for ID: ${userId}, error: ${error?.message}`);
-      return { success: true, target: 14 };
+    if (error) {
+      console.warn(`[getWaterTarget] Error fetching target for ID: ${userId}, error: ${error.message}`);
+      return { success: true, target: 14 }; // Default fallback
     }
 
-    const target = user.user_metadata?.water_target_glasses || 14; // Default 3.5L (14 glasses)
-
-    return { success: true, target };
+    // Default to 8 if not set (db default is 8, but just in case)
+    return { success: true, target: data?.daily_water_target || 8 };
   } catch (error: any) {
     return { success: false, error: error.message, target: 14 };
   }
@@ -191,11 +192,10 @@ export async function updateWaterTarget(userId: string, targetGlasses: number) {
     await checkAuth(userId);
     const supabase = await createClient();
 
-    const { error } = await supabase.auth.updateUser({
-      data: {
-        water_target_glasses: targetGlasses,
-      },
-    });
+    const { error } = await supabase
+      .from('user_preferences')
+      .update({ daily_water_target: targetGlasses })
+      .eq('id', userId);
 
     if (error) throw error;
 

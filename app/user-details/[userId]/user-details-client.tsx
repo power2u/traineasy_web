@@ -67,11 +67,11 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
                         <div className="font-medium">
                             {new Date(userProfile.created_at).toLocaleDateString()}
                         </div>
-                        {userProfile.last_sign_in_at && (
+                        {(userProfile.last_active_at || userProfile.last_sign_in_at) && (
                             <>
                                 <div className="text-sm text-default-500 mt-2">Last active</div>
                                 <div className="font-medium">
-                                    {new Date(userProfile.last_sign_in_at).toLocaleDateString()}
+                                    {new Date(userProfile.last_active_at || userProfile.last_sign_in_at).toLocaleString()}
                                 </div>
                             </>
                         )}
@@ -137,8 +137,8 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
                             key={key}
                             onClick={() => setActiveTab(key as any)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-t-lg border-b-2 transition-colors ${activeTab === key
-                                    ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                                    : 'border-transparent text-default-500 hover:text-default-700 dark:hover:text-default-300 hover:bg-default-50 dark:hover:bg-default-800'
+                                ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                                : 'border-transparent text-default-500 hover:text-default-700 dark:hover:text-default-300 hover:bg-default-50 dark:hover:bg-default-800'
                                 }`}
                         >
                             <Icon className="w-4 h-4" />

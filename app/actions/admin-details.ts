@@ -35,17 +35,6 @@ export async function getAdminUserDetails(userId: string): Promise<AdminUserDeta
         // Create admin client for database operations (bypasses RLS)
         const adminClient = createAdminClient();
 
-        // First, verify the user exists in Supabase Auth
-        const { data: authUser, error: authUserError } = await adminClient.auth.admin.getUserById(userId);
-
-        if (authUserError || !authUser.user) {
-            return {
-                success: false,
-                error: 'User not found in authentication system',
-                details: authUserError?.message
-            };
-        }
-
         // Get user profile and preferences using admin client
         const { data: profile, error: profileError } = await adminClient
             .from('user_preferences')
@@ -53,34 +42,15 @@ export async function getAdminUserDetails(userId: string): Promise<AdminUserDeta
             .eq('id', userId)
             .single();
 
-        // If user doesn't have preferences yet, properly handle it
-        let userProfile = profile;
-        if (profileError) {
-            if (profileError.code === 'PGRST116') { // No rows returned
-                // Construct a basic profile from auth data
-                userProfile = {
-                    id: authUser.user.id,
-                    full_name: authUser.user.user_metadata?.full_name || authUser.user.email?.split('@')[0] || 'Unknown User',
-                    email: authUser.user.email,
-                    created_at: authUser.user.created_at,
-                    last_sign_in_at: authUser.user.last_sign_in_at,
-                    // Defaults
-                    preferred_unit: 'kg',
-                    theme: 'dark',
-                    notifications_enabled: true
-                };
-            } else {
-                return { success: false, error: 'Error fetching user profile', details: profileError.message };
-            }
-        } else {
-            // Merge auth data into profile for display
-            userProfile = {
-                ...profile,
-                email: authUser.user.email,
-                last_sign_in_at: authUser.user.last_sign_in_at,
-                created_at: authUser.user.created_at // Prefer auth creation date
+        if (profileError || !profile) {
+            return {
+                success: false,
+                error: 'User not found',
+                details: profileError?.message
             };
         }
+
+        const userProfile = profile;
 
         // Run parallel queries for logs
         const [mealLogsResult, waterLogsResult, measurementsResult, membershipResult] = await Promise.all([
