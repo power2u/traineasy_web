@@ -1,7 +1,8 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default withAuth(
+const authMiddleware = withAuth(
     function middleware(req) {
         // Custom logic
         const token = req.nextauth.token;
@@ -31,6 +32,9 @@ export default withAuth(
                 const isAuth = !!token;
                 const path = req.nextUrl.pathname;
 
+                // Maintenance page should be public if mode is on, but we handle that in the wrapper
+                if (path === '/maintenance') return true;
+
                 // Public paths that don't require auth
                 if (path === '/' || path.startsWith('/auth') || path.startsWith('/info') || path.startsWith('/api/auth') || path.startsWith('/api/cron') || path === '/membership-expired') {
                     return true;
@@ -46,17 +50,38 @@ export default withAuth(
     }
 );
 
+export default function middleware(req: NextRequest) {
+    // 1. Maintenance Mode Check
+    if (process.env.MAINTENANCE_MODE === 'true') {
+        const path = req.nextUrl.pathname;
+
+        // Allow access to the maintenance page itself
+        if (path === '/maintenance') {
+            return NextResponse.next();
+        }
+
+        // Allow static assets (images, fonts, etc.) and basic api if needed
+        if (path.startsWith('/_next') || path.startsWith('/static') || path.startsWith('/favicon.ico')) {
+            return NextResponse.next();
+        }
+
+        // Redirect everything else to /maintenance
+        return NextResponse.redirect(new URL('/maintenance', req.url));
+    }
+
+    // 2. If NOT in maintenance mode, but hitting /maintenance, redirect to home
+    if (req.nextUrl.pathname === '/maintenance') {
+        return NextResponse.redirect(new URL('/', req.url));
+    }
+
+    // 3. Standard Auth Middleware
+    return (authMiddleware as any)(req);
+}
+
 export const config = {
     matcher: [
-        '/dashboard/:path*',
-        '/profile/:path*',
-        '/water/:path*',
-        '/meals/:path*',
-        '/weight/:path*',
-        '/measurements/:path*',
-        '/admin/:path*',
-        '/user-profile-edit/:path*',
-        '/user-details/:path*',
-        '/membership-expired'
+        // Match all paths to ensure we can capture for maintenance
+        // Excluding internal Next.js paths and static files
+        '/((?!api|_next/static|_next/image|favicon.ico).*)',
     ],
 };
