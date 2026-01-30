@@ -27,6 +27,8 @@ export const viewport: Viewport = {
   ],
 };
 
+import { MaintenanceBanner } from "@/components/ui/maintenance-banner";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,9 +36,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased">
+      <body className="antialiased font-sans">
         <Providers>
           <LocalNotificationProvider>
+            <MaintenanceBanner />
             <AppShell>{children}</AppShell>
           </LocalNotificationProvider>
         </Providers>

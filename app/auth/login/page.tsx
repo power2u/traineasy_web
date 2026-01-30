@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { Button, TextField, Label, Input, Card, Text } from '@heroui/react';
+import { Button, TextField, Label, Input, Card, Text, Spinner } from '@heroui/react';
 import { getAuthErrorMessage } from '@/lib/utils/auth-helpers';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const { signIn, loading: authLoading } = useAuth();
   const [localError, setLocalError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -18,17 +19,20 @@ export default function LoginPage() {
   }, []);
 
   // Avoid hydration mismatch by waiting for mount or defaulting to safe state
-  const loading = !isMounted || authLoading;
+  const loading = !isMounted || authLoading || submitting;
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
+    setSubmitting(true);
 
     try {
       await signIn('email', { email, password });
     } catch (err: any) {
       const errorMsg = getAuthErrorMessage(err);
       setLocalError(errorMsg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -78,10 +82,23 @@ export default function LoginPage() {
           <Button
             type="submit"
             variant="primary"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200"
             isDisabled={loading}
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {submitting ? (
+              <div className="flex items-center justify-center gap-2">
+                <Spinner
+                  color="accent"
+                  size="sm"
+                  className="scale-90"
+                />
+                <span className="text-white text-sm font-medium animate-pulse">
+                  Authenticating...
+                </span>
+              </div>
+            ) : (
+              'Sign In'
+            )}
           </Button>
         </form>
 

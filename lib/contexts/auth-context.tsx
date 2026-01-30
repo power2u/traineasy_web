@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           throw new Error(result.error);
         }
 
-        router.push('/dashboard');
+        window.location.href = '/dashboard';
       } else {
         throw new Error('Only email/password login is supported in this migration.');
       }

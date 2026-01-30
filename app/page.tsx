@@ -14,7 +14,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     }
   }, [user, loading, router]);
 

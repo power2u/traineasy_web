@@ -51,25 +51,17 @@ const authMiddleware = withAuth(
 );
 
 export default function middleware(req: NextRequest) {
-    // 1. Maintenance Mode Check
+    // 1. Maintenance Mode Check - REMOVED redirect, now handled by MaintenanceBanner
+    /*
     if (process.env.MAINTENANCE_MODE === 'true') {
         const path = req.nextUrl.pathname;
-
-        // Allow access to the maintenance page itself
-        if (path === '/maintenance') {
-            return NextResponse.next();
-        }
-
-        // Allow static assets (images, fonts, etc.) and basic api if needed
-        if (path.startsWith('/_next') || path.startsWith('/static') || path.startsWith('/favicon.ico')) {
-            return NextResponse.next();
-        }
-
-        // Redirect everything else to /maintenance
+        if (path === '/maintenance') return NextResponse.next();
+        if (path.startsWith('/_next') || path.startsWith('/static') || path.startsWith('/favicon.ico')) return NextResponse.next();
         return NextResponse.redirect(new URL('/maintenance', req.url));
     }
+    */
 
-    // 2. If NOT in maintenance mode, but hitting /maintenance, redirect to home
+    // 2. Redirect /maintenance to / as we now use a banner
     if (req.nextUrl.pathname === '/maintenance') {
         return NextResponse.redirect(new URL('/', req.url));
     }
