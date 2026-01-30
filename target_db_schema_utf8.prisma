@@ -1,0 +1,341 @@
+﻿[dotenv@17.2.3] injecting env (23) from .env.local -- tip: ΓÜÖ∩╕Å  override existing env vars with { override: true }
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model UserPreference {
+  id                           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                        String                 @unique
+  fullName                     String                 @map("full_name")
+  passwordHash                 String                 @map("password_hash")
+  role                         String                 @default("user")
+  passwordChangeRequired       Boolean                @default(false) @map("password_change_required")
+  createdAt                    DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                    DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSignInAt                 DateTime?              @map("last_sign_in_at") @db.Timestamptz(6)
+  lastActiveAt                 DateTime?              @map("last_active_at") @db.Timestamptz(6)
+  createdBy                    String?                @map("created_by") @db.Uuid
+  allergies                    String?
+  bannedUntil                  DateTime?              @map("banned_until") @db.Timestamptz(6)
+  bloodGroup                   String?                @map("blood_group")
+  breakfastTime                String?                @map("breakfast_time")
+  currentCondition             String?                @map("current_condition")
+  dailyWaterTarget             Int                    @default(2000) @map("daily_water_target")
+  dateOfBirth                  DateTime?              @map("date_of_birth") @db.Date
+  dinnerTime                   String?                @map("dinner_time")
+  emailEnabled                 Boolean                @default(false) @map("email_enabled")
+  emergencyContactName         String?                @map("emergency_contact_name")
+  emergencyContactPhone        String?                @map("emergency_contact_phone")
+  emergencyContactRelationship String?                @map("emergency_contact_relationship")
+  glassSizeMl                  Int                    @default(250) @map("glass_size_ml")
+  goalMeasurements             Json?                  @map("goal_measurements")
+  goalWeight                   Decimal?               @map("goal_weight") @db.Decimal
+  goalWeightUnit               String                 @default("kg") @map("goal_weight_unit")
+  heightCm                     Decimal?               @map("height_cm") @db.Decimal
+  language                     String                 @default("en")
+  lunchTime                    String?                @map("lunch_time")
+  mealReminderDelayMinutes     Int                    @default(30) @map("meal_reminder_delay_minutes")
+  mealRemindersEnabled         Boolean                @default(true) @map("meal_reminders_enabled")
+  mealTimesConfigured          Boolean                @default(false) @map("meal_times_configured")
+  medicalNotes                 String?                @map("medical_notes")
+  notificationsEnabled         Boolean                @default(true) @map("notifications_enabled")
+  phone                        String?
+  planEndReminderDays          Int                    @default(3) @map("plan_end_reminder_days")
+  planRemindersEnabled         Boolean                @default(true) @map("plan_reminders_enabled")
+  preferredUnit                String                 @default("kg") @map("preferred_unit")
+  pushEnabled                  Boolean                @default(true) @map("push_enabled")
+  snack1Time                   String?                @map("snack1_time")
+  snack2Time                   String?                @map("snack2_time")
+  theme                        String                 @default("system")
+  timezone                     String?
+  waterReminderTimes           String[]               @default(["10:00", "15:00", "20:00"]) @map("water_reminder_times")
+  waterRemindersEnabled        Boolean                @default(true) @map("water_reminders_enabled")
+  weightReminderDay            Int                    @default(1) @map("weight_reminder_day")
+  weightReminderTime           String                 @default("09:00") @map("weight_reminder_time")
+  weightRemindersEnabled       Boolean                @default(true) @map("weight_reminders_enabled")
+  bodyMeasurements             BodyMeasurement[]
+  dailyWellnessCheckins        DailyWellnessCheckin[]
+  fcmTokens                    FcmToken[]
+  mealReminders                MealReminder[]
+  meals                        Meal[]
+  motivationBanners            MotivationBanner[]
+  notificationLogs             NotificationLog[]
+  notificationMessages         NotificationMessage[]
+  passwordResetTokens          PasswordResetToken[]
+  userMemberships              UserMembership[]
+  userPackages                 UserPackage[]
+  userPlans                    UserPlan[]
+  creator                      UserPreference?        @relation("CreatedBy", fields: [createdBy], references: [id])
+  createdUsers                 UserPreference[]       @relation("CreatedBy")
+  waterIntake                  WaterIntake[]
+
+  @@map("user_preferences")
+}
+
+model WaterIntake {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  timestamp  DateTime       @default(now()) @db.Timestamptz(6)
+  glassCount Int            @default(1) @map("glass_count")
+  amount     Int?           @default(250)
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       UserPreference @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("water_intake")
+}
+
+model Meal {
+  id                          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                      String         @map("user_id") @db.Uuid
+  date                        DateTime       @default(dbgenerated("CURRENT_DATE")) @db.Date
+  breakfastCompleted          Boolean        @default(false) @map("breakfast_completed")
+  breakfastTime               DateTime?      @map("breakfast_time") @db.Timestamptz(6)
+  breakfastNotificationSentAt DateTime?      @map("breakfast_notification_sent_at") @db.Timestamptz(6)
+  snack1Completed             Boolean        @default(false) @map("snack1_completed")
+  snack1Time                  DateTime?      @map("snack1_time") @db.Timestamptz(6)
+  snack1NotificationSentAt    DateTime?      @map("snack1_notification_sent_at") @db.Timestamptz(6)
+  lunchCompleted              Boolean        @default(false) @map("lunch_completed")
+  lunchTime                   DateTime?      @map("lunch_time") @db.Timestamptz(6)
+  lunchNotificationSentAt     DateTime?      @map("lunch_notification_sent_at") @db.Timestamptz(6)
+  snack2Completed             Boolean        @default(false) @map("snack2_completed")
+  snack2Time                  DateTime?      @map("snack2_time") @db.Timestamptz(6)
+  snack2NotificationSentAt    DateTime?      @map("snack2_notification_sent_at") @db.Timestamptz(6)
+  dinnerCompleted             Boolean        @default(false) @map("dinner_completed")
+  dinnerTime                  DateTime?      @map("dinner_time") @db.Timestamptz(6)
+  dinnerNotificationSentAt    DateTime?      @map("dinner_notification_sent_at") @db.Timestamptz(6)
+  createdAt                   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                        UserPreference @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("meals")
+}
+
+model BodyMeasurement {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String          @map("user_id") @db.Uuid
+  measurementType MeasurementType @map("measurement_type")
+  value           Decimal         @db.Decimal
+  unit            String
+  date            DateTime        @default(dbgenerated("CURRENT_DATE")) @db.Date
+  notes           String?
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user            UserPreference  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("body_measurements")
+}
+
+model DailyWellnessCheckin {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String         @map("user_id") @db.Uuid
+  date             DateTime       @default(dbgenerated("CURRENT_DATE")) @db.Date
+  overallFeeling   Int?           @map("overall_feeling")
+  feelingBloated   Boolean        @default(false) @map("feeling_bloated")
+  feelingLowEnergy Boolean        @default(false) @map("feeling_low_energy")
+  feelingHungry    Boolean        @default(false) @map("feeling_hungry")
+  feelingNauseous  Boolean        @default(false) @map("feeling_nauseous")
+  feelingHeadache  Boolean        @default(false) @map("feeling_headache")
+  feelingCramps    Boolean        @default(false) @map("feeling_cramps")
+  feelingEnergized Boolean        @default(false) @map("feeling_energized")
+  notes            String?
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  feelingSatisfied Boolean        @default(false) @map("feeling_satisfied")
+  feelingStrong    Boolean        @default(false) @map("feeling_strong")
+  user             UserPreference @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("daily_wellness_checkin")
+}
+
+model UserPlan {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  planName  String         @map("plan_name")
+  startDate DateTime       @map("start_date") @db.Date
+  endDate   DateTime       @map("end_date") @db.Date
+  planNotes String?        @map("plan_notes")
+  isActive  Boolean        @default(true) @map("is_active")
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      UserPreference @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_plans")
+}
+
+model Package {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  durationDays    Int              @map("duration_days")
+  price           Decimal?         @db.Decimal
+  features        String[]
+  isActive        Boolean          @default(true) @map("is_active")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  userMemberships UserMembership[]
+  userPackages    UserPackage[]
+
+  @@map("packages")
+}
+
+model UserPackage {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  packageId String         @map("package_id") @db.Uuid
+  startDate DateTime       @map("start_date") @db.Date
+  endDate   DateTime       @map("end_date") @db.Date
+  isActive  Boolean        @default(true) @map("is_active")
+  notes     String?
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  package   Package        @relation(fields: [packageId], references: [id])
+  user      UserPreference @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_packages")
+}
+
+model UserMembership {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  packageId String         @map("package_id") @db.Uuid
+  status    String         @default("active")
+  startDate DateTime       @map("start_date") @db.Date
+  endDate   DateTime       @map("end_date") @db.Date
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  package   Package        @relation(fields: [packageId], references: [id])
+  user      UserPreference @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_memberships")
+}
+
+model NotificationMessage {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title            String
+  createdBy        String?         @map("created_by") @db.Uuid
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  isActive         Boolean         @default(false) @map("is_active")
+  isEnabled        Boolean         @default(true) @map("is_enabled")
+  lastSentAt       DateTime?       @map("last_sent_at") @db.Timestamptz(6)
+  message          String
+  nextSendAt       DateTime?       @map("next_send_at") @db.Timestamptz(6)
+  notificationType String          @map("notification_type")
+  repeatPattern    String?         @default("daily") @map("repeat_pattern")
+  scheduleTime     String?         @map("schedule_time")
+  updatedAt        DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  creator          UserPreference? @relation(fields: [createdBy], references: [id])
+
+  @@map("notification_messages")
+}
+
+model NotificationLog {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String         @map("user_id") @db.Uuid
+  title            String
+  body             String
+  sentAt           DateTime       @default(now()) @map("sent_at") @db.Timestamptz(6)
+  status           String         @default("sent")
+  failureReason    String?        @map("failure_reason")
+  metadata         Json?
+  notificationType String         @map("notification_type")
+  user             UserPreference @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_logs")
+}
+
+model FcmToken {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  token      String
+  deviceInfo Json?          @default("{}") @map("device_info")
+  lastUsedAt DateTime       @default(now()) @map("last_used_at") @db.Timestamptz(6)
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user       UserPreference @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("fcm_tokens")
+}
+
+model MotivationBanner {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  imageUrl  String?         @map("image_url")
+  message   String
+  isActive  Boolean         @default(true) @map("is_active")
+  createdBy String?         @map("created_by") @db.Uuid
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt DateTime?       @map("expires_at") @db.Timestamptz(6)
+  title     String
+  updatedAt DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  creator   UserPreference? @relation(fields: [createdBy], references: [id])
+
+  @@map("motivation_banners")
+}
+
+model PasswordResetToken {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  token     String         @unique
+  expiresAt DateTime       @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime?      @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      UserPreference @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+model CronConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("cron_config")
+}
+
+model CronLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobName    String   @map("job_name")
+  status     String
+  message    String?
+  runAt      DateTime @default(now()) @map("run_at") @db.Timestamptz(6)
+  durationMs Int?     @map("duration_ms")
+
+  @@map("cron_logs")
+}
+
+model MealReminder {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String         @map("user_id") @db.Uuid
+  mealType     String         @map("meal_type")
+  reminderTime String         @map("reminder_time")
+  isActive     Boolean        @default(true) @map("is_active")
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         UserPreference @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mealType])
+  @@map("meal_reminders")
+}
+
+enum MeasurementType {
+  weight
+  biceps_left
+  biceps_right
+  chest
+  waist
+  hips
+  thighs_left
+  thighs_right
+  calves_left
+  calves_right
+  forearms_left
+  forearms_right
+  shoulders
+  neck
+
+  @@map("measurement_type")
+}
+
+

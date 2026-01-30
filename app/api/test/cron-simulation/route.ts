@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     console.log(`[Test Cron] Simulating notification check at ${now.toISOString()}`);
 
     // Get all active and enabled notification messages
-    const notificationConfigs = await prisma.notificationMessages.findMany({
+    const notificationConfigs = await prisma.notificationMessage.findMany({
       where: {
         isActive: true,
         isEnabled: true
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     });
 
     // Get sample users (limit to 3 for testing)
-    const users = await prisma.userPreferences.findMany({
+    const users = await prisma.userPreference.findMany({
       where: { notificationsEnabled: true },
       select: {
         id: true,
@@ -115,11 +115,11 @@ async function simulateShouldSendNotification(config: any, user: any, userTimezo
   const today = getCurrentDateInTimezone(userTimezone);
 
   // Check if we already sent this notification today (simulation - check logs)
-  const existingLog = await prisma.notificationLogs.findFirst({
+  const existingLog = await prisma.notificationLog.findFirst({
     where: {
       userId: user.id,
       notificationType: config.notificationType,
-      createdAt: {
+      sentAt: {
         gte: new Date(`${today}T00:00:00Z`),
         lt: new Date(`${today}T23:59:59Z`)
       }

@@ -3,18 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Card, Spinner, TextField, Label, Input } from '@heroui/react';
-import { listPackages, createPackage, togglePackageStatus } from '@/app/actions/packages';
-
-interface Package {
-    id: string;
-    name: string;
-    description: string;
-    duration_days: number;
-    price: number;
-    features: string[];
-    is_active: boolean;
-    created_at: string;
-}
+import { listPackages, createPackage, togglePackageStatus, type Package } from '@/app/actions/packages';
 
 interface PackagesClientProps {
     initialPackages: Package[];

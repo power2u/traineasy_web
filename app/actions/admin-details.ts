@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { UserPreference } from '@/lib/generated/prisma/client';
 import { Meal } from '@/lib/generated/prisma/client';
 import { WaterIntake } from '@/lib/generated/prisma/client';
-import { BodyMeasurement } from '@/lib/generated/prisma/browser';
+import { BodyMeasurement } from '@prisma/client';
 
 // Define strict types for return data to ensure type safety on client
 export interface AdminUserDetails {

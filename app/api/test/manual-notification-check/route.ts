@@ -13,7 +13,7 @@ export async function GET() {
     console.log(`[Manual Test] Running notification check at ${now.toISOString()}`);
 
     // Get all users with notifications enabled
-    const users = await prisma.userPreferences.findMany({
+    const users = await prisma.userPreference.findMany({
       where: {
         notificationsEnabled: true
       },

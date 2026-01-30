@@ -12,6 +12,7 @@ interface UserCronJob {
   cronExpression: string;
   timezone: string;
   isActive: boolean;
+  updatedAt?: Date;
 }
 
 export class LocalCronManager {
@@ -44,7 +45,7 @@ export class LocalCronManager {
 
     try {
       // Check if cron jobs were updated today (limit to once per day)
-      const existingJobs = await prisma.userCronJobs.findMany({
+      const existingJobs = await prisma.userCronJob.findMany({
         where: { userId },
         orderBy: { updatedAt: 'desc' },
         take: 1
@@ -64,7 +65,7 @@ export class LocalCronManager {
       }
 
       // Get user preferences
-      const userPrefs = await prisma.userPreferences.findUnique({
+      const userPrefs = await prisma.userPreference.findUnique({
         where: { id: userId }
       });
 
@@ -75,7 +76,14 @@ export class LocalCronManager {
       // Remove existing cron jobs for this user
       await this.removeUserCronJobs(userId);
 
-      const cronJobs: Partial<UserCronJob>[] = [];
+      const cronJobs: {
+        userId: string;
+        notificationType: string;
+        cronExpression: string;
+        timezone: string;
+        isActive: boolean;
+      }[] = [];
+
 
       // Create meal reminder cron jobs based on user's meal times (local device time)
       if (userPrefs.mealRemindersEnabled && userPrefs.notificationsEnabled) {
@@ -160,7 +168,7 @@ export class LocalCronManager {
 
       // Insert cron jobs into database
       if (cronJobs.length > 0) {
-        await prisma.userCronJobs.createMany({
+        await prisma.userCronJob.createMany({
           data: cronJobs
         });
 
@@ -191,7 +199,7 @@ export class LocalCronManager {
 
     try {
       // Get existing cron jobs for this user
-      const existingJobs = await prisma.userCronJobs.findMany({
+      const existingJobs = await prisma.userCronJob.findMany({
         where: { userId }
       });
 
@@ -203,7 +211,7 @@ export class LocalCronManager {
       }
 
       // Remove from database
-      await prisma.userCronJobs.deleteMany({
+      await prisma.userCronJob.deleteMany({
         where: { userId }
       });
 
@@ -225,7 +233,7 @@ export class LocalCronManager {
 
     try {
       // Get user preferences
-      const userPrefs = await prisma.userPreferences.findUnique({
+      const userPrefs = await prisma.userPreference.findUnique({
         where: { id: userId }
       });
 
@@ -236,7 +244,14 @@ export class LocalCronManager {
       // Remove existing cron jobs for this user
       await this.removeUserCronJobs(userId);
 
-      const cronJobs: Partial<UserCronJob>[] = [];
+      const cronJobs: {
+        userId: string;
+        notificationType: string;
+        cronExpression: string;
+        timezone: string;
+        isActive: boolean;
+      }[] = [];
+
 
       // Create meal reminder cron jobs based on user's meal times (local device time)
       if (userPrefs.mealRemindersEnabled && userPrefs.notificationsEnabled) {
@@ -321,7 +336,7 @@ export class LocalCronManager {
 
       // Insert cron jobs into database
       if (cronJobs.length > 0) {
-        await prisma.userCronJobs.createMany({
+        await prisma.userCronJob.createMany({
           data: cronJobs
         });
 
@@ -400,7 +415,7 @@ export class LocalCronManager {
    */
   async getUserCronJobs(userId: string): Promise<UserCronJob[]> {
     try {
-      const data = await prisma.userCronJobs.findMany({
+      const data = await prisma.userCronJob.findMany({
         where: {
           userId,
           isActive: true
@@ -431,7 +446,7 @@ export class LocalCronManager {
         return await this.registerUserCronJobs(userId);
       } else {
         // Disable cron jobs
-        await prisma.userCronJobs.updateMany({
+        await prisma.userCronJob.updateMany({
           where: { userId },
           data: { isActive: false }
         });

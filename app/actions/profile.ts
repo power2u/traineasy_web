@@ -68,9 +68,10 @@ export interface UserPlan {
   planName: string;
   startDate: Date;
   endDate: Date;
-  planNotes?: string;
+  planNotes?: string | null;
   isActive: boolean;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 // Get user preferences (includes profile data)
@@ -294,7 +295,7 @@ export async function createPlan(
 ) {
   try {
     // Transaction: Deactivate old active plans, then create new one
-    await prisma.$transaction(async (tx: { userPlan: { updateMany: (arg0: { where: { userId: string; isActive: boolean; }; data: { isActive: boolean; }; }) => any; create: (arg0: { data: { isActive: boolean; planName: string; startDate: Date; endDate: Date; planNotes?: string; userId: string; }; }) => any; }; }) => {
+    await prisma.$transaction(async (tx) => {
       // Deactivate existing active plans
       await tx.userPlan.updateMany({
         where: { userId, isActive: true },
@@ -319,7 +320,7 @@ export async function createPlan(
 
 export async function updatePlan(planId: string, planData: Partial<UserPlan>) {
   try {
-    await prisma.$transaction(async (tx: { userPlan: { findUnique: (arg0: { where: { id: string; }; select: { userId: boolean; }; }) => any; updateMany: (arg0: { where: { userId: any; isActive: boolean; id: { not: string; }; }; data: { isActive: boolean; }; }) => any; update: (arg0: { where: { id: string; }; data: { planName?: string | undefined; startDate?: Date | undefined; endDate?: Date | undefined; planNotes?: string | undefined; isActive?: boolean | undefined; createdAt?: Date | undefined; }; }) => any; }; }) => {
+    await prisma.$transaction(async (tx) => {
       if (planData.isActive === true) {
         // Get userId first
         const plan = await tx.userPlan.findUnique({ where: { id: planId }, select: { userId: true } });

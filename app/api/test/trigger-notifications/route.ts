@@ -10,7 +10,7 @@ export async function POST() {
     console.log('Manually triggering notification processing...');
 
     // Get all active and enabled notification messages
-    const notificationConfigs = await prisma.notificationMessages.findMany({
+    const notificationConfigs = await prisma.notificationMessage.findMany({
       where: {
         isActive: true,
         isEnabled: true
@@ -24,7 +24,7 @@ export async function POST() {
     for (const config of notificationConfigs) {
       try {
         // Get users who should receive this notification
-        const users = await prisma.userPreferences.findMany({
+        const users = await prisma.userPreference.findMany({
           where: {
             notificationsEnabled: true
           },

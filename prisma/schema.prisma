@@ -1,5 +1,6 @@
 generator client {
   provider      = "prisma-client-js"
+  output        = "../lib/generated/prisma"
   binaryTargets = ["native", "windows"]
 }
 
@@ -69,6 +70,7 @@ model UserPreference {
   userMemberships              UserMembership[]
   userPackages                 UserPackage[]
   userPlans                    UserPlan[]
+  userCronJobs                 UserCronJob[]
   creator                      UserPreference?        @relation("CreatedBy", fields: [createdBy], references: [id])
   createdUsers                 UserPreference[]       @relation("CreatedBy")
   waterIntake                  WaterIntake[]
@@ -335,4 +337,20 @@ enum MeasurementType {
   neck
 
   @@map("measurement_type")
+}
+
+model UserCronJob {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String         @map("user_id") @db.Uuid
+  notificationType String         @map("notification_type")
+  cronExpression   String         @map("cron_expression")
+  timezone         String         @default("local")
+  isActive         Boolean        @default(true) @map("is_active")
+  lastExecutedAt   DateTime?      @map("last_executed_at") @db.Timestamptz(6)
+  nextExecutionAt  DateTime?      @map("next_execution_at") @db.Timestamptz(6)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user             UserPreference @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_cron_jobs")
 }

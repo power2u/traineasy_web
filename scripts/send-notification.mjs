@@ -6,7 +6,7 @@
  * Usage: node send-notification.mjs <userId> <notificationType>
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../lib/generated/prisma/index.js';
 import path from 'path';
 import fs from 'fs';
 
@@ -321,7 +321,7 @@ async function getNotificationMessage(notificationType) {
  */
 async function getUserInfo(userId) {
   try {
-    const data = await prisma.userPreferences.findUnique({
+    const data = await prisma.userPreference.findUnique({
       where: { id: userId },
       select: {
         fullName: true,
@@ -375,7 +375,7 @@ async function updateCronJobExecution(userId, notificationType) {
   try {
     const now = new Date();
 
-    await prisma.userCronJobs.updateMany({
+    await prisma.userCronJob.updateMany({
       where: {
         userId,
         notificationType

@@ -16,7 +16,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const adminUser = await prisma.userPreferences.findFirst({
+    const adminUser = await prisma.userPreference.findFirst({
       where: { email: session.user.email },
       select: { role: true }
     });
@@ -78,7 +78,7 @@ export async function GET() {
 async function testDatabaseStructure() {
   try {
     // Check if notification_messages table exists by trying to query it
-    const sampleRecord = await prisma.notificationMessages.findFirst();
+    const sampleRecord = await prisma.notificationMessage.findFirst();
 
     // If we can query it, the required columns exist (Prisma validates schema)
     const requiredColumns = ['schedule_time', 'repeat_pattern', 'is_enabled', 'last_sent_at'];
@@ -103,7 +103,7 @@ async function testDatabaseStructure() {
 
 async function testSchedulingConfiguration() {
   try {
-    const configs = await prisma.notificationMessages.findMany({
+    const configs = await prisma.notificationMessage.findMany({
       where: { isActive: true },
       select: {
         notificationType: true,
@@ -151,7 +151,7 @@ async function testSchedulingConfiguration() {
 
 async function testUserDataAvailability() {
   try {
-    const users = await prisma.userPreferences.findMany({
+    const users = await prisma.userPreference.findMany({
       where: { notificationsEnabled: true },
       select: {
         id: true,
@@ -196,7 +196,7 @@ async function testUserDataAvailability() {
 
 async function testFCMTokenAvailability() {
   try {
-    const tokenStats = await prisma.fcmTokens.findMany({
+    const tokenStats = await prisma.fcmToken.findMany({
       select: { userId: true },
       take: 1000
     });
@@ -263,7 +263,7 @@ async function testTimezoneLogic() {
 
 async function testMessageProcessing() {
   try {
-    const sampleMessage = await prisma.notificationMessages.findFirst({
+    const sampleMessage = await prisma.notificationMessage.findFirst({
       where: { isActive: true },
       select: {
         title: true,
@@ -310,7 +310,7 @@ async function testSchedulingSimulation() {
     const currentMinute = now.getMinutes();
 
     // Get all active notification configurations
-    const configs = await prisma.notificationMessages.findMany({
+    const configs = await prisma.notificationMessage.findMany({
       where: {
         isActive: true,
         isEnabled: true

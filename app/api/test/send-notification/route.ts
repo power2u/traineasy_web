@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const adminUser = await prisma.userPreferences.findFirst({
+    const adminUser = await prisma.userPreference.findFirst({
       where: { email: session.user.email },
       select: { role: true }
     });
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     }
 
     // Get a test user with FCM tokens
-    const testUser = await prisma.userPreferences.findFirst({
+    const testUser = await prisma.userPreference.findFirst({
       where: { notificationsEnabled: true },
       select: { id: true, fullName: true }
     });
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     }
 
     // Get FCM tokens for this user
-    const tokens = await prisma.fcmTokens.findMany({
+    const tokens = await prisma.fcmToken.findMany({
       where: { userId: testUser.id },
       select: { token: true }
     });
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
 
     // Log the test notification
     if (fcmResult.success) {
-      await prisma.notificationLogs.create({
+      await prisma.notificationLog.create({
         data: {
           userId: testUser.id,
           notificationType: 'test_notification',

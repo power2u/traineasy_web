@@ -258,7 +258,7 @@ export async function listUsers() {
           created_at: u.createdAt.toISOString(),
           last_sign_in_at: u.lastSignInAt ? u.lastSignInAt.toISOString() : null,
           banned_until: u.bannedUntil ? u.bannedUntil.toISOString() : null,
-          is_banned: u.bannedUntil && u.bannedUntil > new Date(),
+          is_banned: !!(u.bannedUntil && u.bannedUntil > new Date()),
           email_confirmed_at: u.createdAt.toISOString(),
           provider: 'email',
         };
