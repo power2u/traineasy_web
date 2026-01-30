@@ -88,6 +88,17 @@ export async function addWaterEntry(userId: string, glassCount: number = 1) {
   try {
     await checkAuth(userId);
 
+    // First check if user exists in database
+    const userExists = await prisma.userPreference.findUnique({
+      where: { id: userId },
+      select: { id: true }
+    });
+
+    if (!userExists) {
+      console.log(`User ${userId} not found in database, cannot add water entry`);
+      return { success: false, error: 'User not found in database' };
+    }
+
     const data = await prisma.waterIntake.create({
       data: {
         userId: userId,

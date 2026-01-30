@@ -65,6 +65,17 @@ export async function setMealTimes(userId: string, mealTimes: MealTimes) {
   try {
     await checkAuth(userId);
 
+    // First check if user exists in database
+    const userExists = await prisma.userPreference.findUnique({
+      where: { id: userId },
+      select: { id: true }
+    });
+
+    if (!userExists) {
+      console.log(`User ${userId} not found in database, cannot update meal times`);
+      return { success: false, error: 'User not found in database' };
+    }
+
     // Convert time format and include timezone and theme
     // Map snake_case to camelCase for Prisma
     const updateData = {

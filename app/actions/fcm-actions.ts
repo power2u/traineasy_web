@@ -14,6 +14,17 @@ export async function saveFCMToken(token: string) {
 
     const userId = (session.user as any).id;
 
+    // First check if user exists in database
+    const userExists = await prisma.userPreference.findUnique({
+      where: { id: userId },
+      select: { id: true }
+    });
+
+    if (!userExists) {
+      console.log(`User ${userId} not found in database, skipping FCM token save`);
+      return { success: false, error: 'User not found in database' };
+    }
+
     // Check if token already exists for this user
     const existingToken = await prisma.fcmToken.findFirst({
       where: { userId, token }
