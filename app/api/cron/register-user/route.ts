@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cronManager } from '@/lib/cron/local-cron-manager';
-import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -38,15 +38,12 @@ export async function POST(request: Request) {
     }
 
     // Verify user exists
-    const supabase = await createClient();
-    const { data: existingUser, error: userError } = await supabase
-      .from('user_preferences')
-      .select('id')
-      // ... (rest of the code)
-      .eq('id', userId)
-      .single();
+    const existingUser = await prisma.userPreference.findUnique({
+      where: { id: userId },
+      select: { id: true }
+    });
 
-    if (userError || !existingUser) {
+    if (!existingUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -93,17 +90,17 @@ export async function PUT(request: Request) {
     }
 
     // Security Check: Verify Authentication & Authorization
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const session = await getServerSession(authOptions);
 
-    if (authError || !user) {
+    if (!session || !session.user) {
       return NextResponse.json(
         { error: 'Unauthorized: Please sign in' },
         { status: 401 }
       );
     }
 
-    if (user.id !== userId) {
+    const sessionUserId = (session.user as any).id;
+    if (sessionUserId !== userId) {
       return NextResponse.json(
         { error: 'Forbidden: You can only update your own jobs' },
         { status: 403 }
@@ -150,17 +147,17 @@ export async function DELETE(request: Request) {
     }
 
     // Security Check: Verify Authentication & Authorization
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const session = await getServerSession(authOptions);
 
-    if (authError || !user) {
+    if (!session || !session.user) {
       return NextResponse.json(
         { error: 'Unauthorized: Please sign in' },
         { status: 401 }
       );
     }
 
-    if (user.id !== userId) {
+    const sessionUserId = (session.user as any).id;
+    if (sessionUserId !== userId) {
       return NextResponse.json(
         { error: 'Forbidden: You can only remove your own jobs' },
         { status: 403 }

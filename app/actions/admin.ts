@@ -1,6 +1,6 @@
 'use server';
 
-import { createAdminClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -18,60 +18,40 @@ export async function requireSuperAdmin() {
     throw new Error('Unauthorized: Please sign in');
   }
 
-  const adminClient = createAdminClient();
-  const { data: user, error } = await adminClient
-    .from('user_preferences')
-    .select('role')
-    .eq('email', session.user.email)
-    .single();
+  const user = await prisma.userPreference.findUnique({
+    where: { email: session.user.email },
+    select: { role: true }
+  });
 
-  if (error || !user || user.role !== 'super_admin') {
+  if (!user || user.role !== 'super_admin') {
     throw new Error('Unauthorized: Insufficient permissions');
   }
 }
 
 /**
  * DEVELOPMENT ONLY: Create or update a super admin user
- * This uses the service role key to bypass RLS
  */
 export async function createSuperAdmin(email: string) {
-  // Only allow in development
   if (process.env.NODE_ENV === 'production') {
     throw new Error('This action is only available in development mode');
   }
 
   try {
-    const adminClient = createAdminClient();
+    const user = await prisma.userPreference.findUnique({
+      where: { email }
+    });
 
-    // Check if user exists in user_preferences
-    const { data: user, error: fetchError } = await adminClient
-      .from('user_preferences')
-      .select('id, role, full_name, email')
-      .eq('email', email)
-      .single();
-
-    if (fetchError || !user) {
-      // If not in preferences, maybe in auth.users?
-      // For now, simpler to say "User not found" or "Please sign up/create user first"
-      // But if they just signed up via auth but not preferences (unlikely with new flow), we might need to handle that.
-      // Assuming strict sync:
+    if (!user) {
       return {
         success: false,
         error: `User with email ${email} not found in preferences. Please create user first.`,
       };
     }
 
-    // Update role
-    const { data: updatedUser, error: updateError } = await adminClient
-      .from('user_preferences')
-      .update({ role: 'super_admin' })
-      .eq('id', user.id)
-      .select()
-      .single();
-
-    if (updateError) {
-      throw new Error(`Failed to update user role: ${updateError.message}`);
-    }
+    const updatedUser = await prisma.userPreference.update({
+      where: { id: user.id },
+      data: { role: 'super_admin' }
+    });
 
     return {
       success: true,
@@ -79,7 +59,7 @@ export async function createSuperAdmin(email: string) {
         id: updatedUser.id,
         email: updatedUser.email,
         role: updatedUser.role,
-        full_name: updatedUser.full_name,
+        full_name: updatedUser.fullName,
       },
       message: `Successfully updated ${email} to super_admin!`,
     };
@@ -94,78 +74,52 @@ export async function createSuperAdmin(email: string) {
 
 /**
  * Create a new user (admin only)
- * Uses service role key to create users with elevated permissions
  */
-export async function createUser(email: string, password: string, displayName: string, role: 'user' | 'super_admin' = 'user') {
+export async function createUser(email: string, password: string, displayName: string, role: string = 'user') {
   try {
     await requireSuperAdmin();
-    const adminClient = createAdminClient();
 
-    // 1. Create user in Supabase Auth
-    // We still keep the metadata for compatibility, but the source of truth is now user_preferences
-    const { data, error } = await adminClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true, // Auto-confirm email
-      user_metadata: {
-        display_name: displayName,
-        full_name: displayName,
-        role: role,
-      },
-      app_metadata: {
-        provider: 'email',
-        providers: ['email'],
-        role: role,
-      },
-    });
-
-    if (error) {
-      throw new Error(`Failed to create user in Auth: ${error.message}`);
-    }
-
-    // 2. Hash password for local storage (custom auth)
+    // 1. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 3. Create entry in user_preferences
-    // The handle_new_user trigger creates a row, so we use upsert to update it
-
-    // Get creator ID if available (from session)
+    // 2. Create entry in user_preferences
     const session = await getServerSession(authOptions);
-    let createdBy = null;
+    let createdById = null;
 
     if (session?.user?.email) {
-      // We need to resolve email to ID for the created_by reference
-      const { data: creator } = await adminClient
-        .from('user_preferences')
-        .select('id')
-        .eq('email', session.user.email)
-        .single();
-
-      if (creator) {
-        createdBy = creator.id;
-      }
-    }
-
-    const { error: prefError } = await adminClient
-      .from('user_preferences')
-      .upsert({
-        id: data.user.id,
-        email: email,
-        full_name: displayName,
-        role: role,
-        password_hash: hashedPassword,
-        password_change_required: false,
-        created_by: createdBy // Track who created this user
+      const creator = await prisma.userPreference.findUnique({
+        where: { email: session.user.email },
+        select: { id: true }
       });
-
-    if (prefError) {
-      // Rollback? Deleting the auth user would be ideal but for now just throw
-      // await adminClient.auth.admin.deleteUser(data.user.id); 
-      console.error('Error creating preferences, user state might be inconsistent:', prefError);
-      throw new Error(`Failed to create user profile: ${prefError.message}`);
+      if (creator) createdById = creator.id;
     }
 
-    // 4. Send Welcome Email
+    // Check if user already exists
+    const existing = await prisma.userPreference.findUnique({
+      where: { email }
+    });
+
+    if (existing) {
+      throw new Error("User with this email already exists");
+    }
+
+    const newUser = await prisma.userPreference.create({
+      data: {
+        email: email,
+        fullName: displayName,
+        role: role,
+        passwordHash: hashedPassword,
+        passwordChangeRequired: false,
+        createdBy: createdById,
+        // Default values for other fields logic
+        notificationsEnabled: true,
+        mealRemindersEnabled: true,
+        theme: 'system',
+        language: 'en'
+      }
+    });
+
+    // 3. Send Welcome Email
     try {
       const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
       const loginUrl = `${baseUrl}/auth/signin`;
@@ -174,7 +128,7 @@ export async function createUser(email: string, password: string, displayName: s
         WelcomeEmail({
           userEmail: email,
           userName: displayName,
-          password: password, // Sending initial password
+          password: password,
           loginUrl,
           baseUrl,
           supportEmail: process.env.SMTP_FROM || 'support@traineasy.com',
@@ -195,16 +149,15 @@ export async function createUser(email: string, password: string, displayName: s
       }
     } catch (emailError) {
       console.error('[createUser] Error sending welcome email:', emailError);
-      // Non-blocking error
     }
 
     return {
       success: true,
       user: {
-        id: data.user.id,
-        email: data.user.email,
-        role: role,
-        full_name: displayName,
+        id: newUser.id,
+        email: newUser.email,
+        role: newUser.role,
+        full_name: newUser.fullName,
       },
       message: `Successfully created user ${email} and sent welcome email!`,
     };
@@ -219,32 +172,14 @@ export async function createUser(email: string, password: string, displayName: s
 
 /**
  * Delete a user (admin only)
- * Uses service role key to delete users with elevated permissions
  */
 export async function deleteUser(userId: string) {
   try {
     await requireSuperAdmin();
-    const adminClient = createAdminClient();
 
-    // Delete from user_preferences directly
-    // This will cascade to auth.users if configured, OR we just delete this profile
-    // User requested to stop targeting auth.users, so we prioritize preferences
-    const { error } = await adminClient
-      .from('user_preferences')
-      .delete()
-      .eq('id', userId);
-
-    if (error) {
-      throw new Error(`Failed to delete user profile: ${error.message}`);
-    }
-
-    // Optional: Try to clean up auth.users but don't fail if it doesn't work
-    // (since we are moving away from Supabase Auth as the source of truth)
-    try {
-      await adminClient.auth.admin.deleteUser(userId);
-    } catch (e) {
-      console.warn('Could not delete auth user, but profile deleted:', e);
-    }
+    await prisma.userPreference.delete({
+      where: { id: userId }
+    });
 
     return {
       success: true,
@@ -263,23 +198,23 @@ export async function deleteUser(userId: string) {
  * DEVELOPMENT ONLY: List all users (for debugging)
  */
 export async function listAllUsers() {
-  // Only allow in development
   if (process.env.NODE_ENV === 'production') {
     throw new Error('This action is only available in development mode');
   }
 
   try {
     await requireSuperAdmin();
-    const adminClient = createAdminClient();
 
-    const { data: users, error } = await adminClient
-      .from('user_preferences')
-      .select('id, email, role, full_name, created_at')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      throw new Error(`Failed to list users: ${error.message}`);
-    }
+    const users = await prisma.userPreference.findMany({
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        fullName: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
 
     return {
       success: true,
@@ -287,9 +222,9 @@ export async function listAllUsers() {
         id: u.id,
         email: u.email,
         role: u.role,
-        full_name: u.full_name,
+        full_name: u.fullName,
         provider: 'email',
-        created_at: u.created_at,
+        created_at: u.createdAt.toISOString(),
       })),
     };
   } catch (error: any) {
@@ -307,16 +242,10 @@ export async function listAllUsers() {
 export async function listUsers() {
   try {
     await requireSuperAdmin();
-    const adminClient = createAdminClient();
 
-    const { data: users, error } = await adminClient
-      .from('user_preferences')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      throw new Error(`Failed to list users: ${error.message}`);
-    }
+    const users = await prisma.userPreference.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
 
     return {
       success: true,
@@ -324,13 +253,13 @@ export async function listUsers() {
         return {
           id: u.id,
           email: u.email || '',
-          display_name: u.full_name || '',
+          display_name: u.fullName || '',
           role: u.role,
-          created_at: u.created_at,
-          last_sign_in_at: u.last_sign_in_at,
-          banned_until: null, // Not in user_preferences
-          is_banned: false,
-          email_confirmed_at: u.created_at, // Assumed
+          created_at: u.createdAt.toISOString(),
+          last_sign_in_at: u.lastSignInAt ? u.lastSignInAt.toISOString() : null,
+          banned_until: u.bannedUntil ? u.bannedUntil.toISOString() : null,
+          is_banned: u.bannedUntil && u.bannedUntil > new Date(),
+          email_confirmed_at: u.createdAt.toISOString(),
           provider: 'email',
         };
       }),
@@ -350,16 +279,11 @@ export async function listUsers() {
 export async function promoteToSuperAdmin(userId: string) {
   try {
     await requireSuperAdmin();
-    const adminClient = createAdminClient();
 
-    const { error } = await adminClient
-      .from('user_preferences')
-      .update({ role: 'super_admin' })
-      .eq('id', userId);
-
-    if (error) {
-      throw new Error(`Failed to promote user: ${error.message}`);
-    }
+    await prisma.userPreference.update({
+      where: { id: userId },
+      data: { role: 'super_admin' }
+    });
 
     return {
       success: true,
@@ -380,22 +304,14 @@ export async function promoteToSuperAdmin(userId: string) {
 export async function disableUser(userId: string) {
   try {
     await requireSuperAdmin();
-    const adminClient = createAdminClient();
 
-    // Ban the user for 100 years (effectively permanent)
     const banUntil = new Date();
     banUntil.setFullYear(banUntil.getFullYear() + 100);
 
-    const { error } = await adminClient.auth.admin.updateUserById(userId, {
-      ban_duration: '876000h', // 100 years in hours (approx)
-      user_metadata: {
-        banned_until: banUntil.toISOString() // Store explicit date for client-side checks
-      }
+    await prisma.userPreference.update({
+      where: { id: userId },
+      data: { bannedUntil: banUntil }
     });
-
-    if (error) {
-      throw new Error(`Failed to disable user: ${error.message}`);
-    }
 
     return {
       success: true,
@@ -416,15 +332,11 @@ export async function disableUser(userId: string) {
 export async function enableUser(userId: string) {
   try {
     await requireSuperAdmin();
-    const adminClient = createAdminClient();
 
-    const { error } = await adminClient.auth.admin.updateUserById(userId, {
-      ban_duration: 'none',
+    await prisma.userPreference.update({
+      where: { id: userId },
+      data: { bannedUntil: null }
     });
-
-    if (error) {
-      throw new Error(`Failed to enable user: ${error.message}`);
-    }
 
     return {
       success: true,
@@ -445,26 +357,16 @@ export async function enableUser(userId: string) {
 export async function resetUserPassword(userId: string, newPassword: string) {
   try {
     await requireSuperAdmin();
-    const adminClient = createAdminClient();
 
-    // 1. Update in Auth (good practice)
-    await adminClient.auth.admin.updateUserById(userId, {
-      password: newPassword,
-    });
-
-    // 2. Update hash in user_preferences
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    const { error } = await adminClient
-      .from('user_preferences')
-      .update({
-        password_hash: hashedPassword,
-        password_change_required: false
-      })
-      .eq('id', userId);
 
-    if (error) {
-      throw new Error(`Failed to reset password in preferences: ${error.message}`);
-    }
+    await prisma.userPreference.update({
+      where: { id: userId },
+      data: {
+        passwordHash: hashedPassword,
+        passwordChangeRequired: false
+      }
+    });
 
     return {
       success: true,

@@ -1,10 +1,11 @@
-import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 
 export interface WaterIntakeEntry {
   id: string;
   userId: string;
   timestamp: Date;
   amount: number; // in ml
+  glassCount: number;
   createdAt: Date;
 }
 
@@ -13,25 +14,30 @@ export class WaterService {
    * Get today's water intake entries for a user
    */
   static async getTodayEntries(userId: string): Promise<WaterIntakeEntry[]> {
-    const supabase = await createClient();
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
-    const { data, error } = await supabase
-      .from('water_intake')
-      .select('*')
-      .eq('user_id', userId)
-      .gte('timestamp', `${today}T00:00:00`)
-      .lt('timestamp', `${today}T23:59:59`)
-      .order('timestamp', { ascending: false });
+    const data = await prisma.waterIntake.findMany({
+      where: {
+        userId: userId,
+        timestamp: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      },
+      orderBy: {
+        timestamp: 'desc'
+      }
+    });
 
-    if (error) throw error;
-
-    return (data || []).map(entry => ({
+    return data.map((entry: { id: any; userId: any; timestamp: any; amount: any; glassCount: any; createdAt: any; }) => ({
       id: entry.id,
-      userId: entry.user_id,
-      timestamp: new Date(entry.timestamp),
-      amount: entry.amount,
-      createdAt: new Date(entry.created_at),
+      userId: entry.userId,
+      timestamp: entry.timestamp,
+      amount: entry.amount || 250,
+      glassCount: entry.glassCount,
+      createdAt: entry.createdAt,
     }));
   }
 
@@ -39,23 +45,23 @@ export class WaterService {
    * Get all water intake entries for a user
    */
   static async getAllEntries(userId: string, limit = 50): Promise<WaterIntakeEntry[]> {
-    const supabase = await createClient();
+    const data = await prisma.waterIntake.findMany({
+      where: {
+        userId: userId
+      },
+      orderBy: {
+        timestamp: 'desc'
+      },
+      take: limit
+    });
 
-    const { data, error } = await supabase
-      .from('water_intake')
-      .select('*')
-      .eq('user_id', userId)
-      .order('timestamp', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-
-    return (data || []).map(entry => ({
+    return data.map((entry: { id: any; userId: any; timestamp: any; amount: any; glassCount: any; createdAt: any; }) => ({
       id: entry.id,
-      userId: entry.user_id,
-      timestamp: new Date(entry.timestamp),
-      amount: entry.amount,
-      createdAt: new Date(entry.created_at),
+      userId: entry.userId,
+      timestamp: entry.timestamp,
+      amount: entry.amount || 250,
+      glassCount: entry.glassCount,
+      createdAt: entry.createdAt,
     }));
   }
 
@@ -63,26 +69,29 @@ export class WaterService {
    * Add a water intake entry
    */
   static async addEntry(userId: string, amount: number = 250): Promise<WaterIntakeEntry> {
-    const supabase = await createClient();
+    // Assuming 250ml per glass for now if calculating glass count, 
+    // or we might need to update the interface to accept glassCount instead.
+    // The previous implementation took amount/250 implies 1 glass? 
+    // Actually the previous implementation just inserted amount and let glass_count default to 1?
+    // Let's assume standard glass size for now or check if we need to fetch user pref.
+    // For simplicity matching previous behavior:
 
-    const { data, error } = await supabase
-      .from('water_intake')
-      .insert({
-        user_id: userId,
-        amount,
-        timestamp: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
+    const data = await prisma.waterIntake.create({
+      data: {
+        userId: userId,
+        amount: amount,
+        glassCount: 1, // Defaulting to 1 as per previous implicit behavior or schema default
+        timestamp: new Date(),
+      }
+    });
 
     return {
       id: data.id,
-      userId: data.user_id,
-      timestamp: new Date(data.timestamp),
-      amount: data.amount,
-      createdAt: new Date(data.created_at),
+      userId: data.userId,
+      timestamp: data.timestamp,
+      amount: data.amount || 250,
+      glassCount: data.glassCount,
+      createdAt: data.createdAt,
     };
   }
 
@@ -90,14 +99,11 @@ export class WaterService {
    * Delete a water intake entry
    */
   static async deleteEntry(entryId: string): Promise<void> {
-    const supabase = await createClient();
-
-    const { error } = await supabase
-      .from('water_intake')
-      .delete()
-      .eq('id', entryId);
-
-    if (error) throw error;
+    await prisma.waterIntake.delete({
+      where: {
+        id: entryId
+      }
+    });
   }
 
   /**
@@ -105,7 +111,7 @@ export class WaterService {
    */
   static async getTodayCount(userId: string): Promise<number> {
     const entries = await this.getTodayEntries(userId);
-    return entries.length;
+    return entries.reduce((sum, entry) => sum + entry.glassCount, 0);
   }
 
   /**
@@ -113,6 +119,6 @@ export class WaterService {
    */
   static async getTodayTotal(userId: string): Promise<number> {
     const entries = await this.getTodayEntries(userId);
-    return entries.reduce((sum, entry) => sum + entry.amount, 0);
+    return entries.reduce((sum, entry) => sum + (entry.amount || 250), 0);
   }
 }

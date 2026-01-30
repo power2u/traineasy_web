@@ -1,16 +1,21 @@
 'use server';
 
-import { createAdminClient } from '@/lib/supabase/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { UserPreference } from '@/lib/generated/prisma/client';
+import { Meal } from '@/lib/generated/prisma/client';
+import { WaterIntake } from '@/lib/generated/prisma/client';
+import { BodyMeasurement } from '@/lib/generated/prisma/browser';
 
+// Define strict types for return data to ensure type safety on client
 export interface AdminUserDetails {
-    user: any;
-    weightLogs: any[];
-    mealLogs: any[];
-    waterLogs: any[];
-    measurements: any[];
-    membership: any;
+    user: UserPreference;
+    weightLogs: BodyMeasurement[];
+    mealLogs: Meal[];
+    waterLogs: WaterIntake[];
+    measurements: BodyMeasurement[];
+    membership: any; // Using any for now to include custom calculated fields like isExpired
 }
 
 export type AdminUserDetailsResponse =
@@ -32,48 +37,56 @@ export async function getAdminUserDetails(userId: string): Promise<AdminUserDeta
             return { success: false, error: 'Admin access required' };
         }
 
-        // Create admin client for database operations (bypasses RLS)
-        const adminClient = createAdminClient();
+        // Get user profile and preferences
+        const profile = await prisma.userPreference.findUnique({
+            where: { id: userId }
+        });
 
-        // Get user profile and preferences using admin client
-        const { data: profile, error: profileError } = await adminClient
-            .from('user_preferences')
-            .select('*')
-            .eq('id', userId)
-            .single();
-
-        if (profileError || !profile) {
+        if (!profile) {
             return {
                 success: false,
-                error: 'User not found',
-                details: profileError?.message
+                error: 'User not found'
             };
         }
 
         const userProfile = profile;
 
         // Run parallel queries for logs
-        const [mealLogsResult, waterLogsResult, measurementsResult, membershipResult] = await Promise.all([
-            adminClient.from('meals').select('*').eq('user_id', userId).order('date', { ascending: false }),
-            adminClient.from('water_intake').select('*').eq('user_id', userId).order('timestamp', { ascending: false }),
-            adminClient.from('body_measurements').select('*').eq('user_id', userId).order('date', { ascending: false }),
-            adminClient.from('memberships').select(`*, packages (name, price, duration_days, description)`).eq('user_id', userId).eq('is_active', true).single()
+        const [mealLogs, waterLogs, measurements, membership] = await Promise.all([
+            prisma.meal.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
+            prisma.waterIntake.findMany({ where: { userId }, orderBy: { timestamp: 'desc' } }),
+            prisma.bodyMeasurement.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
+            prisma.userMembership.findFirst({
+                where: { userId, status: 'active' },
+                include: { package: true }
+            })
         ]);
 
-        const measurements = measurementsResult.data || [];
-
         // Filter weight measurements from body_measurements for backward compatibility/separate view
-        const weightLogs = measurements.filter(m => m.measurement_type === 'weight');
+        const weightLogs = measurements.filter((m: BodyMeasurement) => m.measurementType === 'weight');
+
+        // Calculate isExpired for membership if it exists
+        let enhancedMembership = null;
+        if (membership) {
+            const now = new Date();
+            const endDate = new Date(membership.endDate);
+            const isExpired = endDate < now || membership.status === 'expired';
+
+            enhancedMembership = {
+                ...membership,
+                isExpired
+            };
+        }
 
         return {
             success: true,
             data: {
                 user: userProfile,
                 weightLogs,
-                mealLogs: mealLogsResult.data || [],
-                waterLogs: waterLogsResult.data || [],
+                mealLogs,
+                waterLogs,
                 measurements, // All body measurements including weight
-                membership: membershipResult.data || null,
+                membership: enhancedMembership,
             }
         };
 
@@ -98,37 +111,17 @@ export async function updateAdminUserProfile(userId: string, profileData: any) {
             return { success: false, error: 'Admin access required' };
         }
 
-        const adminClient = createAdminClient();
+        console.log('Update admin user profile data:', profileData);
 
-        // Check if preferences exist
-        const { data: existing } = await adminClient
-            .from('user_preferences')
-            .select('id')
-            .eq('id', userId)
-            .single();
+        // Remove ID and other immutable or managed fields
+        const { id, email, createdAt, updatedAt, lastSignInAt, lastActiveAt, role, ...dataToUpdate } = profileData;
 
-        let result;
-        if (existing) {
-            result = await adminClient
-                .from('user_preferences')
-                .update(profileData)
-                .eq('id', userId)
-                .select()
-                .single();
-        } else {
-            result = await adminClient
-                .from('user_preferences')
-                .insert({
-                    id: userId,
-                    ...profileData,
-                })
-                .select()
-                .single();
-        }
+        const user = await prisma.userPreference.update({
+            where: { id: userId },
+            data: dataToUpdate
+        });
 
-        if (result.error) throw result.error;
-
-        return { success: true, user: result.data };
+        return { success: true, user };
     } catch (error: any) {
         console.error('Error updating admin user profile:', error);
         return { success: false, error: error.message || 'Failed to update profile' };

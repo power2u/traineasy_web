@@ -44,5 +44,12 @@ export default async function UserProfileEditPage({ params }: PageProps) {
     );
   }
 
-  return <UserProfileEditClient userId={userId} initialData={result.data.user} />;
+  // Convert Prisma Decimal fields to numbers for client compatibility
+  const userData = {
+    ...result.data.user,
+    heightCm: result.data.user.heightCm ? Number(result.data.user.heightCm) : null,
+    goalWeight: result.data.user.goalWeight ? Number(result.data.user.goalWeight) : null,
+  };
+
+  return <UserProfileEditClient userId={userId} initialData={userData} />;
 }

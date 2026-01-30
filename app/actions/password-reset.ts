@@ -1,6 +1,6 @@
 'use server';
 
-import { createAdminClient } from '@/lib/supabase/admin';
+import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { sendEmail } from '@/lib/email/smtp';
@@ -40,18 +40,15 @@ export async function requestPasswordReset(email: string): Promise<PasswordReset
             };
         }
 
-        const adminClient = createAdminClient();
-
         // Check if user exists
-        const { data: user, error: userError } = await adminClient
-            .from('user_preferences')
-            .select('id, email')
-            .eq('email', email)
-            .single();
+        const user = await prisma.userPreference.findUnique({
+            where: { email: email },
+            select: { id: true, email: true }
+        });
 
         // For security, always return success even if user doesn't exist
         // This prevents email enumeration attacks
-        if (userError || !user) {
+        if (!user) {
             console.log(`[Password Reset] User not found for email: ${email}`);
             return {
                 success: true,
@@ -65,28 +62,21 @@ export async function requestPasswordReset(email: string): Promise<PasswordReset
         expiresAt.setHours(expiresAt.getHours() + TOKEN_EXPIRATION_HOURS);
 
         // Invalidate any existing tokens for this user
-        await adminClient
-            .from('password_reset_tokens')
-            .delete()
-            .eq('user_id', user.id)
-            .is('used_at', null);
+        await prisma.passwordResetToken.deleteMany({
+            where: {
+                userId: user.id,
+                usedAt: null
+            }
+        });
 
         // Store new token
-        const { error: tokenError } = await adminClient
-            .from('password_reset_tokens')
-            .insert({
-                user_id: user.id,
+        await prisma.passwordResetToken.create({
+            data: {
+                userId: user.id,
                 token,
-                expires_at: expiresAt.toISOString(),
-            });
-
-        if (tokenError) {
-            console.error('[Password Reset] Error creating token:', tokenError);
-            return {
-                success: false,
-                error: 'Failed to generate reset token. Please try again.'
-            };
-        }
+                expiresAt: expiresAt,
+            }
+        });
 
         // Send password reset email
         // Ensure NEXTAUTH_URL is defined, fallback to localhost in dev if invalid
@@ -155,30 +145,26 @@ export async function validateResetToken(token: string) {
             return { valid: false, error: 'Token is required' };
         }
 
-        const adminClient = createAdminClient();
+        const resetToken = await prisma.passwordResetToken.findUnique({
+            where: { token: token },
+            select: { id: true, userId: true, expiresAt: true, usedAt: true }
+        });
 
-        const { data: resetToken, error } = await adminClient
-            .from('password_reset_tokens')
-            .select('id, user_id, expires_at, used_at')
-            .eq('token', token)
-            .single();
-
-        if (error || !resetToken) {
+        if (!resetToken) {
             return { valid: false, error: 'Invalid or expired token' };
         }
 
         // Check if token has been used
-        if (resetToken.used_at) {
+        if (resetToken.usedAt) {
             return { valid: false, error: 'This reset link has already been used' };
         }
 
         // Check if token has expired
-        const expiresAt = new Date(resetToken.expires_at);
-        if (expiresAt < new Date()) {
+        if (resetToken.expiresAt < new Date()) {
             return { valid: false, error: 'This reset link has expired' };
         }
 
-        return { valid: true, userId: resetToken.user_id };
+        return { valid: true, userId: resetToken.userId };
     } catch (error: any) {
         console.error('[Password Reset] Validation error:', error);
         return { valid: false, error: 'Failed to validate token' };
@@ -213,34 +199,24 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
             };
         }
 
-        const adminClient = createAdminClient();
-
         // Hash the new password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(newPassword, salt);
 
         // Update user's password
-        const { error: updateError } = await adminClient
-            .from('user_preferences')
-            .update({
-                password_hash: hashedPassword,
-                password_change_required: false,
-            })
-            .eq('id', validation.userId);
-
-        if (updateError) {
-            console.error('[Password Reset] Error updating password:', updateError);
-            return {
-                success: false,
-                error: 'Failed to update password. Please try again.'
-            };
-        }
+        await prisma.userPreference.update({
+            where: { id: validation.userId },
+            data: {
+                passwordHash: hashedPassword,
+                passwordChangeRequired: false,
+            }
+        });
 
         // Mark token as used
-        await adminClient
-            .from('password_reset_tokens')
-            .update({ used_at: new Date().toISOString() })
-            .eq('token', token);
+        await prisma.passwordResetToken.updateMany({
+            where: { token: token },
+            data: { usedAt: new Date() }
+        });
 
         return {
             success: true,
@@ -260,17 +236,13 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
  */
 export async function cleanupExpiredTokens() {
     try {
-        const adminClient = createAdminClient();
-
-        const { error } = await adminClient
-            .from('password_reset_tokens')
-            .delete()
-            .lt('expires_at', new Date().toISOString());
-
-        if (error) {
-            console.error('[Password Reset] Cleanup error:', error);
-            return { success: false, error: error.message };
-        }
+        await prisma.passwordResetToken.deleteMany({
+            where: {
+                expiresAt: {
+                    lt: new Date()
+                }
+            }
+        });
 
         console.log('[Password Reset] Expired tokens cleaned up successfully');
         return { success: true };

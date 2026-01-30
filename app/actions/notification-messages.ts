@@ -1,7 +1,9 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { prisma } from '@/lib/prisma';
+import { requireSuperAdmin } from './admin';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export interface NotificationMessage {
   id: string;
@@ -19,28 +21,38 @@ export interface NotificationMessage {
   updated_at: string;
 }
 
-
+// Helper to map Prisma result to NotificationMessage interface
+function mapNotificationMessage(msg: any): NotificationMessage {
+  return {
+    id: msg.id,
+    notification_type: msg.notificationType,
+    title: msg.title,
+    message: msg.message,
+    is_active: msg.isActive,
+    schedule_time: msg.scheduleTime || undefined,
+    repeat_pattern: msg.repeatPattern || undefined,
+    is_enabled: msg.isEnabled,
+    last_sent_at: msg.lastSentAt ? msg.lastSentAt.toISOString() : null,
+    next_send_at: msg.nextSendAt ? msg.nextSendAt.toISOString() : null,
+    created_by: msg.createdBy,
+    created_at: msg.createdAt.toISOString(),
+    updated_at: msg.updatedAt.toISOString(),
+  };
+}
 
 // Get active message for a notification type (used by cron jobs)
 export async function getActiveNotificationMessage(notificationType: string) {
   try {
-    const supabase = await createClient();
-
-    const { data, error } = await supabase
-      .from('notification_messages')
-      .select('*')
-      .eq('notification_type', notificationType)
-      .eq('is_active', true)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error fetching active notification message:', error);
-      throw error;
-    }
+    const data = await prisma.notificationMessage.findFirst({
+      where: {
+        notificationType: notificationType,
+        isActive: true
+      }
+    });
 
     return {
       success: true,
-      message: data as NotificationMessage | null,
+      message: data ? mapNotificationMessage(data) : null,
     };
   } catch (error: any) {
     console.error('Error fetching active notification message:', error);
@@ -55,19 +67,18 @@ export async function getActiveNotificationMessage(notificationType: string) {
 // Admin: Get all notification messages
 export async function getAllNotificationMessages() {
   try {
-    const adminClient = createAdminClient();
+    await requireSuperAdmin();
 
-    const { data, error } = await adminClient
-      .from('notification_messages')
-      .select('*')
-      .order('notification_type', { ascending: true })
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
+    const data = await prisma.notificationMessage.findMany({
+      orderBy: [
+        { notificationType: 'asc' },
+        { createdAt: 'desc' }
+      ]
+    });
 
     return {
       success: true,
-      messages: data as NotificationMessage[],
+      messages: data.map(mapNotificationMessage),
     };
   } catch (error: any) {
     console.error('Error fetching notification messages:', error);
@@ -80,12 +91,6 @@ export async function getAllNotificationMessages() {
 }
 
 // Admin: Create notification message
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-
-// ... (existing code)
-
-// Admin: Create notification message
 export async function createNotificationMessage(
   notificationType: string,
   title: string,
@@ -95,34 +100,30 @@ export async function createNotificationMessage(
   isEnabled?: boolean
 ) {
   try {
+    await requireSuperAdmin();
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user) {
       throw new Error('Not authenticated');
     }
+    const userId = (session.user as any).id;
 
-    const adminClient = createAdminClient();
-
-    const { data, error } = await adminClient
-      .from('notification_messages')
-      .insert({
-        notification_type: notificationType,
+    const data = await prisma.notificationMessage.create({
+      data: {
+        notificationType: notificationType,
         title,
         message,
-        schedule_time: scheduleTime || null,
-        repeat_pattern: repeatPattern || 'daily',
-        is_enabled: isEnabled !== undefined ? isEnabled : true,
-        created_by: session.user.id,
-        is_active: false,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
+        scheduleTime: scheduleTime || null,
+        repeatPattern: repeatPattern || 'daily',
+        isEnabled: isEnabled !== undefined ? isEnabled : true,
+        createdBy: userId,
+        isActive: false,
+      }
+    });
 
     return {
       success: true,
-      message: data as NotificationMessage,
+      message: mapNotificationMessage(data),
       successMessage: 'Notification message created successfully',
     };
   } catch (error: any) {
@@ -141,24 +142,19 @@ export async function updateNotificationMessage(
   message: string
 ) {
   try {
-    const adminClient = createAdminClient();
+    await requireSuperAdmin();
 
-    const { data, error } = await adminClient
-      .from('notification_messages')
-      .update({
+    const data = await prisma.notificationMessage.update({
+      where: { id },
+      data: {
         title,
-        message,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
+        message
+      }
+    });
 
     return {
       success: true,
-      message: data as NotificationMessage,
+      message: mapNotificationMessage(data),
       successMessage: 'Notification message updated successfully',
     };
   } catch (error: any) {
@@ -173,30 +169,28 @@ export async function updateNotificationMessage(
 // Admin: Activate notification message (deactivates others of same type)
 export async function activateNotificationMessage(id: string, notificationType: string) {
   try {
-    const adminClient = createAdminClient();
+    await requireSuperAdmin();
 
-    // First, deactivate all messages of the same type
-    await adminClient
-      .from('notification_messages')
-      .update({ is_active: false })
-      .eq('notification_type', notificationType);
-
-    // Then activate the selected one
-    const { data, error } = await adminClient
-      .from('notification_messages')
-      .update({
-        is_active: true,
-        updated_at: new Date().toISOString(),
+    await prisma.$transaction([
+      prisma.notificationMessage.updateMany({
+        where: { notificationType: notificationType },
+        data: { isActive: false }
+      }),
+      prisma.notificationMessage.update({
+        where: { id },
+        data: { isActive: true }
       })
-      .eq('id', id)
-      .select()
-      .single();
+    ]);
 
-    if (error) throw error;
+    const data = await prisma.notificationMessage.findUnique({
+      where: { id }
+    });
+
+    if (!data) throw new Error("Message not found after activation");
 
     return {
       success: true,
-      message: data as NotificationMessage,
+      message: mapNotificationMessage(data),
       successMessage: 'Notification message activated successfully',
     };
   } catch (error: any) {
@@ -211,23 +205,16 @@ export async function activateNotificationMessage(id: string, notificationType: 
 // Admin: Deactivate notification message
 export async function deactivateNotificationMessage(id: string) {
   try {
-    const adminClient = createAdminClient();
+    await requireSuperAdmin();
 
-    const { data, error } = await adminClient
-      .from('notification_messages')
-      .update({
-        is_active: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
+    const data = await prisma.notificationMessage.update({
+      where: { id },
+      data: { isActive: false }
+    });
 
     return {
       success: true,
-      message: data as NotificationMessage,
+      message: mapNotificationMessage(data),
       successMessage: 'Notification message deactivated successfully',
     };
   } catch (error: any) {
@@ -242,14 +229,11 @@ export async function deactivateNotificationMessage(id: string) {
 // Admin: Delete notification message
 export async function deleteNotificationMessage(id: string) {
   try {
-    const adminClient = createAdminClient();
+    await requireSuperAdmin();
 
-    const { error } = await adminClient
-      .from('notification_messages')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
+    await prisma.notificationMessage.delete({
+      where: { id }
+    });
 
     return {
       success: true,

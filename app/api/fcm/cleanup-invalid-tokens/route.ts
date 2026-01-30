@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 /**
  * Cleanup invalid FCM tokens for the current user
@@ -7,17 +9,16 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
       );
     }
 
+    const userId = (session.user as any).id;
     const { invalidTokens } = await request.json();
 
     if (!invalidTokens || !Array.isArray(invalidTokens)) {
@@ -28,15 +29,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Delete invalid tokens
-    const { error: deleteError } = await supabase
-      .from('fcm_tokens')
-      .delete()
-      .eq('user_id', user.id)
-      .in('token', invalidTokens);
-
-    if (deleteError) {
-      throw deleteError;
-    }
+    await prisma.fcmToken.deleteMany({
+      where: {
+        userId: userId,
+        token: {
+          in: invalidTokens
+        }
+      }
+    });
 
     return NextResponse.json({
       success: true,

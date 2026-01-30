@@ -26,8 +26,8 @@ export function ActivityCalendar({ data, onDateSelect, selectedDate }: ActivityC
     weightLogs: data.weightLogs.length, // Weight data from body_measurements
     waterLogs: data.waterLogs.length,
     measurements: data.measurements.length,
-    weightMeasurements: data.measurements.filter(m => m.measurement_type === 'weight').length,
-    nonWeightMeasurements: data.measurements.filter(m => m.measurement_type !== 'weight').length,
+    weightMeasurements: data.measurements.filter(m => m.measurementType === 'weight').length,
+    nonWeightMeasurements: data.measurements.filter(m => m.measurementType !== 'weight').length,
     sampleMeasurement: data.measurements[0]
   });
 
@@ -40,32 +40,39 @@ export function ActivityCalendar({ data, onDateSelect, selectedDate }: ActivityC
   // Get activity data for a specific date
   const getActivityForDate = (date: Date) => {
     const dateStr = date.toLocaleDateString('en-CA'); // Use local date consistently
-    
+
     // Debug logging for measurements
     if (data.measurements.length > 0) {
-      console.log('Sample measurement data:', data.measurements[0]);
-      console.log('Looking for date:', dateStr);
+      // console.log('Sample measurement data:', data.measurements[0]);
+      // console.log('Looking for date:', dateStr);
     }
-    
-    const mealActivity = data.mealLogs.find(meal => meal.date === dateStr);
-    // Weight data comes from body_measurements table with measurement_type = 'weight'
-    const weightActivity = data.measurements.filter(measurement => 
-      measurement.measurement_type === 'weight' && measurement.date === dateStr
-    );
-    const waterActivity = data.waterLogs.filter(water => 
+
+    // Meal date is usually DateTime object or string YYYY-MM-DDT... 
+    // If it's pure Date from Prisma (and serialised), it is ISO string.
+    // Need to cut time if it exists.
+    const mealActivity = data.mealLogs.find(meal => {
+      const d = new Date(meal.date);
+      return d.toLocaleDateString('en-CA') === dateStr;
+    });
+
+    // Weight data comes from body_measurements table with measurementType = 'weight'
+    const weightActivity = data.measurements.filter(measurement => {
+      const d = new Date(measurement.date);
+      return measurement.measurementType === 'weight' && d.toLocaleDateString('en-CA') === dateStr;
+    });
+
+    const waterActivity = data.waterLogs.filter(water =>
       getLocalDateStr(water.timestamp) === dateStr
     );
     // Non-weight measurements (biceps, chest, waist, etc.)
     const measurementActivity = data.measurements.filter(measurement => {
       // Exclude weight measurements as they're handled separately above
-      if (measurement.measurement_type === 'weight') return false;
-      
-      // Body measurements table uses 'date' field directly (YYYY-MM-DD format)
+      if (measurement.measurementType === 'weight') return false;
+
+      // Body measurements table uses 'date' field directly
       if (measurement.date) {
-        const matches = measurement.date === dateStr;
-        if (matches) {
-          console.log('Found measurement match:', { measurementDate: measurement.date, searchDate: dateStr, measurement });
-        }
+        const d = new Date(measurement.date);
+        const matches = d.toLocaleDateString('en-CA') === dateStr;
         return matches;
       }
       return false;
@@ -84,19 +91,19 @@ export function ActivityCalendar({ data, onDateSelect, selectedDate }: ActivityC
   const calendarDays = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
-    
+
     const firstDay = new Date(year, month, 1);
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
-    
+
     const days = [];
     const current = new Date(startDate);
-    
+
     for (let i = 0; i < 42; i++) {
       days.push(new Date(current));
       current.setDate(current.getDate() + 1);
     }
-    
+
     return days;
   }, [currentMonth]);
 
@@ -165,17 +172,17 @@ export function ActivityCalendar({ data, onDateSelect, selectedDate }: ActivityC
             {day}
           </div>
         ))}
-        
+
         {/* Calendar Days */}
         {calendarDays.map((date, index) => {
           const activity = getActivityForDate(date);
-          const mealCompletion = activity.meals ? 
+          const mealCompletion = activity.meals ?
             [
-              activity.meals.breakfast_completed,
-              activity.meals.snack1_completed,
-              activity.meals.lunch_completed,
-              activity.meals.snack2_completed,
-              activity.meals.dinner_completed
+              activity.meals.breakfastCompleted,
+              activity.meals.snack1Completed,
+              activity.meals.lunchCompleted,
+              activity.meals.snack2Completed,
+              activity.meals.dinnerCompleted
             ].filter(Boolean).length : 0;
 
           return (
@@ -190,28 +197,27 @@ export function ActivityCalendar({ data, onDateSelect, selectedDate }: ActivityC
               `}
             >
               <div className="text-sm font-medium">{date.getDate()}</div>
-              
+
               {/* Activity Indicators */}
               <div className="absolute bottom-1 left-1 right-1 flex justify-center gap-1">
                 {/* Meal Activity */}
                 {activity.meals && (
-                  <div className={`w-2 h-2 rounded-full ${
-                    mealCompletion >= 4 ? 'bg-green-500' :
-                    mealCompletion >= 2 ? 'bg-yellow-500' :
-                    mealCompletion >= 1 ? 'bg-orange-500' : 'bg-red-300'
-                  }`} />
+                  <div className={`w-2 h-2 rounded-full ${mealCompletion >= 4 ? 'bg-green-500' :
+                      mealCompletion >= 2 ? 'bg-yellow-500' :
+                        mealCompletion >= 1 ? 'bg-orange-500' : 'bg-red-300'
+                    }`} />
                 )}
-                
+
                 {/* Weight Activity */}
                 {activity.weight.length > 0 && (
                   <div className="w-2 h-2 rounded-full bg-blue-500" />
                 )}
-                
+
                 {/* Water Activity */}
                 {activity.water.length > 0 && (
                   <div className="w-2 h-2 rounded-full bg-cyan-500" />
                 )}
-                
+
                 {/* Measurement Activity */}
                 {activity.measurements.length > 0 && (
                   <div className="w-2 h-2 rounded-full bg-purple-500" />
@@ -260,9 +266,9 @@ export function ActivityCalendar({ data, onDateSelect, selectedDate }: ActivityC
                 <Ruler className="w-3 h-3 text-purple-600 dark:text-purple-400" />
               </div>
               <h4 className="text-sm font-semibold">
-                Measurements for {selectedDate.toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric' 
+                Measurements for {selectedDate.toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric'
                 })}
               </h4>
             </div>
@@ -270,7 +276,7 @@ export function ActivityCalendar({ data, onDateSelect, selectedDate }: ActivityC
               {selectedActivity.measurements.map((measurement, index) => (
                 <div key={index} className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                   <div className="text-xs font-medium capitalize text-purple-700 dark:text-purple-300">
-                    {measurement.measurement_type.replace('_', ' ')}
+                    {measurement.measurementType.replace('_', ' ')}
                   </div>
                   <div className="text-sm font-bold text-purple-600 dark:text-purple-400">
                     {measurement.value} {measurement.unit}

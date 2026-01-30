@@ -1,8 +1,8 @@
 'use server';
 
-import { createAdminClient } from '@/lib/supabase/admin';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export async function saveFCMToken(token: string) {
   try {
@@ -14,16 +14,10 @@ export async function saveFCMToken(token: string) {
 
     const userId = (session.user as any).id;
 
-    // Use admin client for database operations to bypass RLS
-    const adminClient = createAdminClient();
-
     // Check if token already exists for this user
-    const { data: existingToken } = await adminClient
-      .from('fcm_tokens')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('token', token)
-      .single();
+    const existingToken = await prisma.fcmToken.findFirst({
+      where: { userId, token }
+    });
 
     if (existingToken) {
       console.log('FCM token already exists for user');
@@ -31,18 +25,13 @@ export async function saveFCMToken(token: string) {
     }
 
     // Insert new token
-    const { error: insertError } = await adminClient
-      .from('fcm_tokens')
-      .upsert({
-        user_id: userId,
-        token: token,
-        created_at: new Date().toISOString()
-      });
-
-    if (insertError) {
-      console.error('Error saving FCM token:', insertError);
-      throw insertError;
-    }
+    await prisma.fcmToken.create({
+      data: {
+        userId,
+        token,
+        lastUsedAt: new Date()
+      }
+    });
 
     console.log('✅ FCM token saved successfully');
     return { success: true, message: 'Token saved successfully' };
@@ -63,19 +52,9 @@ export async function removeFCMToken(token: string) {
 
     const userId = (session.user as any).id;
 
-    // Use admin client for database operations to bypass RLS
-    const adminClient = createAdminClient();
-
-    const { error } = await adminClient
-      .from('fcm_tokens')
-      .delete()
-      .eq('user_id', userId)
-      .eq('token', token);
-
-    if (error) {
-      console.error('Error removing FCM token:', error);
-      throw error;
-    }
+    await prisma.fcmToken.deleteMany({
+      where: { userId, token }
+    });
 
     console.log('✅ FCM token removed successfully');
     return { success: true, message: 'Token removed successfully' };
@@ -96,19 +75,9 @@ export async function getUserPreferences() {
 
     const userId = (session.user as any).id;
 
-    // Use admin client for database operations to bypass RLS
-    const adminClient = createAdminClient();
-
-    const { data, error } = await adminClient
-      .from('user_preferences')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      console.error('Error fetching user preferences:', error);
-      throw error;
-    }
+    const data = await prisma.userPreference.findUnique({
+      where: { id: userId }
+    });
 
     return { success: true, data };
 
@@ -128,35 +97,18 @@ export async function updateUserPreferences(preferences: any) {
 
     const userId = (session.user as any).id;
 
-    // Use admin client for database operations to bypass RLS
-    const adminClient = createAdminClient();
+    // Remove id from preferences to avoid update error
+    const { id, ...dataToUpdate } = preferences;
 
-    // Check if row exists first
-    const { data: existing } = await adminClient
-      .from('user_preferences')
-      .select('id')
-      .eq('id', userId)
-      .single();
-
-    if (existing) {
-      // Row exists, update it
-      const { error } = await adminClient
-        .from('user_preferences')
-        .update(preferences)
-        .eq('id', userId);
-
-      if (error) throw error;
-    } else {
-      // Row doesn't exist, insert it
-      const { error } = await adminClient
-        .from('user_preferences')
-        .insert({
-          id: userId,
-          ...preferences,
-        });
-
-      if (error) throw error;
-    }
+    await prisma.userPreference.upsert({
+      where: { id: userId },
+      update: dataToUpdate,
+      create: {
+        id: userId,
+        email: session.user.email!,
+        ...dataToUpdate
+      }
+    });
 
     return { success: true, message: 'Preferences updated successfully' };
 

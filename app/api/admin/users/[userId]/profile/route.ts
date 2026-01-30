@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/admin';
+import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -25,9 +25,6 @@ export async function PUT(
     const { userId } = await params;
     const profileData = await request.json();
 
-    // Create admin client for database operations (bypasses RLS)
-    const adminClient = createAdminClient();
-
     // Remove fields that shouldn't be updated
     const {
       id,
@@ -39,28 +36,24 @@ export async function PUT(
 
     console.log(`[Admin Profile Update] ${session.user.email} updating profile for user ${userId}`);
 
+    // Convert snake_case to camelCase for Prisma
+    const prismaUpdateData: any = {};
+    Object.keys(updateData).forEach(key => {
+      // Convert snake_case to camelCase
+      const camelKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+      prismaUpdateData[camelKey] = updateData[key];
+    });
+
     // Use upsert to handle both update and insert cases
-    const upsertData = {
-      id: userId,
-      ...updateData
-    };
-
-    const { data: updatedProfile, error: updateError } = await adminClient
-      .from('user_preferences')
-      .upsert(upsertData, {
-        onConflict: 'id',
-        ignoreDuplicates: false
-      })
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error('Profile upsert error:', updateError);
-      return NextResponse.json({
-        error: 'Failed to update profile',
-        details: updateError.message
-      }, { status: 500 });
-    }
+    const updatedProfile = await prisma.userPreference.upsert({
+      where: { id: userId },
+      update: prismaUpdateData,
+      create: {
+        id: userId,
+        email: email || `user_${userId}@temp.com`, // Fallback email
+        ...prismaUpdateData
+      }
+    });
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { updateLastActive } from "@/lib/utils/activity-tracker";
@@ -23,27 +23,31 @@ async function checkAuth(userId: string) {
 export async function getTodayWaterEntries(userId: string) {
   try {
     await checkAuth(userId);
-    const supabase = await createClient();
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
-    const { data, error } = await supabase
-      .from('water_intake')
-      .select('*')
-      .eq('user_id', userId)
-      .gte('timestamp', `${today}T00:00:00`)
-      .lt('timestamp', `${today}T23:59:59`)
-      .order('timestamp', { ascending: false });
-
-    if (error) throw error;
+    const data = await prisma.waterIntake.findMany({
+      where: {
+        userId: userId,
+        timestamp: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      },
+      orderBy: {
+        timestamp: 'desc'
+      }
+    });
 
     return {
       success: true,
-      entries: (data || []).map(entry => ({
+      entries: data.map(entry => ({
         id: entry.id,
-        userId: entry.user_id,
-        timestamp: new Date(entry.timestamp).toISOString(),
-        glassCount: entry.glass_count || 1,
-        createdAt: new Date(entry.created_at).toISOString(),
+        userId: entry.userId,
+        timestamp: entry.timestamp.toISOString(),
+        glassCount: entry.glassCount,
+        createdAt: entry.createdAt.toISOString(),
       })),
     };
   } catch (error: any) {
@@ -54,25 +58,25 @@ export async function getTodayWaterEntries(userId: string) {
 export async function getAllWaterEntries(userId: string, limit = 50) {
   try {
     await checkAuth(userId);
-    const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from('water_intake')
-      .select('*')
-      .eq('user_id', userId)
-      .order('timestamp', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
+    const data = await prisma.waterIntake.findMany({
+      where: {
+        userId: userId
+      },
+      orderBy: {
+        timestamp: 'desc'
+      },
+      take: limit
+    });
 
     return {
       success: true,
-      entries: (data || []).map(entry => ({
+      entries: data.map(entry => ({
         id: entry.id,
-        userId: entry.user_id,
-        timestamp: new Date(entry.timestamp).toISOString(),
-        glassCount: entry.glass_count || 1,
-        createdAt: new Date(entry.created_at).toISOString(),
+        userId: entry.userId,
+        timestamp: entry.timestamp.toISOString(),
+        glassCount: entry.glassCount,
+        createdAt: entry.createdAt.toISOString(),
       })),
     };
   } catch (error: any) {
@@ -83,19 +87,14 @@ export async function getAllWaterEntries(userId: string, limit = 50) {
 export async function addWaterEntry(userId: string, glassCount: number = 1) {
   try {
     await checkAuth(userId);
-    const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from('water_intake')
-      .insert({
-        user_id: userId,
-        glass_count: glassCount,
-        timestamp: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
+    const data = await prisma.waterIntake.create({
+      data: {
+        userId: userId,
+        glassCount: glassCount,
+        timestamp: new Date(),
+      }
+    });
 
     // Track activity
     await updateLastActive(userId);
@@ -104,10 +103,10 @@ export async function addWaterEntry(userId: string, glassCount: number = 1) {
       success: true,
       entry: {
         id: data.id,
-        userId: data.user_id,
-        timestamp: new Date(data.timestamp).toISOString(),
-        glassCount: data.glass_count || 1,
-        createdAt: new Date(data.created_at).toISOString(),
+        userId: data.userId,
+        timestamp: data.timestamp.toISOString(),
+        glassCount: data.glassCount,
+        createdAt: data.createdAt.toISOString(),
       },
     };
   } catch (error: any) {
@@ -124,15 +123,12 @@ export async function deleteWaterEntry(entryId: string) {
     }
     const userId = (session.user as any).id;
 
-    const supabase = await createClient();
-
-    const { error } = await supabase
-      .from('water_intake')
-      .delete()
-      .eq('id', entryId)
-      .eq('user_id', userId); // SECURITY: Ensure ownership
-
-    if (error) throw error;
+    await prisma.waterIntake.deleteMany({
+      where: {
+        id: entryId,
+        userId: userId // SECURITY: Ensure ownership
+      }
+    });
 
     return { success: true };
   } catch (error: any) {
@@ -167,21 +163,19 @@ export async function getTodayWaterTotal(userId: string) {
 export async function getWaterTarget(userId: string) {
   try {
     await checkAuth(userId);
-    const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select('daily_water_target')
-      .eq('id', userId)
-      .single();
+    const data = await prisma.userPreference.findUnique({
+      where: { id: userId },
+      select: { dailyWaterTarget: true }
+    });
 
-    if (error) {
-      console.warn(`[getWaterTarget] Error fetching target for ID: ${userId}, error: ${error.message}`);
+    if (!data) {
+      console.warn(`[getWaterTarget] User not found: ${userId}`);
       return { success: true, target: 14 }; // Default fallback
     }
 
-    // Default to 8 if not set (db default is 8, but just in case)
-    return { success: true, target: data?.daily_water_target || 8 };
+    // Default to 8 if not set (db default is 2000ml, converted to ~8 glasses)
+    return { success: true, target: Math.round(data.dailyWaterTarget / 250) || 8 };
   } catch (error: any) {
     return { success: false, error: error.message, target: 14 };
   }
@@ -190,14 +184,14 @@ export async function getWaterTarget(userId: string) {
 export async function updateWaterTarget(userId: string, targetGlasses: number) {
   try {
     await checkAuth(userId);
-    const supabase = await createClient();
 
-    const { error } = await supabase
-      .from('user_preferences')
-      .update({ daily_water_target: targetGlasses })
-      .eq('id', userId);
+    // Convert glasses to ml (250ml per glass)
+    const targetMl = targetGlasses * 250;
 
-    if (error) throw error;
+    await prisma.userPreference.update({
+      where: { id: userId },
+      data: { dailyWaterTarget: targetMl }
+    });
 
     return { success: true };
   } catch (error: any) {

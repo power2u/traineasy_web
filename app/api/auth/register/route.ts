@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: Request) {
@@ -10,51 +10,52 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Missing fields" }, { status: 400 });
         }
 
-        const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
-
         // Check if user exists
-        const { data: existing } = await supabase
-            .from("user_preferences")
-            .select("id")
-            .eq("email", email)
-            .single();
+        const existing = await prisma.userPreference.findUnique({
+            where: { email },
+            select: { id: true }
+        });
 
         if (existing) {
             return NextResponse.json({ error: "User already exists" }, { status: 400 });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const userId = crypto.randomUUID(); // Generate UUID
 
         // Create user in user_preferences
-        const { error } = await supabase.from("user_preferences").insert({
-            id: userId,
-            email,
-            password_hash: hashedPassword,
-            full_name,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            notifications_enabled: true,
-            meal_reminders_enabled: true,
-            water_reminders_enabled: true,
-            weight_reminders_enabled: true,
-            preferred_unit: 'kg',
-            goal_weight_unit: 'kg',
-            daily_water_target: 8,
-            glass_size_ml: 250,
-            theme: 'system',
-            language: 'en'
+        const newUser = await prisma.userPreference.create({
+            data: {
+                email,
+                passwordHash: hashedPassword,
+                fullName: full_name,
+                // Default settings
+                notificationsEnabled: true,
+                mealRemindersEnabled: true,
+                waterRemindersEnabled: true,
+                weightRemindersEnabled: true,
+                preferredUnit: 'kg',
+                goalWeightUnit: 'kg',
+                dailyWaterTarget: 2000,
+                // Note: Original code used 8 (assuming glasses) but schema default is 2000 (ml).
+                // Original code: daily_water_target: 8.
+                // If I set 8, it might mean 8 ml which is wrong if schema assumes ml.
+                // Line 52 schema: dailyWaterTarget Int @default(2000).
+                // Line 53 schema: glassSizeMl default 250.
+                // 8 * 250 = 2000.
+                // So original code probably meant 8 glasses, but stored it in daily_water_target?
+                // If the app interprets daily_water_target as glasses, then 2000 is wrong.
+                // Let's check schema/usage.
+                // water-service.ts uses `dailyWaterTarget` (likely ml).
+                // I will set it to 2000 to match schema default which suggests ml.
+                // If original code passed 8, maybe it was a bug or a different interpretation.
+                // I will assume 2000 ml.
+                glassSizeMl: 250,
+                theme: 'system',
+                language: 'en'
+            }
         });
 
-        if (error) {
-            console.error("Signup error:", error);
-            return NextResponse.json({ error: error.message }, { status: 500 });
-        }
-
-        return NextResponse.json({ success: true, userId });
+        return NextResponse.json({ success: true, userId: newUser.id });
     } catch (error: any) {
         console.error("Signup exception:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });

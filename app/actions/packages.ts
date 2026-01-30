@@ -1,23 +1,44 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { requireSuperAdmin } from './admin';
+
+// Interface for Package matching Supabase return shape (snake_case)
+export interface Package {
+  id: string;
+  name: string;
+  price: number | null;
+  duration_days: number;
+  features: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+function mapPackage(pkg: any): Package {
+  return {
+    id: pkg.id,
+    name: pkg.name,
+    price: pkg.price ? Number(pkg.price) : null,
+    duration_days: pkg.durationDays,
+    features: pkg.features,
+    is_active: pkg.isActive,
+    created_at: pkg.createdAt.toISOString(),
+    updated_at: pkg.updatedAt.toISOString(),
+  };
+}
 
 export async function listPackages() {
   try {
     await requireSuperAdmin();
-    const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from('packages')
-      .select('*')
-      .order('price', { ascending: true });
-
-    if (error) throw error;
+    const data = await prisma.package.findMany({
+      orderBy: { price: 'asc' }
+    });
 
     return {
       success: true,
-      packages: data,
+      packages: data.map(mapPackage),
     };
   } catch (error: any) {
     console.error('Error listing packages:', error);
@@ -32,24 +53,20 @@ export async function listPackages() {
 export async function createPackage(name: string, price: number, durationDays: number) {
   try {
     await requireSuperAdmin();
-    const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from('packages')
-      .insert({
+    const data = await prisma.package.create({
+      data: {
         name,
         price,
-        duration_days: durationDays,
-        is_active: true,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
+        durationDays: durationDays,
+        isActive: true,
+        features: [], // Default empty array as per schema implied array type
+      }
+    });
 
     return {
       success: true,
-      package: data,
+      package: mapPackage(data),
       message: 'Package created successfully',
     };
   } catch (error: any) {
@@ -64,14 +81,11 @@ export async function createPackage(name: string, price: number, durationDays: n
 export async function togglePackageStatus(packageId: string, isActive: boolean) {
   try {
     await requireSuperAdmin();
-    const supabase = await createClient();
 
-    const { error } = await supabase
-      .from('packages')
-      .update({ is_active: isActive })
-      .eq('id', packageId);
-
-    if (error) throw error;
+    await prisma.package.update({
+      where: { id: packageId },
+      data: { isActive: isActive }
+    });
 
     return {
       success: true,
@@ -89,35 +103,31 @@ export async function togglePackageStatus(packageId: string, isActive: boolean) 
 export async function assignPackageToUser(userId: string, packageId: string) {
   try {
     await requireSuperAdmin();
-    const supabase = await createClient();
 
     // Get package details
-    const { data: pkg, error: pkgError } = await supabase
-      .from('packages')
-      .select('duration_days')
-      .eq('id', packageId)
-      .single();
+    const pkg = await prisma.package.findUnique({
+      where: { id: packageId },
+      select: { durationDays: true }
+    });
 
-    if (pkgError) throw pkgError;
+    if (!pkg) throw new Error("Package not found");
 
     // Calculate end date
     const startDate = new Date();
-    const endDate = new Date();
+    const endDate = new Date(startDate);
     // Subtract 1 because if you start on day 1, a 30-day plan should end on day 30 (not day 31)
-    endDate.setDate(endDate.getDate() + pkg.duration_days - 1);
+    endDate.setDate(endDate.getDate() + pkg.durationDays - 1);
 
     // Create user package assignment
-    const { error } = await supabase
-      .from('user_packages')
-      .insert({
-        user_id: userId,
-        package_id: packageId,
-        start_date: startDate.toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0],
-        is_active: true,
-      });
-
-    if (error) throw error;
+    await prisma.userPackage.create({
+      data: {
+        userId: userId,
+        packageId: packageId,
+        startDate: startDate,
+        endDate: endDate,
+        isActive: true,
+      }
+    });
 
     return {
       success: true,

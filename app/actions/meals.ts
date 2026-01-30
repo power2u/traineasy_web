@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { updateLastActive } from "@/lib/utils/activity-tracker";
@@ -15,38 +15,33 @@ async function checkAuth(userId: string) {
 export async function getTodayMeals(userId: string) {
   try {
     await checkAuth(userId);
-    const supabase = await createClient();
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-    const { data, error } = await supabase
-      .from('meals')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('date', today)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      // PGRST116 is "not found" error, which is ok
-      throw error;
-    }
+    const data = await prisma.meal.findFirst({
+      where: {
+        userId: userId,
+        date: startOfDay
+      }
+    });
 
     return {
       success: true,
       meals: data
         ? {
           id: data.id,
-          date: data.date,
-          breakfast_completed: data.breakfast_completed,
-          breakfast_time: data.breakfast_time,
-          snack1_completed: data.snack1_completed,
-          snack1_time: data.snack1_time,
-          lunch_completed: data.lunch_completed,
-          lunch_time: data.lunch_time,
-          snack2_completed: data.snack2_completed,
-          snack2_time: data.snack2_time,
-          dinner_completed: data.dinner_completed,
-          dinner_time: data.dinner_time,
-          notes: data.notes,
+          date: data.date.toISOString().split('T')[0],
+          breakfast_completed: data.breakfastCompleted,
+          breakfast_time: data.breakfastTime?.toISOString() || null,
+          snack1_completed: data.snack1Completed,
+          snack1_time: data.snack1Time?.toISOString() || null,
+          lunch_completed: data.lunchCompleted,
+          lunch_time: data.lunchTime?.toISOString() || null,
+          snack2_completed: data.snack2Completed,
+          snack2_time: data.snack2Time?.toISOString() || null,
+          dinner_completed: data.dinnerCompleted,
+          dinner_time: data.dinnerTime?.toISOString() || null,
+          notes: null,
         }
         : null,
     };
@@ -62,40 +57,39 @@ export async function toggleMeal(
 ) {
   try {
     await checkAuth(userId);
-    const supabase = await createClient();
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-    // Check if today's record exists
-    const { data: existing } = await supabase
-      .from('meals')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('date', today)
-      .single();
+    // Map mealType string to model fields
+    const completedField = `${mealType}Completed`;
+    const timeField = `${mealType}Time`;
 
     const updateData = {
-      [`${mealType}_completed`]: completed,
-      [`${mealType}_time`]: completed ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString(),
+      [completedField]: completed,
+      [timeField]: completed ? new Date() : null,
+      // updated_at is auto-handled by Prisma @updatedAt
     };
 
+    const existing = await prisma.meal.findFirst({
+      where: {
+        userId: userId,
+        date: startOfDay
+      }
+    });
+
     if (existing) {
-      // Update existing record
-      const { error } = await supabase
-        .from('meals')
-        .update(updateData)
-        .eq('id', existing.id);
-
-      if (error) throw error;
-    } else {
-      // Create new record
-      const { error } = await supabase.from('meals').insert({
-        user_id: userId,
-        date: today,
-        ...updateData,
+      await prisma.meal.update({
+        where: { id: existing.id },
+        data: updateData
       });
-
-      if (error) throw error;
+    } else {
+      await prisma.meal.create({
+        data: {
+          userId: userId,
+          date: startOfDay,
+          ...updateData
+        }
+      });
     }
 
     // Track activity
@@ -110,23 +104,19 @@ export async function toggleMeal(
 export async function getMealReminders(userId: string) {
   try {
     await checkAuth(userId);
-    const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from('meal_reminders')
-      .select('*')
-      .eq('user_id', userId)
-      .order('reminder_time', { ascending: true });
-
-    if (error) throw error;
+    const data = await prisma.mealReminder.findMany({
+      where: { userId: userId },
+      orderBy: { reminderTime: 'asc' }
+    });
 
     return {
       success: true,
-      reminders: (data || []).map((r) => ({
+      reminders: (data || []).map((r: { id: any; mealType: any; reminderTime: any; isActive: any; }) => ({
         id: r.id,
-        meal_type: r.meal_type,
-        reminder_time: r.reminder_time,
-        is_active: r.is_active,
+        meal_type: r.mealType,
+        reminder_time: r.reminderTime,
+        is_active: r.isActive,
       })),
     };
   } catch (error: any) {
@@ -141,22 +131,25 @@ export async function setMealReminder(
 ) {
   try {
     await checkAuth(userId);
-    const supabase = await createClient();
 
-    // Upsert (insert or update)
-    const { error } = await supabase.from('meal_reminders').upsert(
-      {
-        user_id: userId,
-        meal_type: mealType,
-        reminder_time: reminderTime,
-        is_active: true,
+    await prisma.mealReminder.upsert({
+      where: {
+        userId_mealType: {
+          userId: userId,
+          mealType: mealType
+        }
       },
-      {
-        onConflict: 'user_id,meal_type',
+      create: {
+        userId: userId,
+        mealType: mealType,
+        reminderTime: reminderTime,
+        isActive: true
+      },
+      update: {
+        reminderTime: reminderTime,
+        isActive: true
       }
-    );
-
-    if (error) throw error;
+    });
 
     return { success: true };
   } catch (error: any) {
@@ -166,30 +159,26 @@ export async function setMealReminder(
 
 export async function toggleReminderActive(reminderId: string, isActive: boolean) {
   try {
-    // We need to verify that this reminder belongs to the user.
-    // Fetch user from session
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       throw new Error("Unauthorized");
     }
     const userId = (session.user as any).id;
 
-    const supabase = await createClient();
+    // Use updateMany for security (ensure user owns the reminder)
+    const result = await prisma.mealReminder.updateMany({
+      where: {
+        id: reminderId,
+        userId: userId
+      },
+      data: {
+        isActive: isActive
+      }
+    });
 
-    // Verify ownership indirectly by using user_id in the update query (if possible) or check first?
-    // Safer to check ownership or include user_id in the condition
-
-    // Attempt update with user_id check
-    // We don't have user_id on the record unless we select it first, OR we assume we can add .eq('user_id', userId) to update
-    // But table 'meal_reminders' has 'user_id' column.
-
-    const { error } = await supabase
-      .from('meal_reminders')
-      .update({ is_active: isActive })
-      .eq('id', reminderId)
-      .eq('user_id', userId); // SECURITY: Ensure we only update own reminders
-
-    if (error) throw error;
+    if (result.count === 0) {
+      throw new Error("Reminder not found or unauthorized");
+    }
 
     return { success: true };
   } catch (error: any) {
@@ -200,32 +189,28 @@ export async function toggleReminderActive(reminderId: string, isActive: boolean
 export async function getMealsHistory(userId: string, limit = 30) {
   try {
     await checkAuth(userId);
-    const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from('meals')
-      .select('*')
-      .eq('user_id', userId)
-      .order('date', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
+    const data = await prisma.meal.findMany({
+      where: { userId: userId },
+      orderBy: { date: 'desc' },
+      take: limit
+    });
 
     return {
       success: true,
-      history: (data || []).map((m) => ({
-        date: m.date,
-        breakfast_completed: m.breakfast_completed,
-        snack1_completed: m.snack1_completed,
-        lunch_completed: m.lunch_completed,
-        snack2_completed: m.snack2_completed,
-        dinner_completed: m.dinner_completed,
+      history: (data || []).map((m: { date: { toISOString: () => string; }; breakfastCompleted: any; snack1Completed: any; lunchCompleted: any; snack2Completed: any; dinnerCompleted: any; }) => ({
+        date: m.date.toISOString().split('T')[0],
+        breakfast_completed: m.breakfastCompleted,
+        snack1_completed: m.snack1Completed,
+        lunch_completed: m.lunchCompleted,
+        snack2_completed: m.snack2Completed,
+        dinner_completed: m.dinnerCompleted,
         total_completed:
-          (m.breakfast_completed ? 1 : 0) +
-          (m.snack1_completed ? 1 : 0) +
-          (m.lunch_completed ? 1 : 0) +
-          (m.snack2_completed ? 1 : 0) +
-          (m.dinner_completed ? 1 : 0),
+          (m.breakfastCompleted ? 1 : 0) +
+          (m.snack1Completed ? 1 : 0) +
+          (m.lunchCompleted ? 1 : 0) +
+          (m.snack2Completed ? 1 : 0) +
+          (m.dinnerCompleted ? 1 : 0),
       })),
     };
   } catch (error: any) {

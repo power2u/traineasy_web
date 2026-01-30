@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cronManager } from '@/lib/cron/local-cron-manager';
-import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 
 /**
  * Sync cron jobs when user logs in (DISABLED - using API-based system instead)
@@ -18,18 +18,21 @@ export async function POST(request: Request) {
     }
 
     // Log user activity for login tracking
-    const supabase = await createClient();
+    // NOTE: user_activity table doesn't exist in schema, commenting out for now
+    // If you need this functionality, add user_activity table to schema
+    /*
     try {
-      await supabase
-        .from('user_activity')
-        .insert({
-          user_id: userId,
-          activity_type: 'login',
-          activity_data: { note: 'Using API-based notification system' },
-        });
+      await prisma.userActivity.create({
+        data: {
+          userId: userId,
+          activityType: 'login',
+          activityData: { note: 'Using API-based notification system' },
+        }
+      });
     } catch (activityError) {
       console.warn('Failed to log user activity:', activityError);
     }
+    */
 
     // Return success - we're using the API-based notification system now
     return NextResponse.json({

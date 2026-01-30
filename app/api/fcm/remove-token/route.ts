@@ -1,46 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    
-    // Get the current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
       );
     }
 
+    const userId = (session.user as any).id;
+
     // Get request body to check if specific token should be removed
     const body = await request.json();
     const { token, removeAll } = body;
 
-    let query = supabase
-      .from('fcm_tokens')
-      .delete()
-      .eq('user_id', user.id);
-
     // If specific token provided, remove only that token
     if (token && !removeAll) {
-      query = query.eq('token', token);
+      await prisma.fcmToken.deleteMany({
+        where: {
+          userId: userId,
+          token: token
+        }
+      });
+    } else {
+      // Otherwise remove all tokens (for complete logout)
+      await prisma.fcmToken.deleteMany({
+        where: {
+          userId: userId
+        }
+      });
     }
-    // Otherwise remove all tokens (for complete logout)
 
-    const { error } = await query;
-
-    if (error) {
-      console.error('Error removing FCM tokens:', error);
-      return NextResponse.json(
-        { error: 'Failed to remove tokens' },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       message: token && !removeAll ? 'Specific token removed' : 'All tokens removed'
     });

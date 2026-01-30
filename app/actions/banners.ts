@@ -1,8 +1,9 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { prisma } from '@/lib/prisma';
 import { requireSuperAdmin } from './admin';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export interface MotivationBanner {
   id: string;
@@ -15,28 +16,30 @@ export interface MotivationBanner {
   updated_at: string;
 }
 
+// Helper to map Prisma result to MotivationBanner interface
+function mapBanner(banner: any): MotivationBanner {
+  return {
+    id: banner.id,
+    title: banner.title,
+    message: banner.message,
+    is_active: banner.isActive,
+    expires_at: banner.expiresAt ? banner.expiresAt.toISOString() : null,
+    created_by: banner.createdBy,
+    created_at: banner.createdAt.toISOString(),
+    updated_at: banner.updatedAt.toISOString(),
+  };
+}
+
 // Get active banner for users
 export async function getActiveBanner() {
   try {
-    const supabase = await createClient();
-
-    const { data, error } = await supabase
-      .from('motivation_banners')
-      .select('*')
-      .eq('is_active', true)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error fetching active banner:', error);
-      throw error;
-    }
-
-    console.log('Active banner data:', data);
+    const data = await prisma.motivationBanner.findFirst({
+      where: { isActive: true }
+    });
 
     // Check if banner is expired
-    if (data && data.expires_at) {
-      const expiryDate = new Date(data.expires_at);
-      if (expiryDate < new Date()) {
+    if (data && data.expiresAt) {
+      if (data.expiresAt < new Date()) {
         console.log('Banner is expired');
         return {
           success: true,
@@ -47,7 +50,7 @@ export async function getActiveBanner() {
 
     return {
       success: true,
-      banner: data as MotivationBanner | null,
+      banner: data ? mapBanner(data) : null,
     };
   } catch (error: any) {
     console.error('Error fetching active banner:', error);
@@ -63,18 +66,14 @@ export async function getActiveBanner() {
 export async function getAllBanners() {
   try {
     await requireSuperAdmin();
-    const adminClient = createAdminClient();
 
-    const { data, error } = await adminClient
-      .from('motivation_banners')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
+    const data = await prisma.motivationBanner.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
 
     return {
       success: true,
-      banners: data as MotivationBanner[],
+      banners: data.map(mapBanner),
     };
   } catch (error: any) {
     console.error('Error fetching banners:', error);
@@ -87,44 +86,37 @@ export async function getAllBanners() {
 }
 
 // Admin: Create banner
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-
-// ... (imports remain)
-
-// Admin: Create banner
 export async function createBanner(
   title: string,
   message: string,
   expiresAt: string | null
 ) {
   try {
-    const session = await getServerSession(authOptions);
     await requireSuperAdmin();
+    const session = await getServerSession(authOptions);
 
     if (!session || !session.user) {
       throw new Error('Not authenticated');
     }
 
-    const adminClient = createAdminClient();
+    // We need user ID. Session user contains it.
+    // However, typings might need assertion if not fully propagated.
+    const userId = (session.user as any).id;
+    // Or fetch from DB if needed, but session usually has it.
 
-    const { data, error } = await adminClient
-      .from('motivation_banners')
-      .insert({
+    const data = await prisma.motivationBanner.create({
+      data: {
         title,
         message,
-        expires_at: expiresAt,
-        created_by: session.user.id,
-        is_active: false,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        createdBy: userId,
+        isActive: false,
+      }
+    });
 
     return {
       success: true,
-      banner: data as MotivationBanner,
+      banner: mapBanner(data),
       message: 'Banner created successfully',
     };
   } catch (error: any) {
@@ -132,6 +124,7 @@ export async function createBanner(
     return {
       success: false,
       error: error.message || 'Failed to create banner',
+      // Return type expects banner is optional? Original code returned banner on success.
     };
   }
 }
@@ -145,24 +138,19 @@ export async function updateBanner(
 ) {
   try {
     await requireSuperAdmin();
-    const adminClient = createAdminClient();
 
-    const { data, error } = await adminClient
-      .from('motivation_banners')
-      .update({
+    const data = await prisma.motivationBanner.update({
+      where: { id },
+      data: {
         title,
         message,
-        expires_at: expiresAt,
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+      }
+    });
 
     return {
       success: true,
-      banner: data as MotivationBanner,
+      banner: mapBanner(data),
       message: 'Banner updated successfully',
     };
   } catch (error: any) {
@@ -178,27 +166,28 @@ export async function updateBanner(
 export async function activateBanner(id: string) {
   try {
     await requireSuperAdmin();
-    const adminClient = createAdminClient();
 
-    // First, deactivate all banners
-    await adminClient
-      .from('motivation_banners')
-      .update({ is_active: false })
-      .neq('id', '00000000-0000-0000-0000-000000000000'); // Update all
+    // Transaction to ensure atomicity
+    await prisma.$transaction([
+      prisma.motivationBanner.updateMany({
+        data: { isActive: false }
+      }),
+      prisma.motivationBanner.update({
+        where: { id },
+        data: { isActive: true }
+      })
+    ]);
 
-    // Then activate the selected one
-    const { data, error } = await adminClient
-      .from('motivation_banners')
-      .update({ is_active: true })
-      .eq('id', id)
-      .select()
-      .single();
+    // Fetch updated banner
+    const data = await prisma.motivationBanner.findUnique({
+      where: { id }
+    });
 
-    if (error) throw error;
+    if (!data) throw new Error("Banner not found after activation");
 
     return {
       success: true,
-      banner: data as MotivationBanner,
+      banner: mapBanner(data),
       message: 'Banner activated successfully',
     };
   } catch (error: any) {
@@ -214,20 +203,15 @@ export async function activateBanner(id: string) {
 export async function deactivateBanner(id: string) {
   try {
     await requireSuperAdmin();
-    const adminClient = createAdminClient();
 
-    const { data, error } = await adminClient
-      .from('motivation_banners')
-      .update({ is_active: false })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
+    const data = await prisma.motivationBanner.update({
+      where: { id },
+      data: { isActive: false }
+    });
 
     return {
       success: true,
-      banner: data as MotivationBanner,
+      banner: mapBanner(data),
       message: 'Banner deactivated successfully',
     };
   } catch (error: any) {
@@ -243,14 +227,10 @@ export async function deactivateBanner(id: string) {
 export async function deleteBanner(id: string) {
   try {
     await requireSuperAdmin();
-    const adminClient = createAdminClient();
 
-    const { error } = await adminClient
-      .from('motivation_banners')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
+    await prisma.motivationBanner.delete({
+      where: { id }
+    });
 
     return {
       success: true,

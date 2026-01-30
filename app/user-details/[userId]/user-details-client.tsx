@@ -20,6 +20,7 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
 
     // Use initialData directly
     const { user: userProfile, weightLogs, mealLogs, waterLogs, measurements, membership } = initialData;
+    const lastActivity = userProfile.lastActiveAt || userProfile.lastSignInAt;
 
     return (
         <div className="container mx-auto px-4 py-6 space-y-6">
@@ -47,13 +48,13 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
             <Card className="p-6">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold">{userProfile.full_name || 'Unnamed User'}</h1>
+                        <h1 className="text-2xl font-bold">{userProfile.fullName || 'Unnamed User'}</h1>
                         <p className="text-default-500">{userProfile.email}</p>
                         <div className="flex items-center gap-2 mt-2">
                             <Chip className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200">
                                 User ID: {userProfile.id.slice(0, 8)}...
                             </Chip>
-                            {userProfile.notifications_enabled && (
+                            {userProfile.notificationsEnabled && (
                                 <Chip className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
                                     <Bell className="w-3 h-3 mr-1" />
                                     Notifications On
@@ -65,13 +66,13 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
                     <div className="text-right">
                         <div className="text-sm text-default-500">Member since</div>
                         <div className="font-medium">
-                            {new Date(userProfile.created_at).toLocaleDateString()}
+                            {new Date(userProfile.createdAt).toLocaleDateString()}
                         </div>
-                        {(userProfile.last_active_at || userProfile.last_sign_in_at) && (
+                        {lastActivity && (
                             <>
                                 <div className="text-sm text-default-500 mt-2">Last active</div>
                                 <div className="font-medium">
-                                    {new Date(userProfile.last_active_at || userProfile.last_sign_in_at).toLocaleString()}
+                                    {new Date(lastActivity).toLocaleString()}
                                 </div>
                             </>
                         )}
@@ -202,15 +203,15 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
                                 <div className="space-y-2 text-sm">
                                     <div className="flex justify-between">
                                         <span className="text-default-500">Height:</span>
-                                        <span>{userProfile.height_cm ? `${userProfile.height_cm} cm` : 'Not set'}</span>
+                                        <span>{userProfile.heightCm ? `${userProfile.heightCm} cm` : 'Not set'}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-default-500">Goal Weight:</span>
-                                        <span>{userProfile.goal_weight ? `${userProfile.goal_weight} ${userProfile.goal_weight_unit}` : 'Not set'}</span>
+                                        <span>{userProfile.goalWeight ? `${userProfile.goalWeight} ${userProfile.goalWeightUnit}` : 'Not set'}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-default-500">Blood Group:</span>
-                                        <span>{userProfile.blood_group || 'Not set'}</span>
+                                        <span>{userProfile.bloodGroup || 'Not set'}</span>
                                     </div>
                                 </div>
                             </div>
@@ -220,7 +221,7 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
                                 <div className="space-y-2 text-sm">
                                     <div className="flex justify-between">
                                         <span className="text-default-500">Preferred Unit:</span>
-                                        <span>{userProfile.preferred_unit || 'kg'}</span>
+                                        <span>{userProfile.preferredUnit || 'kg'}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-default-500">Theme:</span>
@@ -232,7 +233,7 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-default-500">Water Target:</span>
-                                        <span>{userProfile.daily_water_target ? `${userProfile.daily_water_target} glasses` : 'Not set'}</span>
+                                        <span>{userProfile.dailyWaterTarget ? `${userProfile.dailyWaterTarget} glasses` : 'Not set'}</span>
                                     </div>
                                 </div>
                             </div>
@@ -242,26 +243,26 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
                                 <div className="space-y-2 text-sm">
                                     <div className="flex justify-between">
                                         <span className="text-default-500">Notifications:</span>
-                                        <Chip className={userProfile.notifications_enabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
-                                            {userProfile.notifications_enabled ? 'Enabled' : 'Disabled'}
+                                        <Chip className={userProfile.notificationsEnabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
+                                            {userProfile.notificationsEnabled ? 'Enabled' : 'Disabled'}
                                         </Chip>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-default-500">Meal Reminders:</span>
-                                        <Chip className={userProfile.meal_reminders_enabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
-                                            {userProfile.meal_reminders_enabled ? 'Enabled' : 'Disabled'}
+                                        <Chip className={userProfile.mealRemindersEnabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
+                                            {userProfile.mealRemindersEnabled ? 'Enabled' : 'Disabled'}
                                         </Chip>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-default-500">Water Reminders:</span>
-                                        <Chip className={userProfile.water_reminders_enabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
-                                            {userProfile.water_reminders_enabled ? 'Enabled' : 'Disabled'}
+                                        <Chip className={userProfile.waterRemindersEnabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
+                                            {userProfile.waterRemindersEnabled ? 'Enabled' : 'Disabled'}
                                         </Chip>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-default-500">Weight Reminders:</span>
-                                        <Chip className={userProfile.weight_reminders_enabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
-                                            {userProfile.weight_reminders_enabled ? 'Enabled' : 'Disabled'}
+                                        <Chip className={userProfile.weightRemindersEnabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
+                                            {userProfile.weightRemindersEnabled ? 'Enabled' : 'Disabled'}
                                         </Chip>
                                     </div>
                                 </div>
@@ -269,38 +270,38 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
                         </div>
 
                         {/* Meal Timing Settings */}
-                        {userProfile.meal_times_configured && (
+                        {userProfile.mealTimesConfigured && (
                             <div>
                                 <h3 className="font-medium mb-3">Meal Timing Schedule</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                                    {userProfile.breakfast_time && (
+                                    {userProfile.breakfastTime && (
                                         <div className="text-center p-3 bg-default-100 dark:bg-default-800 rounded-lg">
                                             <div className="text-sm text-default-500">Breakfast</div>
-                                            <div className="font-medium">{userProfile.breakfast_time}</div>
+                                            <div className="font-medium">{userProfile.breakfastTime}</div>
                                         </div>
                                     )}
-                                    {userProfile.snack1_time && (
+                                    {userProfile.snack1Time && (
                                         <div className="text-center p-3 bg-default-100 dark:bg-default-800 rounded-lg">
                                             <div className="text-sm text-default-500">Morning Snack</div>
-                                            <div className="font-medium">{userProfile.snack1_time}</div>
+                                            <div className="font-medium">{userProfile.snack1Time}</div>
                                         </div>
                                     )}
-                                    {userProfile.lunch_time && (
+                                    {userProfile.lunchTime && (
                                         <div className="text-center p-3 bg-default-100 dark:bg-default-800 rounded-lg">
                                             <div className="text-sm text-default-500">Lunch</div>
-                                            <div className="font-medium">{userProfile.lunch_time}</div>
+                                            <div className="font-medium">{userProfile.lunchTime}</div>
                                         </div>
                                     )}
-                                    {userProfile.snack2_time && (
+                                    {userProfile.snack2Time && (
                                         <div className="text-center p-3 bg-default-100 dark:bg-default-800 rounded-lg">
                                             <div className="text-sm text-default-500">Afternoon Snack</div>
-                                            <div className="font-medium">{userProfile.snack2_time}</div>
+                                            <div className="font-medium">{userProfile.snack2Time}</div>
                                         </div>
                                     )}
-                                    {userProfile.dinner_time && (
+                                    {userProfile.dinnerTime && (
                                         <div className="text-center p-3 bg-default-100 dark:bg-default-800 rounded-lg">
                                             <div className="text-sm text-default-500">Dinner</div>
-                                            <div className="font-medium">{userProfile.dinner_time}</div>
+                                            <div className="font-medium">{userProfile.dinnerTime}</div>
                                         </div>
                                     )}
                                 </div>
@@ -314,28 +315,28 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
                                         <span className="text-default-500">Package:</span>
-                                        <span className="font-medium">{membership.packages.name}</span>
+                                        <span className="font-medium">{membership.package.name}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span className="text-default-500">Price:</span>
-                                        <span className="font-medium">₹{membership.packages.price}</span>
+                                        <span className="font-medium">₹{membership.package.price}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span className="text-default-500">Duration:</span>
-                                        <span className="font-medium">{membership.packages.duration_days} days</span>
+                                        <span className="font-medium">{membership.package.durationDays} days</span>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span className="text-default-500">Start Date:</span>
-                                        <span className="font-medium">{new Date(membership.start_date).toLocaleDateString()}</span>
+                                        <span className="font-medium">{new Date(membership.startDate).toLocaleDateString()}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span className="text-default-500">End Date:</span>
-                                        <span className="font-medium">{new Date(membership.end_date).toLocaleDateString()}</span>
+                                        <span className="font-medium">{new Date(membership.endDate).toLocaleDateString()}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span className="text-default-500">Status:</span>
-                                        <Chip className={membership.is_expired ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200' : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200'}>
-                                            {membership.is_expired ? 'Expired' : 'Active'}
+                                        <Chip className={membership.isExpired ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200' : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200'}>
+                                            {membership.isExpired ? 'Expired' : 'Active'}
                                         </Chip>
                                     </div>
                                 </div>

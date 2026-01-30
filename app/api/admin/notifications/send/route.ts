@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/admin';
+import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { sendPushNotification } from '@/lib/firebase/admin';
 import { getServerSession } from 'next-auth';
@@ -20,20 +20,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    const adminClient = createAdminClient();
     // Use session user info
     const user = {
       id: session.user.id,
       email: session.user.email
     };
-    const { data: profile } = await adminClient
-      .from('user_preferences')
-      .select('id, full_name')
-      .eq('id', user.id)
-      .single();
+    const profile = await prisma.userPreference.findUnique({
+      where: { id: user.id },
+      select: { id: true, fullName: true }
+    });
 
     // Use email as fallback if no profile found
-    const adminName = profile?.full_name || user.email || 'Admin';
+    const adminName = profile?.fullName || user.email || 'Admin';
 
     // Parse request body
     const { title, body } = await request.json();
@@ -46,14 +44,15 @@ export async function POST(request: Request) {
     }
 
     // Get all active FCM tokens using admin client
-    const { data: tokens, error: tokensError } = await adminClient
-      .from('fcm_tokens')
-      .select('token, user_id')
-      .order('created_at', { ascending: false });
-
-    if (tokensError) {
-      throw tokensError;
-    }
+    const tokens = await prisma.fcmToken.findMany({
+      select: {
+        token: true,
+        userId: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
 
     if (!tokens || tokens.length === 0) {
       return NextResponse.json({
@@ -84,10 +83,13 @@ export async function POST(request: Request) {
 
     // Clean up invalid tokens if any
     if (result.invalidTokens && result.invalidTokens.length > 0) {
-      await adminClient
-        .from('fcm_tokens')
-        .delete()
-        .in('token', result.invalidTokens);
+      await prisma.fcmToken.deleteMany({
+        where: {
+          token: {
+            in: result.invalidTokens
+          }
+        }
+      });
     }
 
     // Aggregate error details

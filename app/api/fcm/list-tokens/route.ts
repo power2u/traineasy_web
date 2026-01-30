@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -14,17 +14,16 @@ export async function GET() {
       );
     }
 
-    const adminClient = createAdminClient();
+    const userId = (session.user as any).id;
 
-    const { data: tokens, error } = await adminClient
-      .from('fcm_tokens')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      throw error;
-    }
+    const tokens = await prisma.fcmToken.findMany({
+      where: {
+        userId: userId
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
 
     return NextResponse.json({ tokens: tokens || [] });
 

@@ -11,44 +11,45 @@ import { COMMON_TIMEZONES } from '@/lib/utils/timezone';
 interface UserProfile {
     id: string;
     email: string;
-    full_name: string;
+    fullName: string;
     // Personal information
-    date_of_birth?: string;
-    phone?: string;
-    blood_group?: string;
-    height_cm?: number;
-    goal_weight?: number;
-    goal_weight_unit?: string;
+    dateOfBirth?: Date | null;
+    phone?: string | null;
+    bloodGroup?: string | null;
+    heightCm?: number | null; // Decimal in DB becomes number in JSON serialization
+    goalWeight?: number | null;
+    goalWeightUnit?: string | null;
     // Settings
-    preferred_unit?: string;
-    theme?: string;
-    timezone: string;
-    daily_water_target?: number;
-    glass_size_ml?: number;
+    preferredUnit?: string | null;
+    theme?: string | null;
+    timezone?: string | null;
+    dailyWaterTarget?: number | null;
+    glassSizeMl?: number | null;
     // Notifications
-    notifications_enabled: boolean;
-    meal_reminders_enabled: boolean;
-    water_reminders_enabled?: boolean;
-    weight_reminders_enabled?: boolean;
+    notificationsEnabled: boolean;
+    mealRemindersEnabled: boolean;
+    waterRemindersEnabled: boolean;
+    weightRemindersEnabled: boolean;
     // Meal timing
-    meal_times_configured: boolean;
-    breakfast_time?: string;
-    snack1_time?: string;
-    lunch_time?: string;
-    snack2_time?: string;
-    dinner_time?: string;
+    mealTimesConfigured: boolean;
+    breakfastTime?: string | null;
+    snack1Time?: string | null;
+    lunchTime?: string | null;
+    snack2Time?: string | null;
+    dinnerTime?: string | null;
     // System fields
-    created_at: string;
-    last_sign_in_at?: string;
+    createdAt: Date;
+    lastSignInAt?: Date | null;
 }
 
 interface UserProfileEditClientProps {
     userId: string;
-    initialData: UserProfile;
+    initialData: any; // Accept any from server initially then cast/map
 }
 
 export function UserProfileEditClient({ userId, initialData }: UserProfileEditClientProps) {
     const router = useRouter();
+    // Assuming initialData is now camelCase from server
     const [userProfile, setUserProfile] = useState<UserProfile>(initialData);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -59,6 +60,8 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
 
         setIsSaving(true);
         try {
+            // editedProfile is partial UserProfile (camelCase)
+            // updateAdminUserProfile expects something it can pass to Prisma (camelCase)
             const result = await updateAdminUserProfile(userId, editedProfile);
 
             if (!result.success) {
@@ -66,7 +69,13 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
             }
 
             // Merge the updated fields back into the local state
-            const updatedUser = { ...userProfile, ...result.user };
+            // Convert any Decimal fields to numbers for client-side compatibility
+            const updatedUser = result.user ? {
+                ...userProfile,
+                ...result.user,
+                heightCm: result.user.heightCm ? Number(result.user.heightCm) : null,
+                goalWeight: result.user.goalWeight ? Number(result.user.goalWeight) : null,
+            } : userProfile;
 
             setUserProfile(updatedUser);
             setIsEditing(false);
@@ -147,7 +156,7 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                     </div>
 
                     <div className="flex-1">
-                        <h1 className="text-3xl font-bold">{userProfile.full_name || 'Unnamed User'}</h1>
+                        <h1 className="text-3xl font-bold">{userProfile.fullName || 'Unnamed User'}</h1>
                         <div className="flex items-center gap-2 mt-2 text-default-500">
                             <Mail className="w-4 h-4" />
                             <span>{userProfile.email}</span>
@@ -156,12 +165,12 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                             <Chip className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200">
                                 ID: {userProfile.id.slice(0, 8)}...
                             </Chip>
-                            {userProfile.notifications_enabled && (
+                            {userProfile.notificationsEnabled && (
                                 <Chip className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
                                     Notifications Enabled
                                 </Chip>
                             )}
-                            {userProfile.meal_reminders_enabled && (
+                            {userProfile.mealRemindersEnabled && (
                                 <Chip className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200">
                                     Meal Reminders On
                                 </Chip>
@@ -172,10 +181,10 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                     <div className="text-right text-sm text-default-500">
                         <div className="flex items-center gap-2 mb-2">
                             <Calendar className="w-4 h-4" />
-                            <span>Joined {new Date(userProfile.created_at).toLocaleDateString()}</span>
+                            <span>Joined {new Date(userProfile.createdAt).toLocaleDateString()}</span>
                         </div>
-                        {userProfile.last_sign_in_at && (
-                            <div>Last active: {new Date(userProfile.last_sign_in_at).toLocaleDateString()}</div>
+                        {userProfile.lastSignInAt && (
+                            <div>Last active: {new Date(userProfile.lastSignInAt).toLocaleDateString()}</div>
                         )}
                     </div>
                 </div>
@@ -189,14 +198,14 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                         <Label>Full Name</Label>
                         {isEditing ? (
                             <Input
-                                value={editedProfile.full_name || ''}
+                                value={editedProfile.fullName || ''}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                    setEditedProfile(prev => ({ ...prev, full_name: e.target.value }))
+                                    setEditedProfile(prev => ({ ...prev, fullName: e.target.value }))
                                 }
                             />
                         ) : (
                             <div className="px-3 py-2 bg-default-100 rounded-lg">
-                                {userProfile.full_name || 'Not set'}
+                                {userProfile.fullName || 'Not set'}
                             </div>
                         )}
                     </TextField>
@@ -230,8 +239,8 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                             <Select
                                 className="w-full"
                                 placeholder="Select blood group"
-                                selectedKey={editedProfile.blood_group || ''}
-                                onSelectionChange={(key) => setEditedProfile(prev => ({ ...prev, blood_group: key as string }))}
+                                selectedKey={editedProfile.bloodGroup || ''}
+                                onSelectionChange={(key) => setEditedProfile(prev => ({ ...prev, bloodGroup: key as string }))}
                             >
                                 <Label>Blood Group</Label>
                                 <Select.Trigger>
@@ -281,7 +290,7 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                             </Select>
                         ) : (
                             <div className="px-3 py-2 bg-default-100 rounded-lg">
-                                {userProfile.blood_group || 'Not set'}
+                                {userProfile.bloodGroup || 'Not set'}
                             </div>
                         )}
                     </TextField>
@@ -291,14 +300,14 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                         {isEditing ? (
                             <Input
                                 type="number"
-                                value={editedProfile.height_cm?.toString() || ''}
+                                value={editedProfile.heightCm?.toString() || ''}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                    setEditedProfile(prev => ({ ...prev, height_cm: e.target.value ? parseInt(e.target.value) : undefined }))
+                                    setEditedProfile(prev => ({ ...prev, heightCm: e.target.value ? parseInt(e.target.value) : undefined }))
                                 }
                             />
                         ) : (
                             <div className="px-3 py-2 bg-default-100 rounded-lg">
-                                {userProfile.height_cm ? `${userProfile.height_cm} cm` : 'Not set'}
+                                {userProfile.heightCm ? `${userProfile.heightCm} cm` : 'Not set'}
                             </div>
                         )}
                     </TextField>
@@ -309,14 +318,14 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                             <Input
                                 type="number"
                                 step="0.1"
-                                value={editedProfile.goal_weight?.toString() || ''}
+                                value={editedProfile.goalWeight?.toString() || ''}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                    setEditedProfile(prev => ({ ...prev, goal_weight: e.target.value ? parseFloat(e.target.value) : undefined }))
+                                    setEditedProfile(prev => ({ ...prev, goalWeight: e.target.value ? parseFloat(e.target.value) : undefined }))
                                 }
                             />
                         ) : (
                             <div className="px-3 py-2 bg-default-100 rounded-lg">
-                                {userProfile.goal_weight ? `${userProfile.goal_weight} ${userProfile.goal_weight_unit || 'kg'}` : 'Not set'}
+                                {userProfile.goalWeight ? `${userProfile.goalWeight} ${userProfile.goalWeightUnit || 'kg'}` : 'Not set'}
                             </div>
                         )}
                     </TextField>
@@ -332,14 +341,14 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                         {isEditing ? (
                             <Input
                                 type="number"
-                                value={editedProfile.daily_water_target?.toString() || ''}
+                                value={editedProfile.dailyWaterTarget?.toString() || ''}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                    setEditedProfile(prev => ({ ...prev, daily_water_target: e.target.value ? parseInt(e.target.value) : undefined }))
+                                    setEditedProfile(prev => ({ ...prev, dailyWaterTarget: e.target.value ? parseInt(e.target.value) : undefined }))
                                 }
                             />
                         ) : (
                             <div className="px-3 py-2 bg-default-100 rounded-lg">
-                                {userProfile.daily_water_target ? `${userProfile.daily_water_target} glasses` : 'Not set'}
+                                {userProfile.dailyWaterTarget ? `${userProfile.dailyWaterTarget} glasses` : 'Not set'}
                             </div>
                         )}
                     </TextField>
@@ -349,14 +358,14 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                         {isEditing ? (
                             <Input
                                 type="number"
-                                value={editedProfile.glass_size_ml?.toString() || ''}
+                                value={editedProfile.glassSizeMl?.toString() || ''}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                    setEditedProfile(prev => ({ ...prev, glass_size_ml: e.target.value ? parseInt(e.target.value) : undefined }))
+                                    setEditedProfile(prev => ({ ...prev, glassSizeMl: e.target.value ? parseInt(e.target.value) : undefined }))
                                 }
                             />
                         ) : (
                             <div className="px-3 py-2 bg-default-100 rounded-lg">
-                                {userProfile.glass_size_ml ? `${userProfile.glass_size_ml} ml` : 'Not set'}
+                                {userProfile.glassSizeMl ? `${userProfile.glassSizeMl} ml` : 'Not set'}
                             </div>
                         )}
                     </TextField>
@@ -400,8 +409,8 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                             <Select
                                 className="w-full"
                                 placeholder="Select unit"
-                                selectedKey={editedProfile.preferred_unit || 'kg'}
-                                onSelectionChange={(key) => setEditedProfile(prev => ({ ...prev, preferred_unit: key as string }))}
+                                selectedKey={editedProfile.preferredUnit || 'kg'}
+                                onSelectionChange={(key) => setEditedProfile(prev => ({ ...prev, preferredUnit: key as string }))}
                             >
                                 <Label>Preferred Unit</Label>
                                 <Select.Trigger>
@@ -423,7 +432,7 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                             </Select>
                         ) : (
                             <div className="px-3 py-2 bg-default-100 rounded-lg">
-                                {userProfile.preferred_unit === 'lbs' ? 'Pounds (lbs)' : 'Kilograms (kg)'}
+                                {userProfile.preferredUnit === 'lbs' ? 'Pounds (lbs)' : 'Kilograms (kg)'}
                             </div>
                         )}
                     </TextField>
@@ -480,13 +489,13 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                         {isEditing ? (
                             <input
                                 type="checkbox"
-                                checked={editedProfile.notifications_enabled || false}
-                                onChange={(e) => setEditedProfile(prev => ({ ...prev, notifications_enabled: e.target.checked }))}
+                                checked={editedProfile.notificationsEnabled || false}
+                                onChange={(e) => setEditedProfile(prev => ({ ...prev, notificationsEnabled: e.target.checked }))}
                                 className="w-5 h-5"
                             />
                         ) : (
-                            <Chip className={userProfile.notifications_enabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
-                                {userProfile.notifications_enabled ? 'Enabled' : 'Disabled'}
+                            <Chip className={userProfile.notificationsEnabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
+                                {userProfile.notificationsEnabled ? 'Enabled' : 'Disabled'}
                             </Chip>
                         )}
                     </div>
@@ -499,13 +508,13 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                         {isEditing ? (
                             <input
                                 type="checkbox"
-                                checked={editedProfile.meal_reminders_enabled || false}
-                                onChange={(e) => setEditedProfile(prev => ({ ...prev, meal_reminders_enabled: e.target.checked }))}
+                                checked={editedProfile.mealRemindersEnabled || false}
+                                onChange={(e) => setEditedProfile(prev => ({ ...prev, mealRemindersEnabled: e.target.checked }))}
                                 className="w-5 h-5"
                             />
                         ) : (
-                            <Chip className={userProfile.meal_reminders_enabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
-                                {userProfile.meal_reminders_enabled ? 'Enabled' : 'Disabled'}
+                            <Chip className={userProfile.mealRemindersEnabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
+                                {userProfile.mealRemindersEnabled ? 'Enabled' : 'Disabled'}
                             </Chip>
                         )}
                     </div>
@@ -518,13 +527,13 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                         {isEditing ? (
                             <input
                                 type="checkbox"
-                                checked={editedProfile.water_reminders_enabled || false}
-                                onChange={(e) => setEditedProfile(prev => ({ ...prev, water_reminders_enabled: e.target.checked }))}
+                                checked={editedProfile.waterRemindersEnabled || false}
+                                onChange={(e) => setEditedProfile(prev => ({ ...prev, waterRemindersEnabled: e.target.checked }))}
                                 className="w-5 h-5"
                             />
                         ) : (
-                            <Chip className={userProfile.water_reminders_enabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
-                                {userProfile.water_reminders_enabled ? 'Enabled' : 'Disabled'}
+                            <Chip className={userProfile.waterRemindersEnabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
+                                {userProfile.waterRemindersEnabled ? 'Enabled' : 'Disabled'}
                             </Chip>
                         )}
                     </div>
@@ -537,13 +546,13 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                         {isEditing ? (
                             <input
                                 type="checkbox"
-                                checked={editedProfile.weight_reminders_enabled || false}
-                                onChange={(e) => setEditedProfile(prev => ({ ...prev, weight_reminders_enabled: e.target.checked }))}
+                                checked={editedProfile.weightRemindersEnabled || false}
+                                onChange={(e) => setEditedProfile(prev => ({ ...prev, weightRemindersEnabled: e.target.checked }))}
                                 className="w-5 h-5"
                             />
                         ) : (
-                            <Chip className={userProfile.weight_reminders_enabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
-                                {userProfile.weight_reminders_enabled ? 'Enabled' : 'Disabled'}
+                            <Chip className={userProfile.weightRemindersEnabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}>
+                                {userProfile.weightRemindersEnabled ? 'Enabled' : 'Disabled'}
                             </Chip>
                         )}
                     </div>
@@ -551,16 +560,16 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
             </Card>
 
             {/* Meal Timing Schedule */}
-            {userProfile.meal_times_configured && (
+            {userProfile.mealTimesConfigured && (
                 <Card className="p-6">
                     <h2 className="text-xl font-semibold mb-6">Meal Timing Schedule</h2>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                         {[
-                            { key: 'breakfast_time', label: 'Breakfast' },
-                            { key: 'snack1_time', label: 'Morning Snack' },
-                            { key: 'lunch_time', label: 'Lunch' },
-                            { key: 'snack2_time', label: 'Afternoon Snack' },
-                            { key: 'dinner_time', label: 'Dinner' }
+                            { key: 'breakfastTime', label: 'Breakfast' },
+                            { key: 'snack1Time', label: 'Morning Snack' },
+                            { key: 'lunchTime', label: 'Lunch' },
+                            { key: 'snack2Time', label: 'Afternoon Snack' },
+                            { key: 'dinnerTime', label: 'Dinner' }
                         ].map(({ key, label }) => {
                             const timeValue = userProfile[key as keyof UserProfile] as string;
                             if (!timeValue) return null;

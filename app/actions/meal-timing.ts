@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -30,17 +30,32 @@ async function checkAuth(userId: string) {
 export async function getMealTimes(userId: string) {
   try {
     await checkAuth(userId);
-    const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select('breakfast_time, snack1_time, lunch_time, snack2_time, dinner_time, timezone')
-      .eq('id', userId)
-      .single();
+    const data = await prisma.userPreference.findUnique({
+      where: { id: userId },
+      select: {
+        breakfastTime: true,
+        snack1Time: true,
+        lunchTime: true,
+        snack2Time: true,
+        dinnerTime: true,
+        timezone: true
+      }
+    });
 
-    if (error) throw error;
+    if (!data) throw new Error("User preferences not found");
 
-    return { success: true, mealTimes: data };
+    // Map camelCase to snake_case
+    const mealTimes = {
+      breakfast_time: data.breakfastTime,
+      snack1_time: data.snack1Time,
+      lunch_time: data.lunchTime,
+      snack2_time: data.snack2Time,
+      dinner_time: data.dinnerTime,
+      timezone: data.timezone
+    };
+
+    return { success: true, mealTimes };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
@@ -49,34 +64,35 @@ export async function getMealTimes(userId: string) {
 export async function setMealTimes(userId: string, mealTimes: MealTimes) {
   try {
     await checkAuth(userId);
-    const supabase = await createClient();
 
     // Convert time format and include timezone and theme
-    const formattedTimes = {
-      breakfast_time: convertToTimeFormat(mealTimes.breakfast_time),
-      snack1_time: convertToTimeFormat(mealTimes.snack1_time),
-      lunch_time: convertToTimeFormat(mealTimes.lunch_time),
-      snack2_time: convertToTimeFormat(mealTimes.snack2_time),
-      dinner_time: convertToTimeFormat(mealTimes.dinner_time),
+    // Map snake_case to camelCase for Prisma
+    const updateData = {
+      breakfastTime: convertToTimeFormat(mealTimes.breakfast_time),
+      snack1Time: convertToTimeFormat(mealTimes.snack1_time),
+      lunchTime: convertToTimeFormat(mealTimes.lunch_time),
+      snack2Time: convertToTimeFormat(mealTimes.snack2_time),
+      dinnerTime: convertToTimeFormat(mealTimes.dinner_time),
       timezone: mealTimes.timezone,
-      ...(mealTimes.theme && { theme: mealTimes.theme }), // Only include theme if provided
-      meal_times_configured: true,
+      ...(mealTimes.theme && { theme: mealTimes.theme }),
+      mealTimesConfigured: true,
     };
 
-    // Use upsert to handle both insert and update
-    const { error } = await supabase
-      .from('user_preferences')
-      .upsert(
-        {
-          id: userId,
-          ...formattedTimes,
-        },
-        {
-          onConflict: 'id',
-        }
-      );
+    // Use upsert to handle both insert (create) and update
+    // But typically user preferences are created on signup.
+    // So update is more appropriate, but upsert ensures robustness.
+    // However, create usually requires email/fullname etc which we don't have here.
+    // So we should use update. If user doesn't exist, it's an error state anyway.
+    // original code used upsert on 'id'.
+    // With Prisma, upsert requires 'create' data which effectively needs all required fields?
+    // UserPreference has many required fields (email, role etc).
+    // So we CANNOT use upsert unless we provide fallback for all required fields which we don't have.
+    // We must use UPDATE. A user calling this MUST exist.
 
-    if (error) throw error;
+    await prisma.userPreference.update({
+      where: { id: userId },
+      data: updateData
+    });
 
     return { success: true };
   } catch (error: any) {
@@ -88,17 +104,13 @@ export async function setMealTimes(userId: string, mealTimes: MealTimes) {
 export async function isMealTimesConfigured(userId: string) {
   try {
     await checkAuth(userId);
-    const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select('meal_times_configured')
-      .eq('id', userId)
-      .single();
+    const data = await prisma.userPreference.findUnique({
+      where: { id: userId },
+      select: { mealTimesConfigured: true }
+    });
 
-    if (error && error.code !== 'PGRST116') throw error;
-
-    return { success: true, configured: data?.meal_times_configured || false };
+    return { success: true, configured: data?.mealTimesConfigured || false };
   } catch (error: any) {
     return { success: false, error: error.message, configured: false };
   }

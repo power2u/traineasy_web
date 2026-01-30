@@ -27,23 +27,23 @@ export function ProfileClient({ initialProfile, initialPlan }: ProfileClientProp
 
     // Use initial data to set state directly
     // All form fields (profile + preferences combined)
-    const [fullName, setFullName] = useState(initialProfile?.full_name || '');
-    const [dateOfBirth, setDateOfBirth] = useState(initialProfile?.date_of_birth || '');
+    const [fullName, setFullName] = useState(initialProfile?.fullName || '');
+    const [dateOfBirth, setDateOfBirth] = useState(initialProfile?.dateOfBirth ? new Date(initialProfile.dateOfBirth).toISOString().split('T')[0] : '');
     const [phone, setPhone] = useState(initialProfile?.phone || '');
-    const [bloodGroup, setBloodGroup] = useState(initialProfile?.blood_group || '');
+    const [bloodGroup, setBloodGroup] = useState(initialProfile?.bloodGroup || '');
     const [allergies, setAllergies] = useState(initialProfile?.allergies || '');
-    const [medicalNotes, setMedicalNotes] = useState(initialProfile?.medical_notes || '');
-    const [currentCondition, setCurrentCondition] = useState(initialProfile?.current_condition || '');
-    const [emergencyContactName, setEmergencyContactName] = useState(initialProfile?.emergency_contact_name || '');
-    const [emergencyContactPhone, setEmergencyContactPhone] = useState(initialProfile?.emergency_contact_phone || '');
-    const [emergencyContactRelationship, setEmergencyContactRelationship] = useState(initialProfile?.emergency_contact_relationship || '');
+    const [medicalNotes, setMedicalNotes] = useState(initialProfile?.medicalNotes || '');
+    const [currentCondition, setCurrentCondition] = useState(initialProfile?.currentCondition || '');
+    const [emergencyContactName, setEmergencyContactName] = useState(initialProfile?.emergencyContactName || '');
+    const [emergencyContactPhone, setEmergencyContactPhone] = useState(initialProfile?.emergencyContactPhone || '');
+    const [emergencyContactRelationship, setEmergencyContactRelationship] = useState(initialProfile?.emergencyContactRelationship || '');
 
-    const [preferredUnit, setPreferredUnit] = useState<'kg' | 'lbs'>(initialProfile?.preferred_unit || 'kg');
-    const [heightCm, setHeightCm] = useState(initialProfile?.height_cm?.toString() || '');
-    const [goalWeight, setGoalWeight] = useState(initialProfile?.goal_weight?.toString() || '');
-    const [goalWeightUnit, setGoalWeightUnit] = useState<'kg' | 'lbs'>(initialProfile?.goal_weight_unit || 'kg');
-    const [dailyWaterTarget, setDailyWaterTarget] = useState(initialProfile?.daily_water_target?.toString() || '8');
-    const [glassSizeMl, setGlassSizeMl] = useState(initialProfile?.glass_size_ml?.toString() || '250');
+    const [preferredUnit, setPreferredUnit] = useState<string>(initialProfile?.preferredUnit || 'kg');
+    const [heightCm, setHeightCm] = useState(initialProfile?.heightCm?.toString() || '');
+    const [goalWeight, setGoalWeight] = useState(initialProfile?.goalWeight?.toString() || '');
+    const [goalWeightUnit, setGoalWeightUnit] = useState<string>(initialProfile?.goalWeightUnit || 'kg');
+    const [dailyWaterTarget, setDailyWaterTarget] = useState(initialProfile?.dailyWaterTarget?.toString() || '8');
+    const [glassSizeMl, setGlassSizeMl] = useState(initialProfile?.glassSizeMl?.toString() || '250');
 
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
@@ -57,23 +57,23 @@ export function ProfileClient({ initialProfile, initialPlan }: ProfileClientProp
         try {
             const dataToSave: Partial<UserPreferences> = {
                 // Profile fields
-                full_name: fullName || undefined,
-                date_of_birth: dateOfBirth || undefined,
+                fullName: fullName || undefined,
+                dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
                 phone: phone || undefined,
-                blood_group: bloodGroup || undefined,
+                bloodGroup: bloodGroup || undefined,
                 allergies: allergies || undefined,
-                medical_notes: medicalNotes || undefined,
-                current_condition: currentCondition || undefined,
-                emergency_contact_name: emergencyContactName || undefined,
-                emergency_contact_phone: emergencyContactPhone || undefined,
-                emergency_contact_relationship: emergencyContactRelationship || undefined,
+                medicalNotes: medicalNotes || undefined,
+                currentCondition: currentCondition || undefined,
+                emergencyContactName: emergencyContactName || undefined,
+                emergencyContactPhone: emergencyContactPhone || undefined,
+                emergencyContactRelationship: emergencyContactRelationship || undefined,
                 // Preference fields
-                preferred_unit: preferredUnit,
-                height_cm: heightCm ? parseFloat(heightCm) : undefined,
-                goal_weight: goalWeight ? parseFloat(goalWeight) : undefined,
-                goal_weight_unit: goalWeightUnit,
-                daily_water_target: parseInt(dailyWaterTarget) || 8,
-                glass_size_ml: parseInt(glassSizeMl) || 250,
+                preferredUnit: preferredUnit,
+                heightCm: heightCm ? parseFloat(heightCm) : undefined,
+                goalWeight: goalWeight ? parseFloat(goalWeight) : undefined,
+                goalWeightUnit: goalWeightUnit,
+                dailyWaterTarget: parseInt(dailyWaterTarget) || 8,
+                glassSizeMl: parseInt(glassSizeMl) || 250,
             };
 
             console.log('Saving preferences:', dataToSave);
@@ -85,7 +85,7 @@ export function ProfileClient({ initialProfile, initialPlan }: ProfileClientProp
 
             if (result.success) {
                 setSaveMessage('Profile saved successfully!');
-                setPreferences(prev => prev ? { ...prev, ...dataToSave } : null);
+                setPreferences(prev => prev ? { ...prev, ...dataToSave } as UserPreferences : null);
                 router.refresh();
                 setTimeout(() => setSaveMessage(''), 3000);
             } else {
@@ -105,20 +105,20 @@ export function ProfileClient({ initialProfile, initialPlan }: ProfileClientProp
 
         try {
             const mealTimingData: Partial<UserPreferences> = {
-                breakfast_time: mealTimes.breakfast_time,
-                snack1_time: mealTimes.snack1_time,
-                lunch_time: mealTimes.lunch_time,
-                snack2_time: mealTimes.snack2_time,
-                dinner_time: mealTimes.dinner_time,
+                breakfastTime: mealTimes.breakfast_time,
+                snack1Time: mealTimes.snack1_time,
+                lunchTime: mealTimes.lunch_time,
+                snack2Time: mealTimes.snack2_time,
+                dinnerTime: mealTimes.dinner_time,
                 timezone: mealTimes.timezone,
                 theme: mealTimes.theme || 'dark',
-                meal_times_configured: true,
+                mealTimesConfigured: true,
             };
 
             const result = await updateProfile(user.id, mealTimingData);
 
             if (result.success) {
-                setPreferences(prev => prev ? { ...prev, ...mealTimingData } : null);
+                setPreferences(prev => prev ? { ...prev, ...mealTimingData } as UserPreferences : null);
                 router.refresh();
             } else {
                 throw new Error(result.error || 'Failed to save meal timing settings');
@@ -142,18 +142,18 @@ export function ProfileClient({ initialProfile, initialPlan }: ProfileClientProp
                     <div className="flex items-start justify-between">
                         <div>
                             <h3 className="text-lg font-semibold text-blue-500">Active Plan</h3>
-                            <p className="text-xl font-bold mt-2">{activePlan.plan_name}</p>
+                            <p className="text-xl font-bold mt-2">{activePlan.planName}</p>
                             <p className="text-sm text-default-500 mt-1">
-                                {new Date(activePlan.start_date).toLocaleDateString()} - {new Date(activePlan.end_date).toLocaleDateString()}
+                                {new Date(activePlan.startDate).toLocaleDateString()} - {new Date(activePlan.endDate).toLocaleDateString()}
                             </p>
-                            {activePlan.plan_notes && (
-                                <p className="text-sm text-default-400 mt-2">{activePlan.plan_notes}</p>
+                            {activePlan.planNotes && (
+                                <p className="text-sm text-default-400 mt-2">{activePlan.planNotes}</p>
                             )}
                         </div>
                         <div className="text-right">
                             <div className="text-sm text-default-500">Days Remaining</div>
                             <div className="text-2xl font-bold text-blue-500">
-                                {Math.max(0, Math.ceil((new Date(activePlan.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))}
+                                {Math.max(0, Math.ceil((new Date(activePlan.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))}
                             </div>
                         </div>
                     </div>
@@ -254,13 +254,13 @@ export function ProfileClient({ initialProfile, initialPlan }: ProfileClientProp
                 <MealTimingSettings
                     userId={user?.id || ''}
                     initialMealTimes={preferences ? {
-                        breakfast_time: preferences.breakfast_time || '08:00',
-                        snack1_time: preferences.snack1_time || '10:30',
-                        lunch_time: preferences.lunch_time || '13:00',
-                        snack2_time: preferences.snack2_time || '16:00',
-                        dinner_time: preferences.dinner_time || '19:00',
+                        breakfast_time: preferences.breakfastTime || '08:00',
+                        snack1_time: preferences.snack1Time || '10:30',
+                        lunch_time: preferences.lunchTime || '13:00',
+                        snack2_time: preferences.snack2Time || '16:00',
+                        dinner_time: preferences.dinnerTime || '19:00',
                         timezone: preferences.timezone || 'Asia/Kolkata',
-                        theme: preferences.theme || 'dark',
+                        theme: (preferences.theme as "dark" | "light" | "system") || 'dark',
                     } : null}
                     onSave={handleMealTimingSave}
                 />

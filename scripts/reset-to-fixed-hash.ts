@@ -1,61 +1,50 @@
 
-import { createClient } from "@supabase/supabase-js";
 import * as dotenv from "dotenv";
 import path from "path";
 import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
 
 // Load environment variables from .env.local
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-    console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-    process.exit(1);
-}
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function resetPassword() {
     const password = "Fitness@123";
     console.log(`Generating hash for password: ${password}`);
 
-    // Explicitly using bcryptjs
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(password, salt);
+    try {
+        // Explicitly using bcryptjs
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(password, salt);
 
-    console.log(`Generated Hash: ${hash}`);
+        console.log(`Generated Hash: ${hash}`);
 
-    console.log("Updating ALL users with this hash...");
+        console.log("Updating ALL users with this hash...");
 
-    const { data, error } = await supabase
-        .from("user_preferences")
-        .update({
-            password_hash: hash,
-            password_change_required: true
-        })
-        .neq("id", "00000000-0000-0000-0000-000000000000")
-        .select("id");
+        const result = await prisma.userPreference.updateMany({
+            data: {
+                passwordHash: hash,
+                passwordChangeRequired: true,
+            },
+        });
 
-    if (error) {
-        console.error("Error updating users:", error.message);
-    } else {
-        console.log(`Successfully updated ${data?.length} users.`);
+        console.log(`Successfully updated ${result.count} users.`);
 
         // Verification step
         console.log("Verifying immediate read-back...");
-        const { data: verifyData } = await supabase
-            .from("user_preferences")
-            .select("password_hash")
-            .limit(1)
-            .single();
+        const verifyUser = await prisma.userPreference.findFirst({
+            select: { passwordHash: true },
+        });
 
-        if (verifyData) {
-            console.log(`Read back hash: ${verifyData.password_hash}`);
-            const match = await bcrypt.compare(password, verifyData.password_hash);
+        if (verifyUser) {
+            console.log(`Read back hash: ${verifyUser.passwordHash}`);
+            const match = await bcrypt.compare(password, verifyUser.passwordHash);
             console.log(`Immediate Verification (bcryptjs.compare): ${match}`);
         }
+    } catch (error: any) {
+        console.error("Error updating users:", error.message);
+        process.exit(1);
+    } finally {
+        await prisma.$disconnect();
     }
 }
 

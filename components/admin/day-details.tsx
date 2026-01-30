@@ -14,12 +14,12 @@ interface DayDetailsProps {
 
 export function DayDetails({ date, mealLogs, weightLogs, waterLogs, measurements, userProfile }: DayDetailsProps) {
   const dateStr = date.toLocaleDateString('en-CA'); // Use local date consistently
-  
+
   // Helper function to format time in user's local timezone
-  const formatTime = (timeString: string | null, isScheduledTime = false) => {
+  const formatTime = (timeString: string | null | Date, isScheduledTime = false) => {
     if (!timeString) return null;
-    
-    if (isScheduledTime) {
+
+    if (isScheduledTime && typeof timeString === 'string') {
       // Scheduled times are in HH:MM format, convert to 12-hour format
       const [hours, minutes] = timeString.split(':');
       const hour = parseInt(hours);
@@ -29,34 +29,41 @@ export function DayDetails({ date, mealLogs, weightLogs, waterLogs, measurements
     } else {
       // Timestamps are in ISO format, convert to local time
       const date = new Date(timeString);
-      return date.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
         minute: '2-digit',
         hour12: true
       });
     }
   };
-  
+
   // Helper function to get local date string from timestamp
-  const getLocalDateStr = (timestamp: string) => {
+  const getLocalDateStr = (timestamp: string | Date) => {
     const localDate = new Date(timestamp);
     return localDate.toLocaleDateString('en-CA'); // YYYY-MM-DD format in local timezone
   };
-  
+
   // Get data for the selected date (properly handling timezones)
-  const dayMeal = mealLogs.find(meal => meal.date === dateStr);
-  // Weight data comes from body_measurements table with measurement_type = 'weight'
-  const dayWeight = measurements.filter(measurement => 
-    measurement.measurement_type === 'weight' && measurement.date === dateStr
-  );
+  const dayMeal = mealLogs.find(meal => {
+    const d = new Date(meal.date);
+    return d.toLocaleDateString('en-CA') === dateStr;
+  });
+
+  // Weight data comes from body_measurements table with measurementType = 'weight'
+  const dayWeight = measurements.filter(measurement => {
+    const d = new Date(measurement.date);
+    return measurement.measurementType === 'weight' && d.toLocaleDateString('en-CA') === dateStr;
+  });
+
   const dayWater = waterLogs.filter(water => getLocalDateStr(water.timestamp) === dateStr);
   // Non-weight measurements (biceps, chest, waist, etc.)
   const dayMeasurements = measurements.filter(measurement => {
     // Exclude weight measurements as they're handled separately above
-    if (measurement.measurement_type === 'weight') return false;
-    
+    if (measurement.measurementType === 'weight') return false;
+
     if (measurement.date) {
-      return measurement.date === dateStr;
+      const d = new Date(measurement.date);
+      return d.toLocaleDateString('en-CA') === dateStr;
     }
     return false;
   });
@@ -72,11 +79,11 @@ export function DayDetails({ date, mealLogs, weightLogs, waterLogs, measurements
           </div>
           <h3 className="text-lg font-semibold mb-2">No Activity</h3>
           <p className="text-default-500">
-            No activities recorded for {date.toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
+            No activities recorded for {date.toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
             })}
           </p>
         </div>
@@ -86,20 +93,20 @@ export function DayDetails({ date, mealLogs, weightLogs, waterLogs, measurements
 
   // Calculate meal completion
   const mealActivities = dayMeal ? [
-    { name: 'Breakfast', completed: dayMeal.breakfast_completed, time: dayMeal.breakfast_time, scheduled: userProfile.breakfast_time },
-    { name: 'Morning Snack', completed: dayMeal.snack1_completed, time: dayMeal.snack1_time, scheduled: userProfile.snack1_time },
-    { name: 'Lunch', completed: dayMeal.lunch_completed, time: dayMeal.lunch_time, scheduled: userProfile.lunch_time },
-    { name: 'Afternoon Snack', completed: dayMeal.snack2_completed, time: dayMeal.snack2_time, scheduled: userProfile.snack2_time },
-    { name: 'Dinner', completed: dayMeal.dinner_completed, time: dayMeal.dinner_time, scheduled: userProfile.dinner_time }
+    { name: 'Breakfast', completed: dayMeal.breakfastCompleted, time: dayMeal.breakfastTime, scheduled: userProfile.breakfastTime },
+    { name: 'Morning Snack', completed: dayMeal.snack1Completed, time: dayMeal.snack1Time, scheduled: userProfile.snack1Time },
+    { name: 'Lunch', completed: dayMeal.lunchCompleted, time: dayMeal.lunchTime, scheduled: userProfile.lunchTime },
+    { name: 'Afternoon Snack', completed: dayMeal.snack2Completed, time: dayMeal.snack2Time, scheduled: userProfile.snack2Time },
+    { name: 'Dinner', completed: dayMeal.dinnerCompleted, time: dayMeal.dinnerTime, scheduled: userProfile.dinnerTime }
   ] : [];
 
   const completedMeals = mealActivities.filter(meal => meal.completed).length;
   const mealCompletionRate = mealActivities.length > 0 ? (completedMeals / mealActivities.length) * 100 : 0;
 
   // Calculate total water intake
-  const totalWaterGlasses = dayWater.reduce((sum, log) => sum + log.glass_count, 0);
-  const totalWaterMl = totalWaterGlasses * (userProfile.glass_size_ml || 250);
-  const waterTarget = (userProfile.daily_water_target || 8) * (userProfile.glass_size_ml || 250);
+  const totalWaterGlasses = dayWater.reduce((sum, log) => sum + log.glassCount, 0);
+  const totalWaterMl = totalWaterGlasses * (userProfile.glassSizeMl || 250);
+  const waterTarget = (userProfile.dailyWaterTarget || 8) * (userProfile.glassSizeMl || 250);
   const waterCompletionRate = waterTarget > 0 ? Math.min((totalWaterMl / waterTarget) * 100, 100) : 0;
 
   return (
@@ -109,11 +116,11 @@ export function DayDetails({ date, mealLogs, weightLogs, waterLogs, measurements
         <div className="flex flex-col gap-3">
           <div>
             <h2 className="text-lg font-bold">
-              {date.toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+              {date.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
               })}
             </h2>
             <p className="text-default-500 text-sm">Daily Activity Summary</p>
@@ -154,7 +161,7 @@ export function DayDetails({ date, mealLogs, weightLogs, waterLogs, measurements
             <div className="text-right">
               <div className="text-xl font-bold text-green-600 dark:text-green-400">{mealCompletionRate.toFixed(0)}%</div>
               <div className="w-16 h-1.5 bg-default-200 dark:bg-default-700 rounded-full mt-1">
-                <div 
+                <div
                   className="h-full bg-green-500 dark:bg-green-400 rounded-full transition-all"
                   style={{ width: `${mealCompletionRate}%` }}
                 />
@@ -164,13 +171,12 @@ export function DayDetails({ date, mealLogs, weightLogs, waterLogs, measurements
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {mealActivities.map((meal, index) => (
-              <div 
+              <div
                 key={index}
-                className={`p-3 rounded-lg border ${
-                  meal.completed 
-                    ? 'border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20' 
+                className={`p-3 rounded-lg border ${meal.completed
+                    ? 'border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20'
                     : 'border-default-200 dark:border-default-700 bg-default-50 dark:bg-default-800/50'
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-medium text-sm">{meal.name}</span>
@@ -180,7 +186,7 @@ export function DayDetails({ date, mealLogs, weightLogs, waterLogs, measurements
                     <XCircle className="w-4 h-4 text-default-400 flex-shrink-0" />
                   )}
                 </div>
-                
+
                 <div className="space-y-0.5 text-xs text-default-600 dark:text-default-300">
                   {meal.scheduled && (
                     <div className="flex items-center gap-1">
@@ -220,7 +226,7 @@ export function DayDetails({ date, mealLogs, weightLogs, waterLogs, measurements
                 <div>
                   <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{log.value} {log.unit}</div>
                   <div className="text-xs text-default-500 dark:text-default-400">
-                    {formatTime(log.created_at)}
+                    {formatTime(log.createdAt)}
                   </div>
                 </div>
                 {log.notes && (
@@ -251,7 +257,7 @@ export function DayDetails({ date, mealLogs, weightLogs, waterLogs, measurements
               <div className="text-xl font-bold text-cyan-600 dark:text-cyan-400">{waterCompletionRate.toFixed(0)}%</div>
               <div className="text-xs text-default-500">{totalWaterMl.toLocaleString()} ml</div>
               <div className="w-16 h-1.5 bg-default-200 dark:bg-default-700 rounded-full mt-1">
-                <div 
+                <div
                   className="h-full bg-cyan-500 dark:bg-cyan-400 rounded-full transition-all"
                   style={{ width: `${waterCompletionRate}%` }}
                 />
@@ -262,7 +268,7 @@ export function DayDetails({ date, mealLogs, weightLogs, waterLogs, measurements
           <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
             {dayWater.map((log, index) => (
               <div key={index} className="p-2 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg text-center">
-                <div className="font-bold text-cyan-600 dark:text-cyan-400 text-sm">{log.glass_count}</div>
+                <div className="font-bold text-cyan-600 dark:text-cyan-400 text-sm">{log.glassCount}</div>
                 <div className="text-xs text-default-500 dark:text-default-400">
                   {formatTime(log.timestamp)}
                 </div>
@@ -291,14 +297,14 @@ export function DayDetails({ date, mealLogs, weightLogs, waterLogs, measurements
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-medium capitalize text-sm">
-                      {measurement.measurement_type.replace('_', ' ')}
+                      {measurement.measurementType.replace('_', ' ')}
                     </div>
                     <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
                       {measurement.value} {measurement.unit}
                     </div>
                   </div>
                   <div className="text-right text-xs text-default-500 dark:text-default-400">
-                    {formatTime(measurement.updated_at)}
+                    {formatTime(measurement.updatedAt)}
                   </div>
                 </div>
                 {measurement.notes && (

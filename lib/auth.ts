@@ -1,7 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -20,25 +20,9 @@ export const authOptions: NextAuthOptions = {
                         return null;
                     }
 
-                    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) console.error("[Auth] CRITICAL: MISSING NEXT_PUBLIC_SUPABASE_URL");
-                    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) console.error("[Auth] CRITICAL: MISSING SUPABASE_SERVICE_ROLE_KEY");
-
-                    const supabase = createClient(
-                        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                        process.env.SUPABASE_SERVICE_ROLE_KEY!
-                    );
-
-                    const { data: user, error } = await supabase
-                        .from("user_preferences")
-                        .select("*")
-                        .eq("email", credentials.email)
-                        .single();
-
-                    if (error) {
-                        console.error("[Auth] Database error:", error);
-                        console.log("[Auth] User lookup failed:", error.message);
-                        return null;
-                    }
+                    const user = await prisma.userPreference.findUnique({
+                        where: { email: credentials.email },
+                    });
 
                     if (!user) {
                         console.log("[Auth] User not found in database");
@@ -46,15 +30,11 @@ export const authOptions: NextAuthOptions = {
                     }
 
                     console.log("[Auth] User found:", user.id);
-                    console.log("[Auth] Stored hash from DB:", user.password_hash);
-
-                    console.log("[Auth] Received password length:", credentials.password.length);
-                    console.log("[Auth] Received password (first 3 chars):", credentials.password.substring(0, 3));
-                    // console.log("[Auth] FULL PASSWORD CHECK:", credentials.password); 
+                    // console.log("[Auth] Stored hash from DB:", user.passwordHash);
 
                     const passwordMatch = await bcrypt.compare(
                         credentials.password,
-                        user.password_hash
+                        user.passwordHash
                     );
 
                     console.log("[Auth] Password match result:", passwordMatch);
@@ -64,20 +44,24 @@ export const authOptions: NextAuthOptions = {
                         return null;
                     }
 
-                    // Update last_sign_in_at
-                    const { error: updateError } = await supabase
-                        .from("user_preferences")
-                        .update({
-                            last_sign_in_at: new Date().toISOString(),
-                            last_active_at: new Date().toISOString()
-                        })
-                        .eq("id", user.id);
+                    // Check for ban
+                    if (user.bannedUntil && user.bannedUntil > new Date()) {
+                        console.log("[Auth] User is banned until:", user.bannedUntil);
+                        return null; // Or throw Error("Your account has been suspended.")
+                    }
 
-                    if (updateError) {
-                        console.error("[Auth] Failed to update sign-in time:", updateError);
-                        // Non-blocking error
-                    } else {
+                    // Update last_sign_in_at
+                    try {
+                        await prisma.userPreference.update({
+                            where: { id: user.id },
+                            data: {
+                                lastSignInAt: new Date(),
+                                lastActiveAt: new Date(),
+                            },
+                        });
                         console.log("[Auth] Successfully updated last_sign_in_at for user:", user.id);
+                    } catch (updateError) {
+                        console.error("[Auth] Failed to update sign-in time:", updateError);
                     }
 
                     console.log("[Auth] Authorize returning:", {
@@ -88,10 +72,10 @@ export const authOptions: NextAuthOptions = {
 
                     return {
                         id: user.id,
-                        role: user.role,
-                        name: user.full_name,
+                        role: user.role as 'user' | 'super_admin',
+                        name: user.fullName,
                         email: user.email,
-                        password_change_required: user.password_change_required,
+                        password_change_required: user.passwordChangeRequired,
                     };
                 } catch (error) {
                     console.error("[Auth] UNEXPECTED ERROR in authorize:", error);
@@ -105,36 +89,26 @@ export const authOptions: NextAuthOptions = {
     },
     callbacks: {
         async jwt({ token, user, trigger, session }) {
-            // console.log("[Auth] JWT Callback triggered");
             // Initial sign in
             if (user) {
                 console.log("[Auth] JWT: User object present on sign-in:", JSON.stringify(user));
                 token.id = user.id;
                 token.role = user.role;
                 token.password_change_required = user.password_change_required;
-            } else {
-                // console.log("[Auth] JWT: No user object (subsequent call). Token keys:", Object.keys(token));
-                // console.log("[Auth] JWT: Token email:", token.email);
-                // console.log("[Auth] JWT: Token role:", token.role);
             }
 
             // Failsafe: if role is missing but we have email, try to fetch it
             if (!token.role && token.email) {
                 console.log("[Auth] JWT: Role missing for email:", token.email, "Fetching from DB...");
                 try {
-                    const supabase = createClient(
-                        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                        process.env.SUPABASE_SERVICE_ROLE_KEY!
-                    );
-                    const { data: userPref } = await supabase
-                        .from("user_preferences")
-                        .select("role")
-                        .eq("email", token.email)
-                        .single();
+                    const userPref = await prisma.userPreference.findUnique({
+                        where: { email: token.email },
+                        select: { role: true },
+                    });
 
                     if (userPref?.role) {
                         console.log("[Auth] JWT: Role fetched successfully:", userPref.role);
-                        token.role = userPref.role;
+                        token.role = userPref.role as 'user' | 'super_admin';
                     }
                 } catch (err) {
                     console.error("[Auth] JWT: Failed to fetch fallback role", err);
@@ -148,27 +122,19 @@ export const authOptions: NextAuthOptions = {
                     token.hasActiveMembership = true;
                 } else {
                     try {
-                        const supabase = createClient(
-                            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                            process.env.SUPABASE_SERVICE_ROLE_KEY!
-                        );
-
                         // Check for ANY active membership
-                        const { data: membership } = await supabase
-                            .from("user_memberships")
-                            .select("status")
-                            .eq("user_id", token.id)
-                            .eq("status", "active")
-                            .limit(1)
-                            .maybeSingle(); // Use maybeSingle correctly
+                        const membership = await prisma.userMembership.findFirst({
+                            where: {
+                                userId: token.id as string,
+                                status: "active",
+                            },
+                            select: { status: true },
+                        });
 
                         // If we found a row with status 'active', they have a membership
                         token.hasActiveMembership = !!membership;
-                        // console.log(`[Auth] JWT: Checked membership for ${token.id}. Active? ${token.hasActiveMembership}`);
-
                     } catch (err) {
                         console.error("[Auth] JWT: Failed to fetch membership status", err);
-                        // Default to false on error to be safe, or true? Safe is false (deny access).
                         token.hasActiveMembership = false;
                     }
                 }

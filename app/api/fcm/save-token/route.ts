@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -23,26 +23,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const adminClient = createAdminClient();
+    const userId = (session.user as any).id;
 
-    // Upsert the FCM token
-    const { error } = await adminClient
-      .from('fcm_tokens')
-      .upsert({
-        user_id: session.user.id,
-        token: token,
-        device_info: deviceInfo || {},
-        last_used_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,token'
+    // Check if token already exists for this user
+    const existingToken = await prisma.fcmToken.findFirst({
+      where: {
+        userId: userId,
+        token: token
+      }
+    });
+
+    if (existingToken) {
+      // Update existing token
+      await prisma.fcmToken.update({
+        where: { id: existingToken.id },
+        data: {
+          deviceInfo: deviceInfo || {},
+          lastUsedAt: new Date(),
+        }
       });
-
-    if (error) {
-      console.error('Error saving FCM token:', error);
-      return NextResponse.json(
-        { error: 'Failed to save token' },
-        { status: 500 }
-      );
+    } else {
+      // Create new token
+      await prisma.fcmToken.create({
+        data: {
+          userId: userId,
+          token: token,
+          deviceInfo: deviceInfo || {},
+          lastUsedAt: new Date(),
+        }
+      });
     }
 
     return NextResponse.json({ success: true });
