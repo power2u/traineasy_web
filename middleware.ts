@@ -74,6 +74,6 @@ export const config = {
     matcher: [
         // Match all paths to ensure we can capture for maintenance
         // Excluding internal Next.js paths and static files
-        '/((?!api|_next/static|_next/image|favicon.ico).*)',
+        '/((?!api|_next/static|_next/image|favicon.ico|manifest.json|.*\\.png$|.*\\.jpg$|.*\\.svg$).*)',
     ],
 };

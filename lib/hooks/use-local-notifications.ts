@@ -36,10 +36,12 @@ export function useLocalNotifications() {
         console.log('Local notifications initialized successfully');
         isInitialized.current = true;
       } else {
-        console.warn('Failed to initialize local notifications');
+        // Suppress warning - likely just not supported or pwa not installed
+        // console.warn('Failed to initialize local notifications');
       }
     } catch (error) {
-      console.error('Error initializing local notifications:', error);
+      // Suppress error log for initialization
+      // console.error('Error initializing local notifications:', error);
     }
   }, [user]);
 

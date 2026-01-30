@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import NextImage from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuthUser } from '@/lib/contexts/auth-context';
 import { Button } from '@heroui/react';
@@ -30,8 +31,8 @@ const NavItem = memo(function NavItem({
     <Link
       href={href}
       className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${isActive
-          ? 'bg-primary text-primary-foreground'
-          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+        ? 'bg-primary text-primary-foreground'
+        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
         }`}
     >
       <Icon className="h-5 w-5" />
@@ -71,10 +72,18 @@ export const Sidebar = memo(function Sidebar() {
     <aside className="hidden w-64 flex-col border-r border-border bg-card md:flex">
       {/* Logo/Brand */}
       <div className="flex h-16 items-center border-b border-border px-6">
-        <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="Logo" className="h-8 w-8" />
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <div className="relative h-8 w-8 overflow-hidden rounded-md">
+            <NextImage
+              src="/logo.png"
+              alt="Logo"
+              fill
+              className="object-cover"
+              priority
+            />
+          </div>
           <span className="text-lg font-bold text-foreground">Fitness Tracker</span>
-        </div>
+        </Link>
       </div>
 
       {/* Navigation */}

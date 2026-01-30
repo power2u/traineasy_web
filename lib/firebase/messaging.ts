@@ -11,7 +11,9 @@ export async function requestNotificationPermission(): Promise<string | null> {
     console.log('🔔 Starting FCM token request...');
 
     if (!messaging) {
-      console.warn('⚠️ Firebase messaging not supported or not initialized');
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ Firebase messaging not supported or not initialized');
+      }
       return null;
     }
 
@@ -53,11 +55,9 @@ export async function requestNotificationPermission(): Promise<string | null> {
       return null;
     }
   } catch (error: any) {
-    // Log the error but don't throw it - this allows the app to continue functioning
-    console.warn('⚠️ FCM token request failed (this is normal if notifications are disabled):', error.message);
-
     // Only log detailed error info in development
     if (process.env.NODE_ENV === 'development') {
+      console.warn('⚠️ FCM token request failed (this is normal if notifications are disabled):', error.message);
       console.error('Error details:', {
         message: error.message,
         code: error.code,
@@ -74,7 +74,7 @@ export async function requestNotificationPermission(): Promise<string | null> {
  */
 export function onForegroundMessage(callback: (payload: any) => void) {
   if (!messaging) {
-    console.warn('Firebase messaging not supported');
+    // console.warn('Firebase messaging not supported');
     return () => { };
   }
 
