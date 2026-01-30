@@ -1,6 +1,6 @@
 import type { BodyMeasurement } from '@/lib/types';
 import { prisma } from '@/lib/prisma';
-import { MeasurementType } from '@prisma/client';
+import { MeasurementType } from '../generated/prisma';
 
 class MeasurementsService {
 
