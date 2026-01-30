@@ -3,10 +3,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { UserPreference } from '@/lib/generated/prisma/client';
-import { Meal } from '@/lib/generated/prisma/client';
-import { WaterIntake } from '@/lib/generated/prisma/client';
-import { BodyMeasurement } from '@prisma/client';
+import { UserPreference, Meal, WaterIntake, BodyMeasurement } from '@/lib/generated/prisma';
 
 // Define strict types for return data to ensure type safety on client
 export interface AdminUserDetails {
