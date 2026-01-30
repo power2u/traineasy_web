@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
@@ -7,11 +7,11 @@ const execAsync = promisify(exec);
 
 interface UserCronJob {
   id: string;
-  user_id: string;
-  notification_type: string;
-  cron_expression: string;
+  userId: string;
+  notificationType: string;
+  cronExpression: string;
   timezone: string;
-  is_active: boolean;
+  isActive: boolean;
 }
 
 export class LocalCronManager {
@@ -43,18 +43,15 @@ export class LocalCronManager {
     }
 
     try {
-      const supabase = await createClient();
-
       // Check if cron jobs were updated today (limit to once per day)
-      const { data: existingJobs } = await supabase
-        .from('user_cron_jobs')
-        .select('updated_at')
-        .eq('user_id', userId)
-        .order('updated_at', { ascending: false })
-        .limit(1);
+      const existingJobs = await prisma.userCronJobs.findMany({
+        where: { userId },
+        orderBy: { updatedAt: 'desc' },
+        take: 1
+      });
 
       if (existingJobs && existingJobs.length > 0) {
-        const lastUpdate = new Date(existingJobs[0].updated_at);
+        const lastUpdate = new Date(existingJobs[0].updatedAt);
         const today = new Date();
         const isSameDay = lastUpdate.toDateString() === today.toDateString();
 
@@ -67,13 +64,11 @@ export class LocalCronManager {
       }
 
       // Get user preferences
-      const { data: userPrefs, error: prefsError } = await supabase
-        .from('user_preferences')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const userPrefs = await prisma.userPreferences.findUnique({
+        where: { id: userId }
+      });
 
-      if (prefsError || !userPrefs) {
+      if (!userPrefs) {
         return { success: false, message: 'User preferences not found' };
       }
 
@@ -83,13 +78,13 @@ export class LocalCronManager {
       const cronJobs: Partial<UserCronJob>[] = [];
 
       // Create meal reminder cron jobs based on user's meal times (local device time)
-      if (userPrefs.meal_reminders_enabled && userPrefs.notifications_enabled) {
+      if (userPrefs.mealRemindersEnabled && userPrefs.notificationsEnabled) {
         const mealTimes = [
-          { type: 'meal_reminder_breakfast', time: userPrefs.breakfast_time },
-          { type: 'meal_reminder_snack1', time: userPrefs.snack1_time },
-          { type: 'meal_reminder_lunch', time: userPrefs.lunch_time },
-          { type: 'meal_reminder_snack2', time: userPrefs.snack2_time },
-          { type: 'meal_reminder_dinner', time: userPrefs.dinner_time },
+          { type: 'meal_reminder_breakfast', time: userPrefs.breakfastTime },
+          { type: 'meal_reminder_snack1', time: userPrefs.snack1Time },
+          { type: 'meal_reminder_lunch', time: userPrefs.lunchTime },
+          { type: 'meal_reminder_snack2', time: userPrefs.snack2Time },
+          { type: 'meal_reminder_dinner', time: userPrefs.dinnerTime },
         ];
 
         for (const meal of mealTimes) {
@@ -98,85 +93,80 @@ export class LocalCronManager {
             const cronExpression = `${minutes} ${hours} * * *`; // Daily at specific time (local server time)
 
             cronJobs.push({
-              user_id: userId,
-              notification_type: meal.type,
-              cron_expression: cronExpression,
+              userId: userId,
+              notificationType: meal.type,
+              cronExpression: cronExpression,
               timezone: 'local', // Use local server time instead of user timezone
-              is_active: true,
+              isActive: true,
             });
           }
         }
       }
 
       // Water reminders (every 2 hours from 8 AM to 8 PM - local time)
-      if (userPrefs.water_reminders_enabled && userPrefs.notifications_enabled) {
+      if (userPrefs.waterRemindersEnabled && userPrefs.notificationsEnabled) {
         cronJobs.push({
-          user_id: userId,
-          notification_type: 'water_reminder',
-          cron_expression: '0 8,10,12,14,16,18,20 * * *', // Every 2 hours (local time)
+          userId: userId,
+          notificationType: 'water_reminder',
+          cronExpression: '0 8,10,12,14,16,18,20 * * *', // Every 2 hours (local time)
           timezone: 'local',
-          is_active: true,
+          isActive: true,
         });
       }
 
       // Good morning (7 AM daily - local time)
-      if (userPrefs.notifications_enabled) {
+      if (userPrefs.notificationsEnabled) {
         cronJobs.push({
-          user_id: userId,
-          notification_type: 'good_morning',
-          cron_expression: '0 7 * * *',
+          userId: userId,
+          notificationType: 'good_morning',
+          cronExpression: '0 7 * * *',
           timezone: 'local',
-          is_active: true,
+          isActive: true,
         });
       }
 
       // Good night (9 PM daily - local time)
-      if (userPrefs.notifications_enabled) {
+      if (userPrefs.notificationsEnabled) {
         cronJobs.push({
-          user_id: userId,
-          notification_type: 'good_night',
-          cron_expression: '0 21 * * *',
+          userId: userId,
+          notificationType: 'good_night',
+          cronExpression: '0 21 * * *',
           timezone: 'local',
-          is_active: true,
+          isActive: true,
         });
       }
 
       // Weekly weight reminder (Saturday 9 AM - local time)
-      if (userPrefs.weight_reminders_enabled && userPrefs.notifications_enabled) {
+      if (userPrefs.weightRemindersEnabled && userPrefs.notificationsEnabled) {
         cronJobs.push({
-          user_id: userId,
-          notification_type: 'weekly_weight_reminder',
-          cron_expression: '0 9 * * 6', // Saturday 9 AM (local time)
+          userId: userId,
+          notificationType: 'weekly_weight_reminder',
+          cronExpression: '0 9 * * 6', // Saturday 9 AM (local time)
           timezone: 'local',
-          is_active: true,
+          isActive: true,
         });
       }
 
       // Weekly measurement reminder (Saturday 10 AM - local time)
-      if (userPrefs.weight_reminders_enabled && userPrefs.notifications_enabled) {
+      if (userPrefs.weightRemindersEnabled && userPrefs.notificationsEnabled) {
         cronJobs.push({
-          user_id: userId,
-          notification_type: 'weekly_measurement_reminder',
-          cron_expression: '0 10 * * 6', // Saturday 10 AM (local time)
+          userId: userId,
+          notificationType: 'weekly_measurement_reminder',
+          cronExpression: '0 10 * * 6', // Saturday 10 AM (local time)
           timezone: 'local',
-          is_active: true,
+          isActive: true,
         });
       }
 
       // Insert cron jobs into database
       if (cronJobs.length > 0) {
-        const { error: insertError } = await supabase
-          .from('user_cron_jobs')
-          .insert(cronJobs);
-
-        if (insertError) {
-          console.error('Error inserting cron jobs:', insertError);
-          return { success: false, message: 'Failed to save cron jobs to database' };
-        }
+        await prisma.userCronJobs.createMany({
+          data: cronJobs
+        });
 
         // Register actual system cron jobs (using local server time)
         for (const job of cronJobs) {
-          await this.addSystemCronJob(userId, job.notification_type!, job.cron_expression!);
+          await this.addSystemCronJob(userId, job.notificationType!, job.cronExpression!);
         }
       }
 
@@ -200,31 +190,22 @@ export class LocalCronManager {
     }
 
     try {
-      const supabase = await createClient();
-
       // Get existing cron jobs for this user
-      const { data: existingJobs } = await supabase
-        .from('user_cron_jobs')
-        .select('*')
-        .eq('user_id', userId);
+      const existingJobs = await prisma.userCronJobs.findMany({
+        where: { userId }
+      });
 
       // Remove from system crontab
       if (existingJobs) {
         for (const job of existingJobs) {
-          await this.removeSystemCronJob(userId, job.notification_type);
+          await this.removeSystemCronJob(userId, job.notificationType);
         }
       }
 
       // Remove from database
-      const { error } = await supabase
-        .from('user_cron_jobs')
-        .delete()
-        .eq('user_id', userId);
-
-      if (error) {
-        console.error('Error removing cron jobs from database:', error);
-        return { success: false, message: 'Failed to remove cron jobs from database' };
-      }
+      await prisma.userCronJobs.deleteMany({
+        where: { userId }
+      });
 
       return { success: true, message: `Removed cron jobs for user ${userId}` };
     } catch (error: unknown) {
@@ -243,16 +224,12 @@ export class LocalCronManager {
     }
 
     try {
-      const supabase = await createClient();
-
       // Get user preferences
-      const { data: userPrefs, error: prefsError } = await supabase
-        .from('user_preferences')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const userPrefs = await prisma.userPreferences.findUnique({
+        where: { id: userId }
+      });
 
-      if (prefsError || !userPrefs) {
+      if (!userPrefs) {
         return { success: false, message: 'User preferences not found' };
       }
 
@@ -262,13 +239,13 @@ export class LocalCronManager {
       const cronJobs: Partial<UserCronJob>[] = [];
 
       // Create meal reminder cron jobs based on user's meal times (local device time)
-      if (userPrefs.meal_reminders_enabled && userPrefs.notifications_enabled) {
+      if (userPrefs.mealRemindersEnabled && userPrefs.notificationsEnabled) {
         const mealTimes = [
-          { type: 'meal_reminder_breakfast', time: userPrefs.breakfast_time },
-          { type: 'meal_reminder_snack1', time: userPrefs.snack1_time },
-          { type: 'meal_reminder_lunch', time: userPrefs.lunch_time },
-          { type: 'meal_reminder_snack2', time: userPrefs.snack2_time },
-          { type: 'meal_reminder_dinner', time: userPrefs.dinner_time },
+          { type: 'meal_reminder_breakfast', time: userPrefs.breakfastTime },
+          { type: 'meal_reminder_snack1', time: userPrefs.snack1Time },
+          { type: 'meal_reminder_lunch', time: userPrefs.lunchTime },
+          { type: 'meal_reminder_snack2', time: userPrefs.snack2Time },
+          { type: 'meal_reminder_dinner', time: userPrefs.dinnerTime },
         ];
 
         for (const meal of mealTimes) {
@@ -277,85 +254,80 @@ export class LocalCronManager {
             const cronExpression = `${minutes} ${hours} * * *`; // Daily at specific time (local server time)
 
             cronJobs.push({
-              user_id: userId,
-              notification_type: meal.type,
-              cron_expression: cronExpression,
+              userId: userId,
+              notificationType: meal.type,
+              cronExpression: cronExpression,
               timezone: 'local', // Use local server time instead of user timezone
-              is_active: true,
+              isActive: true,
             });
           }
         }
       }
 
       // Water reminders (every 2 hours from 8 AM to 8 PM - local time)
-      if (userPrefs.water_reminders_enabled && userPrefs.notifications_enabled) {
+      if (userPrefs.waterRemindersEnabled && userPrefs.notificationsEnabled) {
         cronJobs.push({
-          user_id: userId,
-          notification_type: 'water_reminder',
-          cron_expression: '0 8,10,12,14,16,18,20 * * *', // Every 2 hours (local time)
+          userId: userId,
+          notificationType: 'water_reminder',
+          cronExpression: '0 8,10,12,14,16,18,20 * * *', // Every 2 hours (local time)
           timezone: 'local',
-          is_active: true,
+          isActive: true,
         });
       }
 
       // Good morning (7 AM daily - local time)
-      if (userPrefs.notifications_enabled) {
+      if (userPrefs.notificationsEnabled) {
         cronJobs.push({
-          user_id: userId,
-          notification_type: 'good_morning',
-          cron_expression: '0 7 * * *',
+          userId: userId,
+          notificationType: 'good_morning',
+          cronExpression: '0 7 * * *',
           timezone: 'local',
-          is_active: true,
+          isActive: true,
         });
       }
 
       // Good night (9 PM daily - local time)
-      if (userPrefs.notifications_enabled) {
+      if (userPrefs.notificationsEnabled) {
         cronJobs.push({
-          user_id: userId,
-          notification_type: 'good_night',
-          cron_expression: '0 21 * * *',
+          userId: userId,
+          notificationType: 'good_night',
+          cronExpression: '0 21 * * *',
           timezone: 'local',
-          is_active: true,
+          isActive: true,
         });
       }
 
       // Weekly weight reminder (Saturday 9 AM - local time)
-      if (userPrefs.weight_reminders_enabled && userPrefs.notifications_enabled) {
+      if (userPrefs.weightRemindersEnabled && userPrefs.notificationsEnabled) {
         cronJobs.push({
-          user_id: userId,
-          notification_type: 'weekly_weight_reminder',
-          cron_expression: '0 9 * * 6', // Saturday 9 AM (local time)
+          userId: userId,
+          notificationType: 'weekly_weight_reminder',
+          cronExpression: '0 9 * * 6', // Saturday 9 AM (local time)
           timezone: 'local',
-          is_active: true,
+          isActive: true,
         });
       }
 
       // Weekly measurement reminder (Saturday 10 AM - local time)
-      if (userPrefs.weight_reminders_enabled && userPrefs.notifications_enabled) {
+      if (userPrefs.weightRemindersEnabled && userPrefs.notificationsEnabled) {
         cronJobs.push({
-          user_id: userId,
-          notification_type: 'weekly_measurement_reminder',
-          cron_expression: '0 10 * * 6', // Saturday 10 AM (local time)
+          userId: userId,
+          notificationType: 'weekly_measurement_reminder',
+          cronExpression: '0 10 * * 6', // Saturday 10 AM (local time)
           timezone: 'local',
-          is_active: true,
+          isActive: true,
         });
       }
 
       // Insert cron jobs into database
       if (cronJobs.length > 0) {
-        const { error: insertError } = await supabase
-          .from('user_cron_jobs')
-          .insert(cronJobs);
-
-        if (insertError) {
-          console.error('Error inserting cron jobs:', insertError);
-          return { success: false, message: 'Failed to save cron jobs to database' };
-        }
+        await prisma.userCronJobs.createMany({
+          data: cronJobs
+        });
 
         // Register actual system cron jobs (using local server time)
         for (const job of cronJobs) {
-          await this.addSystemCronJob(userId, job.notification_type!, job.cron_expression!);
+          await this.addSystemCronJob(userId, job.notificationType!, job.cronExpression!);
         }
       }
 
@@ -428,19 +400,15 @@ export class LocalCronManager {
    */
   async getUserCronJobs(userId: string): Promise<UserCronJob[]> {
     try {
-      const supabase = await createClient();
-
-      const { data, error } = await supabase
-        .from('user_cron_jobs')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .order('notification_type');
-
-      if (error) {
-        console.error('Error fetching user cron jobs:', error);
-        return [];
-      }
+      const data = await prisma.userCronJobs.findMany({
+        where: {
+          userId,
+          isActive: true
+        },
+        orderBy: {
+          notificationType: 'asc'
+        }
+      });
 
       return data || [];
     } catch (error) {
@@ -458,21 +426,15 @@ export class LocalCronManager {
     }
 
     try {
-      const supabase = await createClient();
-
       if (enabled) {
         // Re-register cron jobs
         return await this.registerUserCronJobs(userId);
       } else {
         // Disable cron jobs
-        const { error } = await supabase
-          .from('user_cron_jobs')
-          .update({ is_active: false })
-          .eq('user_id', userId);
-
-        if (error) {
-          return { success: false, message: 'Failed to disable cron jobs' };
-        }
+        await prisma.userCronJobs.updateMany({
+          where: { userId },
+          data: { isActive: false }
+        });
 
         // Remove from system crontab
         await this.removeUserCronJobs(userId);

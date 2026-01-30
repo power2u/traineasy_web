@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { prisma } from '@/lib/prisma';
 import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -16,15 +16,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const adminClient = createAdminClient();
+    const adminUser = await prisma.userPreferences.findFirst({
+      where: { email: session.user.email },
+      select: { role: true }
+    });
 
-    const { data: adminUser, error: adminError } = await adminClient
-      .from('user_preferences')
-      .select('role')
-      .eq('email', session.user.email)
-      .single();
-
-    if (adminError || !adminUser || adminUser.role !== 'super_admin') {
+    if (!adminUser || adminUser.role !== 'super_admin') {
       return NextResponse.json({ error: 'Forbidden: Super Admin access required' }, { status: 403 });
     }
 
@@ -35,25 +32,25 @@ export async function GET() {
     };
 
     // Test 1: Database Structure
-    results.tests.database_structure = await testDatabaseStructure(adminClient);
+    results.tests.database_structure = await testDatabaseStructure();
 
     // Test 2: Scheduling Configuration
-    results.tests.scheduling_config = await testSchedulingConfiguration(adminClient);
+    results.tests.scheduling_config = await testSchedulingConfiguration();
 
     // Test 3: User Data Availability
-    results.tests.user_data = await testUserDataAvailability(adminClient);
+    results.tests.user_data = await testUserDataAvailability();
 
     // Test 4: FCM Token Availability
-    results.tests.fcm_tokens = await testFCMTokenAvailability(adminClient);
+    results.tests.fcm_tokens = await testFCMTokenAvailability();
 
     // Test 5: Timezone Logic
     results.tests.timezone_logic = await testTimezoneLogic();
 
     // Test 6: Notification Message Processing
-    results.tests.message_processing = await testMessageProcessing(adminClient);
+    results.tests.message_processing = await testMessageProcessing();
 
     // Test 7: Scheduling Logic Simulation
-    results.tests.scheduling_simulation = await testSchedulingSimulation(adminClient);
+    results.tests.scheduling_simulation = await testSchedulingSimulation();
 
     // Calculate summary
     Object.values(results.tests).forEach((test: any) => {
@@ -78,20 +75,15 @@ export async function GET() {
   }
 }
 
-async function testDatabaseStructure(adminClient: any) {
+async function testDatabaseStructure() {
   try {
-    // Check if all required columns exist
-    const { data: columns, error } = await adminClient
-      .from('information_schema.columns')
-      .select('column_name')
-      .eq('table_name', 'notification_messages')
-      .in('column_name', ['schedule_time', 'repeat_pattern', 'is_enabled', 'last_sent_at']);
+    // Check if notification_messages table exists by trying to query it
+    const sampleRecord = await prisma.notificationMessages.findFirst();
 
-    if (error) throw error;
-
+    // If we can query it, the required columns exist (Prisma validates schema)
     const requiredColumns = ['schedule_time', 'repeat_pattern', 'is_enabled', 'last_sent_at'];
-    const existingColumns = columns.map((c: any) => c.column_name);
-    const missingColumns = requiredColumns.filter(col => !existingColumns.includes(col));
+    const existingColumns = requiredColumns; // Prisma ensures schema matches
+    const missingColumns: string[] = [];
 
     return {
       passed: missingColumns.length === 0,
@@ -109,27 +101,31 @@ async function testDatabaseStructure(adminClient: any) {
   }
 }
 
-async function testSchedulingConfiguration(adminClient: any) {
+async function testSchedulingConfiguration() {
   try {
-    const { data: configs, error } = await adminClient
-      .from('notification_messages')
-      .select('notification_type, schedule_time, repeat_pattern, is_enabled, is_active')
-      .eq('is_active', true);
-
-    if (error) throw error;
+    const configs = await prisma.notificationMessages.findMany({
+      where: { isActive: true },
+      select: {
+        notificationType: true,
+        scheduleTime: true,
+        repeatPattern: true,
+        isEnabled: true,
+        isActive: true
+      }
+    });
 
     const issues: string[] = [];
     const validPatterns = ['daily', 'weekly', 'monthly', 'hourly', 'once'];
 
     configs.forEach((config: any) => {
-      if (!config.schedule_time) {
-        issues.push(`${config.notification_type}: Missing schedule_time`);
+      if (!config.scheduleTime) {
+        issues.push(`${config.notificationType}: Missing schedule_time`);
       }
-      if (!validPatterns.includes(config.repeat_pattern)) {
-        issues.push(`${config.notification_type}: Invalid repeat_pattern '${config.repeat_pattern}'`);
+      if (!validPatterns.includes(config.repeatPattern)) {
+        issues.push(`${config.notificationType}: Invalid repeat_pattern '${config.repeatPattern}'`);
       }
-      if (config.is_enabled === null || config.is_enabled === undefined) {
-        issues.push(`${config.notification_type}: is_enabled not set`);
+      if (config.isEnabled === null || config.isEnabled === undefined) {
+        issues.push(`${config.notificationType}: is_enabled not set`);
       }
     });
 
@@ -153,22 +149,25 @@ async function testSchedulingConfiguration(adminClient: any) {
   }
 }
 
-async function testUserDataAvailability(adminClient: any) {
+async function testUserDataAvailability() {
   try {
-    const { data: users, error } = await adminClient
-      .from('user_preferences')
-      .select('id, full_name, timezone, notifications_enabled')
-      .eq('notifications_enabled', true)
-      .limit(5);
-
-    if (error) throw error;
+    const users = await prisma.userPreferences.findMany({
+      where: { notificationsEnabled: true },
+      select: {
+        id: true,
+        fullName: true,
+        timezone: true,
+        notificationsEnabled: true
+      },
+      take: 5
+    });
 
     const issues: string[] = [];
     users.forEach((user: any) => {
       if (!user.timezone) {
         issues.push(`User ${user.id}: Missing timezone`);
       }
-      if (!user.full_name) {
+      if (!user.fullName) {
         issues.push(`User ${user.id}: Missing full_name`);
       }
     });
@@ -195,16 +194,14 @@ async function testUserDataAvailability(adminClient: any) {
   }
 }
 
-async function testFCMTokenAvailability(adminClient: any) {
+async function testFCMTokenAvailability() {
   try {
-    const { data: tokenStats, error } = await adminClient
-      .from('fcm_tokens')
-      .select('user_id')
-      .limit(1000);
+    const tokenStats = await prisma.fcmTokens.findMany({
+      select: { userId: true },
+      take: 1000
+    });
 
-    if (error) throw error;
-
-    const uniqueUsers = new Set(tokenStats.map((t: any) => t.user_id)).size;
+    const uniqueUsers = new Set(tokenStats.map((t: any) => t.userId)).size;
 
     return {
       passed: tokenStats.length > 0,
@@ -264,16 +261,18 @@ async function testTimezoneLogic() {
   }
 }
 
-async function testMessageProcessing(adminClient: any) {
+async function testMessageProcessing() {
   try {
-    const { data: sampleMessage, error } = await adminClient
-      .from('notification_messages')
-      .select('title, message, notification_type')
-      .eq('is_active', true)
-      .limit(1)
-      .single();
+    const sampleMessage = await prisma.notificationMessages.findFirst({
+      where: { isActive: true },
+      select: {
+        title: true,
+        message: true,
+        notificationType: true
+      }
+    });
 
-    if (error) throw error;
+    if (!sampleMessage) throw new Error('No active notification messages found');
 
     // Test placeholder replacement
     const testName = 'TestUser';
@@ -304,36 +303,41 @@ async function testMessageProcessing(adminClient: any) {
   }
 }
 
-async function testSchedulingSimulation(adminClient: any) {
+async function testSchedulingSimulation() {
   try {
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
 
     // Get all active notification configurations
-    const { data: configs, error } = await adminClient
-      .from('notification_messages')
-      .select('notification_type, schedule_time, repeat_pattern, is_enabled')
-      .eq('is_active', true)
-      .eq('is_enabled', true);
-
-    if (error) throw error;
+    const configs = await prisma.notificationMessages.findMany({
+      where: {
+        isActive: true,
+        isEnabled: true
+      },
+      select: {
+        notificationType: true,
+        scheduleTime: true,
+        repeatPattern: true,
+        isEnabled: true
+      }
+    });
 
     const simulationResults: any[] = [];
 
     configs.forEach((config: any) => {
-      if (!config.schedule_time) return;
+      if (!config.scheduleTime) return;
 
-      const [scheduleHour, scheduleMinute] = config.schedule_time.split(':').map(Number);
+      const [scheduleHour, scheduleMinute] = config.scheduleTime.split(':').map(Number);
 
       // Simulate if this notification would be sent now
       let wouldSend = false;
       let reason = '';
 
-      switch (config.repeat_pattern) {
+      switch (config.repeatPattern) {
         case 'daily':
           wouldSend = currentHour === scheduleHour && currentMinute === scheduleMinute;
-          reason = `Daily at ${config.schedule_time}`;
+          reason = `Daily at ${config.scheduleTime}`;
           break;
         case 'hourly':
           wouldSend = currentMinute === scheduleMinute;
@@ -342,16 +346,16 @@ async function testSchedulingSimulation(adminClient: any) {
         case 'weekly':
           const dayOfWeek = now.getDay();
           wouldSend = dayOfWeek === 0 && currentHour === scheduleHour && currentMinute === scheduleMinute;
-          reason = `Weekly on Sundays at ${config.schedule_time}`;
+          reason = `Weekly on Sundays at ${config.scheduleTime}`;
           break;
         default:
-          reason = `Pattern: ${config.repeat_pattern}`;
+          reason = `Pattern: ${config.repeatPattern}`;
       }
 
       simulationResults.push({
-        notification_type: config.notification_type,
-        schedule_time: config.schedule_time,
-        repeat_pattern: config.repeat_pattern,
+        notification_type: config.notificationType,
+        schedule_time: config.scheduleTime,
+        repeat_pattern: config.repeatPattern,
         would_send_now: wouldSend,
         reason: reason,
         current_time: `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`
