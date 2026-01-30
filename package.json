@@ -16,7 +16,8 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "analyze": "ANALYZE=true next build",
-    "build:prod": "next build && next-sitemap"
+    "build:prod": "next build && next-sitemap",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
