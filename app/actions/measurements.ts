@@ -5,7 +5,7 @@ import { MeasurementType as AppMeasurementType, BodyMeasurement } from '@/lib/ty
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { MeasurementType as PrismaMeasurementType, BodyMeasurement as PrismaBodyMeasurement } from '@/lib/generated/prisma/client';
+import { MeasurementType as PrismaMeasurementType, BodyMeasurement as PrismaBodyMeasurement } from '@/lib/generated/prisma';
 
 export interface MeasurementsData {
     measurements: BodyMeasurement[];

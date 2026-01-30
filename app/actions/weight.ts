@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { updateLastActive } from "@/lib/utils/activity-tracker";
-import { MeasurementType } from '@prisma/client';
+import { MeasurementType } from '@/lib/generated/prisma';
 
 export interface WeightLog {
     id: string;
