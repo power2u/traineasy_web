@@ -1,6 +1,6 @@
 import type { BodyMeasurement } from '@/lib/types';
 import { prisma } from '@/lib/prisma';
-import { MeasurementType } from '@/lib/generated/prisma';
+import { MeasurementType } from '../generated/prisma/enums';
 
 class MeasurementsService {
 
@@ -26,16 +26,16 @@ class MeasurementsService {
       }
     });
 
-    return data.map(m => ({
+    return data.map((m: { value: any; date: { toISOString: () => string; }; }) => ({
       ...m,
       value: Number(m.value),
-      date: m.date.toISOString().split('T')[0] // formatting to YYYY-MM-DD string to match previous expected return type which seemed to be the raw Supabase return
+      date: m.date.toISOString().split('T')[0] // formatting to YYYY-MM-DD string to match previous expected return type
     })) as unknown as BodyMeasurement[];
     // Types might need adjustment if BodyMeasurement expects string date or Date object. 
-    // Previous implementation returned whatever Supabase returned.
+    // Previous implementation returned database data directly.
     // Let's assume BodyMeasurement type in @/lib/types aligns or we map it.
-    // Actually the previous implementation returned Supabase data directly.
-    // Supabase returns date as string usually.
+    // Actually the previous implementation returned database data directly.
+    // Database returns date as string usually.
   }
 
   // Get all measurements for all types (for dashboard/overview)
@@ -58,7 +58,7 @@ class MeasurementsService {
       }
     });
 
-    return data.map(m => ({
+    return data.map((m: { value: any; date: { toISOString: () => string; }; }) => ({
       ...m,
       value: Number(m.value),
       date: m.date.toISOString().split('T')[0]
@@ -83,9 +83,9 @@ class MeasurementsService {
     // But we don't have ID here.
     // Let's check schema.
     // Schema doesn't show unique compound index on (userId, measurementType, date).
-    // The previous Supabase upsert likely relied on ID if provided, or created new if not? 
+    // The previous database upsert likely relied on ID if provided, or created new if not? 
     // Or maybe it relied on a constraint not visible in the snippet I saw?
-    // Wait, if no ID is provided, Supabase upsert (INSERT ... ON CONFLICT) needs a conflict target.
+    // If no ID is provided, database upsert (INSERT ... ON CONFLICT) needs a conflict target.
     // If no unique constraint, it acts as insert.
     // Let's assume we want to update if exists for that day?
     // Check `canLogToday` - it checks if data exists.
@@ -216,7 +216,7 @@ class MeasurementsService {
 
     if (!data || data.length === 0) return null;
 
-    const sum = data.reduce((acc, curr) => acc + Number(curr.value), 0);
+    const sum = data.reduce((acc: number, curr: { value: any; }) => acc + Number(curr.value), 0);
     return sum / data.length;
   }
 
@@ -241,7 +241,7 @@ class MeasurementsService {
 
     if (!data || data.length === 0) return null;
 
-    const sum = data.reduce((acc, curr) => acc + Number(curr.value), 0);
+    const sum = data.reduce((acc: number, curr: { value: any; }) => acc + Number(curr.value), 0);
     return sum / data.length;
   }
 }

@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { requireSuperAdmin } from './admin';
 
-// Interface for Package matching Supabase return shape (snake_case)
+// Interface for Package matching database return shape (snake_case)
 export interface Package {
   id: string;
   name: string;

@@ -5,7 +5,7 @@ import { MeasurementType as AppMeasurementType, BodyMeasurement } from '@/lib/ty
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { MeasurementType as PrismaMeasurementType } from '@prisma/client';
+import { MeasurementType as PrismaMeasurementType, BodyMeasurement as PrismaBodyMeasurement } from '@/lib/generated/prisma/client';
 
 export interface MeasurementsData {
     measurements: BodyMeasurement[];
@@ -60,7 +60,7 @@ export async function getMeasurementsData(userId: string, type: AppMeasurementTy
     });
 
     // Map Prisma camelCase to App snake_case
-    const measurementList: BodyMeasurement[] = data.map(m => ({
+    const measurementList: BodyMeasurement[] = data.map((m: PrismaBodyMeasurement) => ({
         id: m.id,
         user_id: m.userId,
         measurement_type: m.measurementType as unknown as AppMeasurementType,
@@ -69,7 +69,7 @@ export async function getMeasurementsData(userId: string, type: AppMeasurementTy
         date: m.date.toISOString().split('T')[0], // format YYYY-MM-DD
         notes: m.notes || undefined,
         created_at: m.createdAt.toISOString(),
-        updated_at: m.updatedAt.toISOString() // Assuming updatedAt exists on model
+        updated_at: m.updatedAt.toISOString()
     }));
 
     // 3. Calculate Stats
@@ -138,11 +138,11 @@ export async function saveMeasurementAction(
     await checkAuth(userId);
 
     // Prisma upsert needs unique identifier.
-    // Unlike Supabase which can match on Unique Index columns.
+    // Unlike the old database which can match on Unique Index columns.
     // If we have unique constraint on (userId, measurementType, date), we can use upsert(where: { userId_measurementType_date: ... }).
     // I need to check schema for unique constraint.
     // Assuming NO unique constraint for now because I didn't see one besides id.
-    // Supabase .upsert() acts as "insert or update if conflict".
+    // Database .upsert() acts as "insert or update if conflict".
     // If there is a unique index, it works.
     // I previously assumed I should do findFirst then Update/Create.
 

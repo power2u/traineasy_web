@@ -9,7 +9,7 @@ import { messaging } from './config';
 export async function requestNotificationPermission(): Promise<string | null> {
   try {
     console.log('🔔 Starting FCM token request...');
-    
+
     if (!messaging) {
       console.warn('⚠️ Firebase messaging not supported or not initialized');
       return null;
@@ -27,7 +27,7 @@ export async function requestNotificationPermission(): Promise<string | null> {
     console.log('📋 Requesting notification permission...');
     const permission = await Notification.requestPermission();
     console.log('📋 Permission result:', permission);
-    
+
     if (permission !== 'granted') {
       console.warn('⚠️ Notification permission denied or dismissed by user');
       return null; // Return null instead of throwing error
@@ -36,7 +36,7 @@ export async function requestNotificationPermission(): Promise<string | null> {
     // Get FCM token
     const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
     console.log('🔑 VAPID key present:', !!vapidKey);
-    
+
     if (!vapidKey) {
       console.warn('⚠️ VAPID key not configured in environment variables');
       return null;
@@ -44,7 +44,7 @@ export async function requestNotificationPermission(): Promise<string | null> {
 
     console.log('🎫 Requesting FCM token from Firebase...');
     const token = await getToken(messaging, { vapidKey });
-    
+
     if (token) {
       console.log('✅ FCM Token received:', token.substring(0, 20) + '...');
       return token;
@@ -55,7 +55,7 @@ export async function requestNotificationPermission(): Promise<string | null> {
   } catch (error: any) {
     // Log the error but don't throw it - this allows the app to continue functioning
     console.warn('⚠️ FCM token request failed (this is normal if notifications are disabled):', error.message);
-    
+
     // Only log detailed error info in development
     if (process.env.NODE_ENV === 'development') {
       console.error('Error details:', {
@@ -64,7 +64,7 @@ export async function requestNotificationPermission(): Promise<string | null> {
         stack: error.stack,
       });
     }
-    
+
     return null; // Return null instead of throwing
   }
 }
@@ -75,11 +75,11 @@ export async function requestNotificationPermission(): Promise<string | null> {
 export function onForegroundMessage(callback: (payload: any) => void) {
   if (!messaging) {
     console.warn('Firebase messaging not supported');
-    return () => {};
+    return () => { };
   }
 
   console.log('📡 Setting up foreground message listener...');
-  
+
   const unsubscribe = onMessage(messaging, (payload) => {
     console.log('📨 Foreground message received:', payload);
     callback(payload);
@@ -114,7 +114,7 @@ export function isNotificationSupported(): boolean {
 }
 
 /**
- * Save FCM token to Supabase using server action
+ * Save FCM token to database using server action
  */
 export async function saveFCMToken(userId: string, token: string): Promise<boolean> {
   try {
@@ -129,12 +129,12 @@ export async function saveFCMToken(userId: string, token: string): Promise<boole
 }
 
 /**
- * Remove FCM token from Supabase using server action
+ * Remove FCM token from database using server action
  */
 export async function removeFCMToken(userId: string, removeAll: boolean = false): Promise<boolean> {
   try {
     let currentToken = null;
-    
+
     // If not removing all tokens, get current browser's token
     if (!removeAll && messaging) {
       try {

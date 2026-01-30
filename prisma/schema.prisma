@@ -71,6 +71,16 @@ model UserPreference {
   dinnerTime             String?   @map("dinner_time")
   mealTimesConfigured    Boolean   @default(false) @map("meal_times_configured")
   
+  // Notification Preferences Extension
+  pushEnabled            Boolean   @default(true) @map("push_enabled")
+  emailEnabled           Boolean   @default(false) @map("email_enabled")
+  planRemindersEnabled   Boolean   @default(true) @map("plan_reminders_enabled")
+  mealReminderDelayMinutes Int     @default(30) @map("meal_reminder_delay_minutes")
+  waterReminderTimes     String[]  @default(["10:00", "15:00", "20:00"]) @map("water_reminder_times")
+  weightReminderDay      Int       @default(1) @map("weight_reminder_day")
+  weightReminderTime     String    @default("09:00") @map("weight_reminder_time")
+  planEndReminderDays    Int       @default(3) @map("plan_end_reminder_days")
+  
   goalMeasurements       Json?     @map("goal_measurements")
 
   passwordHash           String    @map("password_hash")

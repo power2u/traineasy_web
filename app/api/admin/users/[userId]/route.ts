@@ -121,7 +121,7 @@ export async function GET(
       // I viewed lines 110+.
       // Schema (lines 103-117 in hypothetical view):
       // 112: createdAt
-      // No 'timestamp'. Old Supabase table might have had timestamp.
+      // No 'timestamp'. Old database table might have had timestamp.
       // Assuming createdAt matches logic.
     });
 
@@ -143,7 +143,7 @@ export async function GET(
     });
 
     // Filter weight measurements (legacy support in API)
-    const weightLogs = measurements.filter(m => m.measurementType === 'weight');
+    const weightLogs = measurements.filter((m: { measurementType: string; }) => m.measurementType === 'weight');
 
     // Mapping to snake_case to match previous API contract
     // This is tedious but necessary if consumers expect snake_case.

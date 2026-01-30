@@ -9,7 +9,7 @@ export default function DevAdminPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
-  
+
   // Create user form
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
@@ -116,7 +116,7 @@ export default function DevAdminPage() {
         {/* Create New User */}
         <Card className="p-6">
           <h2 className="mb-4 text-xl font-semibold">Create New User</h2>
-          
+
           <div className="space-y-4">
             <TextField value={newUserName} onChange={setNewUserName} isDisabled={loading}>
               <Label>Full Name</Label>
@@ -162,7 +162,7 @@ export default function DevAdminPage() {
         {/* Make Existing User Super Admin */}
         <Card className="p-6">
           <h2 className="mb-4 text-xl font-semibold">Make Existing User Super Admin</h2>
-          
+
           <div className="space-y-4">
             <TextField value={email} onChange={setEmail} isDisabled={loading}>
               <Label>User Email</Label>
@@ -181,11 +181,10 @@ export default function DevAdminPage() {
 
           {result && (
             <div
-              className={`mt-4 rounded-lg p-4 ${
-                result.success
+              className={`mt-4 rounded-lg p-4 ${result.success
                   ? 'bg-green-500/10 text-green-500'
                   : 'bg-red-500/10 text-red-500'
-              }`}
+                }`}
             >
               <div className="font-semibold">
                 {result.success ? '✅ Success' : '❌ Error'}
@@ -208,7 +207,7 @@ export default function DevAdminPage() {
         {/* List Users */}
         <Card className="p-6">
           <h2 className="mb-4 text-xl font-semibold">All Users</h2>
-          
+
           <Button
             variant="secondary"
             onClick={handleListUsers}
@@ -232,11 +231,10 @@ export default function DevAdminPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div
-                        className={`rounded px-2 py-1 text-xs font-semibold ${
-                          user.role === 'super_admin'
+                        className={`rounded px-2 py-1 text-xs font-semibold ${user.role === 'super_admin'
                             ? 'bg-purple-500/20 text-purple-400'
                             : 'bg-gray-700 text-gray-300'
-                        }`}
+                          }`}
                       >
                         {user.role || 'user'}
                       </div>
@@ -266,17 +264,17 @@ export default function DevAdminPage() {
           <div className="space-y-3 text-sm text-gray-400">
             <div>
               <p className="font-semibold text-white">Setup:</p>
-              <p>1. Add SUPABASE_SERVICE_ROLE_KEY to your .env.local</p>
+              <p>1. Add required environment variables to your .env.local</p>
               <p>2. Restart the dev server</p>
             </div>
-            
+
             <div>
               <p className="font-semibold text-white">Create New User:</p>
               <p>1. Fill in name, email, password, and role</p>
               <p>2. Click "Create User" - email is auto-confirmed</p>
               <p>3. User can immediately sign in</p>
             </div>
-            
+
             <div>
               <p className="font-semibold text-white">Promote Existing User:</p>
               <p>1. Enter user's email</p>
@@ -287,7 +285,7 @@ export default function DevAdminPage() {
             <div className="mt-4 rounded-lg bg-yellow-500/10 p-3 text-yellow-400">
               ⚠️ This page only works in development mode
             </div>
-            
+
             <div className="rounded-lg bg-red-500/10 p-3 text-red-400">
               🔒 Public signup is now disabled - only admins can create users
             </div>

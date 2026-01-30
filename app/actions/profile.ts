@@ -8,39 +8,48 @@ import { prisma } from "@/lib/prisma";
 export interface UserPreferences {
   id: string;
   // Personal Information
-  fullName?: string;
-  dateOfBirth?: Date;
+  full_name?: string;
+  date_of_birth?: Date;
   phone?: string;
-  passwordChangeRequired?: boolean;
+  password_change_required?: boolean;
   // Medical Information
-  bloodGroup?: string;
+  blood_group?: string;
   allergies?: string;
-  medicalNotes?: string;
-  currentCondition?: string;
+  medical_notes?: string;
+  current_condition?: string;
   // Emergency Contact
-  emergencyContactName?: string;
-  emergencyContactPhone?: string;
-  emergencyContactRelationship?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  emergency_contact_relationship?: string;
   // Weight & Measurement Preferences
-  preferredUnit: string; // 'kg' | 'lbs'
-  heightCm?: number; // decimal in DB
-  goalWeight?: number; // decimal in DB
-  goalWeightUnit: string; // 'kg' | 'lbs'
+  preferred_unit: string; // 'kg' | 'lbs'
+  height_cm?: number; // float in DB
+  goal_weight?: number; // float in DB
+  goal_weight_unit: string; // 'kg' | 'lbs'
   // Water Intake Preferences
-  dailyWaterTarget: number;
-  glassSizeMl: number;
+  daily_water_target: number;
+  glass_size_ml: number;
   // Notification Preferences
-  notificationsEnabled: boolean;
-  waterRemindersEnabled: boolean;
-  weightRemindersEnabled: boolean;
-  mealRemindersEnabled: boolean;
+  notifications_enabled: boolean;
+  push_enabled: boolean;
+  email_enabled: boolean;
+  water_reminders_enabled: boolean;
+  weight_reminders_enabled: boolean;
+  meal_reminders_enabled: boolean;
+  plan_reminders_enabled: boolean;
   // Meal Timing Preferences
-  breakfastTime?: string;
-  snack1Time?: string;
-  lunchTime?: string;
-  snack2Time?: string;
-  dinnerTime?: string;
-  mealTimesConfigured?: boolean;
+  breakfast_time?: string;
+  snack1_time?: string;
+  lunch_time?: string;
+  snack2_time?: string;
+  dinner_time?: string;
+  meal_times_configured?: boolean;
+  meal_reminder_delay_minutes?: number;
+  // Extra notification fields
+  water_reminder_times?: string[];
+  weight_reminder_day?: number;
+  weight_reminder_time?: string;
+  plan_end_reminder_days?: number;
   // System Preferences
   timezone?: string;
   // Display Preferences
@@ -48,7 +57,7 @@ export interface UserPreferences {
   language: string;
 
   // JSON fields
-  goalMeasurements?: any;
+  goal_measurements?: any;
 }
 
 export type UserProfile = UserPreferences;
@@ -80,33 +89,48 @@ export async function getProfile(userId: string) {
       return { success: true, profile: null };
     }
 
-    // Convert Decimals to numbers for frontend if needed, or keep as is.
-    // Prisma returns Decimal objects. We might need to cast to number.
+    // Map Prisma camelCase to snake_case for UI
     const profile: UserPreferences = {
-      ...data,
-      fullName: data.fullName ?? undefined, // Handle nulls if necessary
-      dateOfBirth: data.dateOfBirth ?? undefined,
+      id: data.id,
+      full_name: data.fullName ?? undefined,
+      date_of_birth: data.dateOfBirth ?? undefined,
       phone: data.phone ?? undefined,
-      // Map Decimals to numbers
-      heightCm: data.heightCm ? Number(data.heightCm) : undefined,
-      goalWeight: data.goalWeight ? Number(data.goalWeight) : undefined,
-      // Nullable strings
-      bloodGroup: data.bloodGroup ?? undefined,
+      password_change_required: data.passwordChangeRequired,
+      blood_group: data.bloodGroup ?? undefined,
       allergies: data.allergies ?? undefined,
-      medicalNotes: data.medicalNotes ?? undefined,
-      currentCondition: data.currentCondition ?? undefined,
-      emergencyContactName: data.emergencyContactName ?? undefined,
-      emergencyContactPhone: data.emergencyContactPhone ?? undefined,
-      emergencyContactRelationship: data.emergencyContactRelationship ?? undefined,
-      breakfastTime: data.breakfastTime ?? undefined,
-      snack1Time: data.snack1Time ?? undefined,
-      lunchTime: data.lunchTime ?? undefined,
-      snack2Time: data.snack2Time ?? undefined,
-      dinnerTime: data.dinnerTime ?? undefined,
+      medical_notes: data.medicalNotes ?? undefined,
+      current_condition: data.currentCondition ?? undefined,
+      emergency_contact_name: data.emergencyContactName ?? undefined,
+      emergency_contact_phone: data.emergencyContactPhone ?? undefined,
+      emergency_contact_relationship: data.emergencyContactRelationship ?? undefined,
+      preferred_unit: data.preferredUnit,
+      height_cm: data.heightCm ? Number(data.heightCm) : undefined,
+      goal_weight: data.goalWeight ? Number(data.goalWeight) : undefined,
+      goal_weight_unit: data.goalWeightUnit,
+      daily_water_target: data.dailyWaterTarget,
+      glass_size_ml: data.glassSizeMl,
+      notifications_enabled: data.notificationsEnabled,
+      push_enabled: data.pushEnabled,
+      email_enabled: data.emailEnabled,
+      water_reminders_enabled: data.waterRemindersEnabled,
+      weight_reminders_enabled: data.weightRemindersEnabled,
+      meal_reminders_enabled: data.mealRemindersEnabled,
+      plan_reminders_enabled: data.planRemindersEnabled,
+      breakfast_time: data.breakfastTime ?? undefined,
+      snack1_time: data.snack1Time ?? undefined,
+      lunch_time: data.lunchTime ?? undefined,
+      snack2_time: data.snack2Time ?? undefined,
+      dinner_time: data.dinnerTime ?? undefined,
+      meal_times_configured: data.mealTimesConfigured,
+      meal_reminder_delay_minutes: data.mealReminderDelayMinutes,
+      water_reminder_times: data.waterReminderTimes,
+      weight_reminder_day: data.weightReminderDay,
+      weight_reminder_time: data.weightReminderTime,
+      plan_end_reminder_days: data.planEndReminderDays,
       timezone: data.timezone ?? undefined,
-      passwordChangeRequired: data.passwordChangeRequired,
-      mealTimesConfigured: data.mealTimesConfigured,
-      goalMeasurements: data.goalMeasurements,
+      theme: data.theme,
+      language: data.language,
+      goal_measurements: data.goalMeasurements,
     };
 
     return {
@@ -130,27 +154,61 @@ export async function updateProfile(userId: string, profileData: Partial<UserPre
     console.log('[updateProfile] Updating for user:', userId);
     // console.log('[updateProfile] Data:', profileData);
 
-    const dataToUpdate: any = { ...profileData };
-    // Remove id if present to avoid update error
-    delete dataToUpdate.id;
-
-    // Fix fields that shouldn't be updated or need type conversion
-    // e.g. converting string date to Date object if it comes as string? 
-    // Usually server actions receive matching types if typed correctly.
-    // But be careful with 'undefined' vs 'null'.
+    // Map snake_case from UI back to camelCase for Prisma
+    const dataToUpdate: any = {};
+    if (profileData.full_name !== undefined) dataToUpdate.fullName = profileData.full_name;
+    if (profileData.date_of_birth !== undefined) dataToUpdate.dateOfBirth = profileData.date_of_birth;
+    if (profileData.phone !== undefined) dataToUpdate.phone = profileData.phone;
+    if (profileData.password_change_required !== undefined) dataToUpdate.passwordChangeRequired = profileData.password_change_required;
+    if (profileData.blood_group !== undefined) dataToUpdate.bloodGroup = profileData.blood_group;
+    if (profileData.allergies !== undefined) dataToUpdate.allergies = profileData.allergies;
+    if (profileData.medical_notes !== undefined) dataToUpdate.medicalNotes = profileData.medical_notes;
+    if (profileData.current_condition !== undefined) dataToUpdate.currentCondition = profileData.current_condition;
+    if (profileData.emergency_contact_name !== undefined) dataToUpdate.emergencyContactName = profileData.emergency_contact_name;
+    if (profileData.emergency_contact_phone !== undefined) dataToUpdate.emergencyContactPhone = profileData.emergency_contact_phone;
+    if (profileData.emergency_contact_relationship !== undefined) dataToUpdate.emergencyContactRelationship = profileData.emergency_contact_relationship;
+    if (profileData.preferred_unit !== undefined) dataToUpdate.preferredUnit = profileData.preferred_unit;
+    if (profileData.height_cm !== undefined) dataToUpdate.heightCm = profileData.height_cm;
+    if (profileData.goal_weight !== undefined) dataToUpdate.goalWeight = profileData.goal_weight;
+    if (profileData.goal_weight_unit !== undefined) dataToUpdate.goalWeightUnit = profileData.goal_weight_unit;
+    if (profileData.daily_water_target !== undefined) dataToUpdate.dailyWaterTarget = profileData.daily_water_target;
+    if (profileData.glass_size_ml !== undefined) dataToUpdate.glassSizeMl = profileData.glass_size_ml;
+    if (profileData.notifications_enabled !== undefined) dataToUpdate.notificationsEnabled = profileData.notifications_enabled;
+    if (profileData.push_enabled !== undefined) dataToUpdate.pushEnabled = profileData.push_enabled;
+    if (profileData.email_enabled !== undefined) dataToUpdate.emailEnabled = profileData.email_enabled;
+    if (profileData.water_reminders_enabled !== undefined) dataToUpdate.waterRemindersEnabled = profileData.water_reminders_enabled;
+    if (profileData.weight_reminders_enabled !== undefined) dataToUpdate.weightRemindersEnabled = profileData.weight_reminders_enabled;
+    if (profileData.meal_reminders_enabled !== undefined) dataToUpdate.mealRemindersEnabled = profileData.meal_reminders_enabled;
+    if (profileData.plan_reminders_enabled !== undefined) dataToUpdate.planRemindersEnabled = profileData.plan_reminders_enabled;
+    if (profileData.breakfast_time !== undefined) dataToUpdate.breakfastTime = profileData.breakfast_time;
+    if (profileData.snack1_time !== undefined) dataToUpdate.snack1Time = profileData.snack1_time;
+    if (profileData.lunch_time !== undefined) dataToUpdate.lunchTime = profileData.lunch_time;
+    if (profileData.snack2_time !== undefined) dataToUpdate.snack2Time = profileData.snack2_time;
+    if (profileData.dinner_time !== undefined) dataToUpdate.dinnerTime = profileData.dinner_time;
+    if (profileData.meal_times_configured !== undefined) dataToUpdate.mealTimesConfigured = profileData.meal_times_configured;
+    if (profileData.meal_reminder_delay_minutes !== undefined) dataToUpdate.mealReminderDelayMinutes = profileData.meal_reminder_delay_minutes;
+    if (profileData.water_reminder_times !== undefined) dataToUpdate.waterReminderTimes = profileData.water_reminder_times;
+    if (profileData.weight_reminder_day !== undefined) dataToUpdate.weightReminderDay = profileData.weight_reminder_day;
+    if (profileData.weight_reminder_time !== undefined) dataToUpdate.weightReminderTime = profileData.weight_reminder_time;
+    if (profileData.plan_end_reminder_days !== undefined) dataToUpdate.planEndReminderDays = profileData.plan_end_reminder_days;
+    if (profileData.timezone !== undefined) dataToUpdate.timezone = profileData.timezone;
+    if (profileData.theme !== undefined) dataToUpdate.theme = profileData.theme;
+    if (profileData.language !== undefined) dataToUpdate.language = profileData.language;
+    if (profileData.goal_measurements !== undefined) dataToUpdate.goalMeasurements = profileData.goal_measurements;
 
     await prisma.userPreference.upsert({
       where: { id: userId },
       update: dataToUpdate,
       create: {
         id: userId,
-        email: session.user.email!, // Email is required for creation
+        email: session.user.email!,
+        passwordHash: '', // Required by schema but session doesn't have it here
         ...dataToUpdate
       }
     });
 
     // Update cron jobs if notification preferences changed
-    const notificationFields = ['notificationsEnabled', 'mealRemindersEnabled', 'waterRemindersEnabled', 'weightRemindersEnabled', 'breakfastTime', 'snack1Time', 'lunchTime', 'snack2Time', 'dinnerTime'];
+    const notificationFields = ['notifications_enabled', 'meal_reminders_enabled', 'water_reminders_enabled', 'weight_reminders_enabled', 'breakfast_time', 'snack1_time', 'lunch_time', 'snack2_time', 'dinner_time'];
     const hasNotificationChanges = notificationFields.some(field => profileData.hasOwnProperty(field));
 
     if (hasNotificationChanges) {
@@ -353,30 +411,30 @@ export async function getUserNotificationPreferences(userId?: string) {
     // Return with default values if no preferences exist
     const preferences: UserPreferences = data || {
       id: targetUserId,
-      notificationsEnabled: true,
-      // pushEnabled: true, // Removed as not in DB
-      // emailEnabled: false, // Removed as not in DB
-      mealRemindersEnabled: true,
-      waterRemindersEnabled: true,
-      weightRemindersEnabled: true,
-      // planRemindersEnabled: true, // Removed as not in DB
-      breakfastTime: '08:00',
-      snack1Time: '10:30',
-      lunchTime: '13:00',
-      snack2Time: '16:00',
-      dinnerTime: '19:00',
-      // mealReminderDelayMinutes: 30, // Removed
-      // waterReminderTimes: ['10:00', '15:00', '20:00'], // Removed
-      // weightReminderDay: 1, // Monday
-      // weightReminderTime: '09:00',
-      // planEndReminderDays: 3,
+      notifications_enabled: true,
+      push_enabled: true,
+      email_enabled: false,
+      meal_reminders_enabled: true,
+      water_reminders_enabled: true,
+      weight_reminders_enabled: true,
+      plan_reminders_enabled: true,
+      breakfast_time: '08:00',
+      snack1_time: '10:30',
+      lunch_time: '13:00',
+      snack2_time: '16:00',
+      dinner_time: '19:00',
+      meal_reminder_delay_minutes: 30,
+      water_reminder_times: ['10:00', '15:00', '20:00'],
+      weight_reminder_day: 1, // Monday
+      weight_reminder_time: '09:00',
+      plan_end_reminder_days: 3,
       timezone: 'Asia/Kolkata',
       theme: 'system',
       language: 'en',
-      preferredUnit: 'kg',
-      goalWeightUnit: 'kg',
-      dailyWaterTarget: 2000,
-      glassSizeMl: 250,
+      preferred_unit: 'kg',
+      goal_weight_unit: 'kg',
+      daily_water_target: 2000,
+      glass_size_ml: 250,
     } as UserPreferences;
 
     return {

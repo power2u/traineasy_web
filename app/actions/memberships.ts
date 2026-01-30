@@ -98,7 +98,7 @@ export async function getActiveMembership(userId: string) {
 
     const today = new Date();
     // Assuming 'active' logic means strictly status='active' AND date validity?
-    // Supabase `get_active_membership` RPC likely handles this logic.
+    // Database `get_active_membership` RPC likely handles this logic.
     // Usually means: status='active' AND end_date >= today.
     // Or just status='active' is enough if scheduled tasks handle expiration.
 

@@ -70,7 +70,7 @@ export function NotificationSettings() {
       <Card className="p-6 bg-blue-50 dark:bg-blue-950">
         <h3 className="text-lg font-semibold mb-2">📬 Notification System</h3>
         <Text className="text-sm text-default-600">
-          Notifications are managed server-side using Supabase pg_cron. 
+          Notifications are managed server-side using cron jobs.
           Reminders will be sent automatically based on your configured times.
           No browser permissions needed!
         </Text>
@@ -206,7 +206,7 @@ export function NotificationSettings() {
                 onChange={(value) => updatePreference('weight_reminder_day', parseInt(value) || 1)}
               >
                 <Label>Reminder Day</Label>
-                <select 
+                <select
                   className="w-full p-2 border border-default-300 rounded-lg bg-default-100"
                   value={preferences.weight_reminder_day || 1}
                   onChange={(e) => updatePreference('weight_reminder_day', parseInt(e.target.value))}

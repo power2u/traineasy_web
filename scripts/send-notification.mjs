@@ -6,20 +6,15 @@
  * Usage: node send-notification.mjs <userId> <notificationType>
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { PrismaClient } from '@prisma/client';
 import path from 'path';
 import fs from 'fs';
 
+const prisma = new PrismaClient();
+
 // Validate environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 const cronSecret = process.env.CRON_SECRET;
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing Supabase environment variables');
-  process.exit(1);
-}
 
 if (!appUrl) {
   console.warn('NEXT_PUBLIC_APP_URL not set, browser notifications may not work');
@@ -28,8 +23,6 @@ if (!appUrl) {
 if (!cronSecret) {
   console.warn('CRON_SECRET not set, API calls may fail');
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Get command line arguments
 const [, , userId, notificationType] = process.argv;
@@ -224,16 +217,11 @@ async function sendPushNotification(userId, title, message, notificationType) {
       return false;
     }
 
-    // Get user's FCM tokens
-    const { data: tokens, error } = await supabase
-      .from('fcm_tokens')
-      .select('token')
-      .eq('user_id', userId);
-
-    if (error) {
-      console.log('Error fetching FCM tokens:', error.message);
-      return false;
-    }
+    // Get user's FCM tokens using Prisma
+    const tokens = await prisma.fcmTokens.findMany({
+      where: { userId },
+      select: { token: true }
+    });
 
     if (!tokens || tokens.length === 0) {
       console.log('No FCM tokens found for user:', userId);
@@ -292,14 +280,18 @@ async function sendPushNotification(userId, title, message, notificationType) {
  */
 async function getNotificationMessage(notificationType) {
   try {
-    const { data, error } = await supabase
-      .from('notification_messages')
-      .select('title, message')
-      .eq('notification_type', notificationType)
-      .eq('is_active', true)
-      .single();
+    const data = await prisma.notificationMessages.findFirst({
+      where: {
+        notificationType,
+        isActive: true
+      },
+      select: {
+        title: true,
+        message: true
+      }
+    });
 
-    if (error || !data) {
+    if (!data) {
       // Fallback messages
       const fallbackMessages = {
         meal_reminder_breakfast: { title: '🍳 Breakfast Time!', message: 'Time for a healthy breakfast!' },
@@ -329,20 +321,25 @@ async function getNotificationMessage(notificationType) {
  */
 async function getUserInfo(userId) {
   try {
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select('full_name, notifications_enabled, meal_reminders_enabled, water_reminders_enabled, weight_reminders_enabled')
-      .eq('id', userId)
-      .single();
+    const data = await prisma.userPreferences.findUnique({
+      where: { id: userId },
+      select: {
+        fullName: true,
+        notificationsEnabled: true,
+        mealRemindersEnabled: true,
+        waterRemindersEnabled: true,
+        weightRemindersEnabled: true
+      }
+    });
 
-    if (error || !data) {
-      return { full_name: 'User', notifications_enabled: true };
+    if (!data) {
+      return { fullName: 'User', notificationsEnabled: true };
     }
 
     return data;
   } catch (error) {
     console.error('Error getting user info:', error);
-    return { full_name: 'User', notifications_enabled: true };
+    return { fullName: 'User', notificationsEnabled: true };
   }
 }
 
@@ -350,21 +347,21 @@ async function getUserInfo(userId) {
  * Check if user should receive this notification type
  */
 function shouldSendNotification(userInfo, notificationType) {
-  if (!userInfo.notifications_enabled) {
+  if (!userInfo.notificationsEnabled) {
     return false;
   }
 
   // Check specific notification type preferences
-  if (notificationType.includes('meal_reminder') && !userInfo.meal_reminders_enabled) {
+  if (notificationType.includes('meal_reminder') && !userInfo.mealRemindersEnabled) {
     return false;
   }
 
-  if (notificationType === 'water_reminder' && !userInfo.water_reminders_enabled) {
+  if (notificationType === 'water_reminder' && !userInfo.waterRemindersEnabled) {
     return false;
   }
 
-  if ((notificationType === 'weekly_weight_reminder' || notificationType === 'weekly_measurement_reminder') 
-      && !userInfo.weight_reminders_enabled) {
+  if ((notificationType === 'weekly_weight_reminder' || notificationType === 'weekly_measurement_reminder')
+    && !userInfo.weightRemindersEnabled) {
     return false;
   }
 
@@ -376,16 +373,18 @@ function shouldSendNotification(userInfo, notificationType) {
  */
 async function updateCronJobExecution(userId, notificationType) {
   try {
-    const now = new Date().toISOString();
-    
-    await supabase
-      .from('user_cron_jobs')
-      .update({ 
-        last_executed_at: now,
-        next_execution_at: calculateNextExecution(notificationType)
-      })
-      .eq('user_id', userId)
-      .eq('notification_type', notificationType);
+    const now = new Date();
+
+    await prisma.userCronJobs.updateMany({
+      where: {
+        userId,
+        notificationType
+      },
+      data: {
+        lastExecutedAt: now,
+        nextExecutionAt: calculateNextExecution(notificationType)
+      }
+    });
   } catch (error) {
     console.error('Error updating cron job execution:', error);
   }
@@ -398,14 +397,14 @@ function calculateNextExecution(notificationType) {
   const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  
+
   if (notificationType.includes('weekly')) {
     const nextWeek = new Date(now);
     nextWeek.setDate(nextWeek.getDate() + 7);
-    return nextWeek.toISOString();
+    return nextWeek;
   }
-  
-  return tomorrow.toISOString();
+
+  return tomorrow;
 }
 
 /**
@@ -438,7 +437,7 @@ async function main() {
     }
 
     // Replace placeholders
-    const displayName = userInfo.full_name?.split(' ')[0] || 'there';
+    const displayName = userInfo.fullName?.split(' ')[0] || 'there';
     const title = messageTemplate.title.replace(/{name}/g, displayName);
     const message = messageTemplate.message.replace(/{name}/g, displayName);
 
@@ -479,6 +478,8 @@ async function main() {
   } catch (error) {
     console.error('Error in main execution:', error);
     process.exit(1);
+  } finally {
+    await prisma.$disconnect();
   }
 }
 

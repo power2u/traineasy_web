@@ -66,17 +66,6 @@ export default bundleAnalyzer(withPWA({
   workboxOptions: {
     runtimeCaching: [
       {
-        urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-        handler: 'NetworkFirst',
-        options: {
-          cacheName: 'supabase-cache',
-          expiration: {
-            maxEntries: 50,
-            maxAgeSeconds: 5 * 60, // 5 minutes
-          },
-        },
-      },
-      {
         urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|avif)$/i,
         handler: 'CacheFirst',
         options: {
