@@ -1,5 +1,6 @@
 import { PrismaClient } from "./generated/prisma"
 import { PrismaPg } from '@prisma/adapter-pg'
+import { Pool } from 'pg'
 
 const prismaClientSingleton = () => {
     const connectionString = process.env.DATABASE_URL
@@ -8,8 +9,9 @@ const prismaClientSingleton = () => {
     }
 
     console.log('[Prisma] Initializing database connection...')
-    
-    const adapter = new PrismaPg({ connectionString })
+
+    const pool = new Pool({ connectionString })
+    const adapter = new PrismaPg(pool)
 
     return new PrismaClient({
         adapter,
@@ -28,7 +30,7 @@ const globalForPrisma = globalThis as unknown as {
 const createPrismaClient = () => {
     try {
         const client = prismaClientSingleton()
-        
+
         // Test connection on initialization in production
         if (process.env.NODE_ENV === 'production') {
             client.$connect()

@@ -5,7 +5,7 @@ import withBundleAnalyzer from '@next/bundle-analyzer';
 const nextConfig: NextConfig = {
   // Disable Turbopack in production to avoid chunk issues
   // Use traditional webpack for stable production builds
-  
+
   // Performance optimizations
   reactStrictMode: true,
 
@@ -117,7 +117,7 @@ const nextConfig: NextConfig = {
 
   // Output configuration for better production builds
   output: 'standalone',
-  
+
   // Enhanced error handling
   onDemandEntries: {
     maxInactiveAge: 25 * 1000,
@@ -134,6 +134,9 @@ export default bundleAnalyzer(withPWA({
   register: true,
   disable: process.env.NODE_ENV === 'development',
   workboxOptions: {
+    skipWaiting: true,
+    clientsClaim: true,
+    cleanupOutdatedCaches: true,
     runtimeCaching: [
       {
         urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|avif)$/i,
