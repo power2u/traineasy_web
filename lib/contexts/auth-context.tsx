@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       provider: 'email', // Default to email as we are using credentials
       createdAt: new Date(), // NextAuth doesn't provide this by default, would need to fetch
       displayName: session.user.name || undefined, // Use name from session
-      name: session.user.name || undefined, // Also provide name property
+      name: (session.user as any).name || undefined, // Also provide name property (with type assertion)
       role: (session.user as any).role,
     };
   }, [session]);

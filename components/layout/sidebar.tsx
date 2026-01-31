@@ -66,7 +66,7 @@ export const Sidebar = memo(function Sidebar() {
   const displayName = useMemo(() => {
     // Try multiple sources for the display name
     const name = user?.displayName || 
-                 user?.name || 
+                 (user as any)?.name || 
                  (user as any)?.fullName || 
                  user?.email?.split('@')[0] || 
                  'User';

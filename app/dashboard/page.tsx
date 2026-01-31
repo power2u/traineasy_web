@@ -27,7 +27,7 @@ export default async function DashboardPage() {
     <>
       <div className="mb-4">
         <h2 className="text-xl font-bold md:text-3xl">
-          Welcome back, {user.name || user.email?.split('@')[0]}!
+          Welcome back, {(user as any).name || user.email?.split('@')[0]}!
         </h2>
 
         <Suspense fallback={<MembershipSkeleton />}>
