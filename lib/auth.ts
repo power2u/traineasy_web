@@ -29,13 +29,7 @@ export const authOptions: NextAuthOptions = {
                         return null;
                     }
 
-                    // Test database connection first
-                    try {
-                        await prisma.$connect();
-                    } catch (dbError) {
-                        handleAuthError(dbError, "Database Connection");
-                        return null;
-                    }
+
 
                     const user = await prisma.userPreference.findUnique({
                         where: { email: credentials.email },
@@ -104,12 +98,7 @@ export const authOptions: NextAuthOptions = {
                     handleAuthError(error, "Authorization");
                     return null;
                 } finally {
-                    // Ensure database connection is closed
-                    try {
-                        await prisma.$disconnect();
-                    } catch (disconnectError) {
-                        console.warn("[Auth] Failed to disconnect from database:", disconnectError);
-                    }
+                    // Database connection is managed by the singleton in lib/prisma.ts
                 }
             },
         }),
@@ -133,7 +122,6 @@ export const authOptions: NextAuthOptions = {
                 if (!token.role && token.email) {
                     console.log("[Auth] JWT: Role missing for email:", token.email, "Fetching from DB...");
                     try {
-                        await prisma.$connect();
                         const userPref = await prisma.userPreference.findUnique({
                             where: { email: token.email },
                             select: { role: true },
@@ -145,12 +133,6 @@ export const authOptions: NextAuthOptions = {
                         }
                     } catch (err) {
                         handleAuthError(err, "JWT Role Fetch");
-                    } finally {
-                        try {
-                            await prisma.$disconnect();
-                        } catch (disconnectError) {
-                            console.warn("[Auth] JWT: Failed to disconnect:", disconnectError);
-                        }
                     }
                 }
 
@@ -161,7 +143,6 @@ export const authOptions: NextAuthOptions = {
                         token.hasActiveMembership = true;
                     } else {
                         try {
-                            await prisma.$connect();
                             // Check for ANY active membership
                             const membership = await prisma.userMembership.findFirst({
                                 where: {
@@ -176,12 +157,6 @@ export const authOptions: NextAuthOptions = {
                         } catch (err) {
                             handleAuthError(err, "JWT Membership Fetch");
                             token.hasActiveMembership = false;
-                        } finally {
-                            try {
-                                await prisma.$disconnect();
-                            } catch (disconnectError) {
-                                console.warn("[Auth] JWT: Failed to disconnect:", disconnectError);
-                            }
                         }
                     }
                 }
