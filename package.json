@@ -15,6 +15,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
+    "test:bot-detection": "node scripts/test-bot-detection.js",
     "analyze": "ANALYZE=true next build",
     "build:prod": "next build && next-sitemap",
     "postinstall": "prisma generate"

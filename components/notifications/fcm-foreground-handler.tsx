@@ -44,7 +44,10 @@ export function FCMForegroundHandler() {
           event.preventDefault();
           console.log('🖱️ Notification clicked:', data);
 
-          const url = data.url || '/dashboard';
+          // SECURITY: Validate URL to prevent open redirect attacks
+          const { safeRedirect } = require('@/lib/utils/url-security');
+          const url = safeRedirect(data.url, '/dashboard');
+          
           window.focus();
           window.location.href = url;
           notification.close();

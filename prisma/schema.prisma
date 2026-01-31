@@ -15,6 +15,8 @@ model UserPreference {
   passwordHash                 String                 @map("password_hash")
   role                         String                 @default("user")
   passwordChangeRequired       Boolean                @default(false) @map("password_change_required")
+  emailVerified                Boolean                @default(false) @map("email_verified")
+  emailVerifiedAt              DateTime?              @map("email_verified_at") @db.Timestamptz(6)
   createdAt                    DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                    DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   lastSignInAt                 DateTime?              @map("last_sign_in_at") @db.Timestamptz(6)
@@ -67,6 +69,7 @@ model UserPreference {
   notificationLogs             NotificationLog[]
   notificationMessages         NotificationMessage[]
   passwordResetTokens          PasswordResetToken[]
+  emailVerificationTokens      EmailVerificationToken[]
   userMemberships              UserMembership[]
   userPackages                 UserPackage[]
   userPlans                    UserPlan[]
@@ -285,6 +288,18 @@ model PasswordResetToken {
   user      UserPreference @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  token     String         @unique
+  expiresAt DateTime       @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime?      @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      UserPreference @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_verification_tokens")
 }
 
 model CronConfig {

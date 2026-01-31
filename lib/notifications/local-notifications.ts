@@ -168,7 +168,10 @@ export class LocalNotificationManager {
       notification.onclick = () => {
         window.focus();
         if (payload.url) {
-          window.location.href = payload.url;
+          // SECURITY: Validate URL to prevent open redirect attacks
+          const { safeRedirect } = require('@/lib/utils/url-security');
+          const safeUrl = safeRedirect(payload.url, '/dashboard');
+          window.location.href = safeUrl;
         }
         notification.close();
       };

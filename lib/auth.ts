@@ -50,6 +50,12 @@ export const authOptions: NextAuthOptions = {
                         return null; // Or throw Error("Your account has been suspended.")
                     }
 
+                    // Check email verification (optional - you can disable this for existing users)
+                    if (!user.emailVerified && process.env.REQUIRE_EMAIL_VERIFICATION === 'true') {
+                        console.log("[Auth] User email not verified:", user.email);
+                        throw new Error("Please verify your email address before signing in.");
+                    }
+
                     // Update last_sign_in_at
                     try {
                         await prisma.userPreference.update({

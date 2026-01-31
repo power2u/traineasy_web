@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
+import { validateUserRole } from '@/lib/utils/server-auth';
 
 // Component that handles the tabs - can remain client-side or be simple server rendering with links
 import { AdminTabs } from './admin-tabs';
@@ -14,13 +14,15 @@ export default async function AdminLayout({
   const session = await getServerSession(authOptions);
 
   if (!session || !session.user) {
-    redirect('/auth/login');
+    redirect('/auth/login?error=auth_required');
   }
 
-  const isSuperAdmin = session.user.role === 'super_admin';
-
-  if (!isSuperAdmin) {
-    redirect('/dashboard');
+  // Server-side role validation (more secure than JWT token)
+  const userRole = await validateUserRole(session.user.id);
+  
+  if (userRole !== 'super_admin') {
+    console.warn(`[Security] Non-admin user attempted admin access: ${session.user.email} (${session.user.id})`);
+    redirect('/dashboard?error=admin_required');
   }
 
   return (

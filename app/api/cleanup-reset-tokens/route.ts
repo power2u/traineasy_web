@@ -5,16 +5,23 @@ import { cleanupExpiredTokens } from '@/app/actions/password-reset';
  * API route to cleanup expired password reset tokens
  * Can be called manually or via external cron service (e.g., cron-job.org)
  * 
- * For security, you should add authentication here in production
- * Example: Check for a secret token in headers
+ * SECURITY: Requires CRON_SECRET for authentication
  */
 export async function GET(request: NextRequest) {
     try {
-        // Optional: Add authentication
-        // const authHeader = request.headers.get('authorization');
-        // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        //     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        // }
+        // SECURITY: Require authentication for this endpoint
+        const authHeader = request.headers.get('authorization');
+        const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
+        
+        if (!process.env.CRON_SECRET) {
+            console.error('[Cleanup API] CRON_SECRET not configured');
+            return NextResponse.json({ error: 'Service unavailable' }, { status: 503 });
+        }
+        
+        if (authHeader !== expectedAuth) {
+            console.warn('[Cleanup API] Unauthorized access attempt');
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
 
         const result = await cleanupExpiredTokens();
 

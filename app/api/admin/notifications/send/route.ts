@@ -1,36 +1,25 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { sendPushNotification } from '@/lib/firebase/admin';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { requireAdminWithSecurityChecks, logSecurityEvent } from '@/lib/utils/server-auth';
 
 export async function POST(request: Request) {
   try {
-    // Check if user is authenticated and is admin
-    const session = await getServerSession(authOptions);
+    // Enhanced admin validation with security checks
+    const { user, error } = await requireAdminWithSecurityChecks(request);
+    if (error) return error;
 
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Log admin action for security monitoring
+    logSecurityEvent('admin_notification_send', user.id, {
+      ip: request.headers.get('x-forwarded-for') || 'unknown'
+    });
 
-    // Check if user has admin role
-    const isSuperAdmin = session.user.role === 'super_admin';
-
-    if (!isSuperAdmin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
-
-    // Use session user info
-    const user = {
-      id: session.user.id,
-      email: session.user.email
-    };
+    // Get admin profile for logging
     const profile = await prisma.userPreference.findUnique({
       where: { id: user.id },
       select: { id: true, fullName: true }
     });
 
-    // Use email as fallback if no profile found
     const adminName = profile?.fullName || user.email || 'Admin';
 
     // Parse request body

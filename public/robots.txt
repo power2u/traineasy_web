@@ -1,0 +1,37 @@
+# Robots.txt for TrainEasy - Security Focused
+
+User-agent: *
+# Block all authentication and admin paths
+Disallow: /auth/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /profile/
+Disallow: /meals/
+Disallow: /water/
+Disallow: /weight/
+Disallow: /measurements/
+Disallow: /user-details/
+Disallow: /user-profile-edit/
+Disallow: /dev/
+Disallow: /test-notifications/
+Disallow: /membership-expired/
+
+# Block sensitive files
+Disallow: /*.env*
+Disallow: /*.config.*
+Disallow: /package*.json
+Disallow: /.git/
+Disallow: /.next/
+Disallow: /node_modules/
+Disallow: /info/
+
+
+# Allow only public pages
+Allow: /
+
+# Sitemap (if you have one)
+# Sitemap: https://traineasy.teamsouravfitness.com/sitemap.xml
+
+# Crawl delay to prevent aggressive crawling
+Crawl-delay: 10
