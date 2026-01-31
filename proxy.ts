@@ -7,7 +7,12 @@ import { getClientIdentifier } from "@/lib/utils/rate-limit";
 /**
  * Security headers to add to all responses
  */
-function addSecurityHeaders(response: NextResponse) {
+function addSecurityHeaders(response: NextResponse | undefined | null) {
+    // Safety check: ensure we have a valid response object
+    if (!response || !response.headers) {
+        response = NextResponse.next();
+    }
+
     // Content Security Policy
     response.headers.set(
         'Content-Security-Policy',
@@ -23,16 +28,16 @@ function addSecurityHeaders(response: NextResponse) {
 
     // Prevent clickjacking
     response.headers.set('X-Frame-Options', 'DENY');
-    
+
     // Prevent MIME type sniffing
     response.headers.set('X-Content-Type-Options', 'nosniff');
-    
+
     // Enable XSS protection
     response.headers.set('X-XSS-Protection', '1; mode=block');
-    
+
     // Referrer policy
     response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    
+
     // Permissions policy
     response.headers.set(
         'Permissions-Policy',
@@ -54,10 +59,10 @@ function addSecurityHeaders(response: NextResponse) {
 function checkForBots(req: NextRequest): NextResponse | null {
     const clientIP = getClientIdentifier(req);
     const botDetection = detectBot(req, clientIP);
-    
+
     if (botDetection.isBot) {
         console.warn(`[Security] Bot detected: ${botDetection.reason} (confidence: ${botDetection.confidence}%) from IP: ${clientIP}`);
-        
+
         // Log bot detection (fire and forget)
         logBotDetection(
             clientIP,
@@ -67,22 +72,22 @@ function checkForBots(req: NextRequest): NextResponse | null {
             false, // Will be updated if blocked
             req.nextUrl.pathname
         );
-        
+
         // Check if we're in log-only mode
         if (process.env.BOT_DETECTION_LOG_ONLY === 'true') {
             console.log(`[Security] Bot detection in log-only mode - not blocking`);
             return null;
         }
-        
+
         // Only block high-confidence bot detections
         const threshold = parseInt(process.env.BOT_DETECTION_THRESHOLD || '85');
         if (botDetection.confidence >= threshold) {
             const fingerprint = getClientFingerprint(req);
             const allowed = trackBotAttempt(fingerprint);
-            
+
             if (!allowed) {
                 console.error(`[Security] Bot blocked due to repeated attempts: ${fingerprint}`);
-                
+
                 // Update log to show it was blocked
                 logBotDetection(
                     clientIP,
@@ -92,18 +97,18 @@ function checkForBots(req: NextRequest): NextResponse | null {
                     true, // Blocked
                     req.nextUrl.pathname
                 );
-                
+
                 return new NextResponse(createBotBlockResponse().body, {
                     status: 403,
                     headers: createBotBlockResponse().headers
                 });
             }
         }
-        
+
         // For medium confidence, just log but don't block
         // This allows for manual review and adjustment of detection rules
     }
-    
+
     return null;
 }
 
@@ -190,7 +195,7 @@ const authMiddleware = withAuth(
             const token = req.nextauth.token;
             const isAuth = !!token;
             const path = req.nextUrl.pathname;
-            
+
             // Admin path protection
             if (ADMIN_PATHS.some(adminPath => path.startsWith(adminPath))) {
                 if (!isAuth || token?.role !== 'super_admin') {
@@ -198,7 +203,7 @@ const authMiddleware = withAuth(
                     return NextResponse.redirect(new URL('/auth/login?error=admin_required', req.url));
                 }
             }
-            
+
             // Membership check for non-admin users
             if (isAuth && token?.role !== 'super_admin') {
                 const hasActiveMembership = (token as any).hasActiveMembership;
@@ -270,7 +275,7 @@ export default function middleware(req: NextRequest) {
         if (path.startsWith('/api/') && !path.startsWith('/api/auth/')) {
             const userAgent = req.headers.get('user-agent') || '';
             const isDirectBrowserAccess = userAgent.includes('Mozilla') && !req.headers.get('x-requested-with');
-            
+
             if (isDirectBrowserAccess && req.method === 'GET') {
                 console.warn(`[Security] Direct browser access to API endpoint blocked: ${path}`);
                 return addSecurityHeaders(new NextResponse(
@@ -282,16 +287,29 @@ export default function middleware(req: NextRequest) {
 
         // 4. Standard Auth Middleware
         const authResponse = (authMiddleware as any)(req);
-        
+
         // 5. Add security headers to all responses
         if (authResponse instanceof NextResponse) {
             return addSecurityHeaders(authResponse);
         }
-        
+
         // If authResponse is a promise, handle it
-        return authResponse.then ? authResponse.then((response: NextResponse) => {
-            return addSecurityHeaders(response);
-        }) : addSecurityHeaders(NextResponse.next());
+        if (authResponse && typeof authResponse.then === 'function') {
+            return authResponse.then((response: any) => {
+                // Ensure response is valid before adding headers
+                if (response instanceof NextResponse) {
+                    return addSecurityHeaders(response);
+                }
+                // Fallback if promise resolves to undefined/null
+                return addSecurityHeaders(NextResponse.next());
+            }).catch((err: any) => {
+                console.error('[Middleware] Auth middleware promise failed:', err);
+                return addSecurityHeaders(NextResponse.next());
+            });
+        }
+
+        // Fallback for any other case (e.g. authMiddleware returned undefined/void)
+        return addSecurityHeaders(NextResponse.next());
     } catch (error) {
         console.error('[Middleware] Unexpected error:', error);
         // Return a safe fallback response
