@@ -4,6 +4,7 @@ import { Providers } from "./providers";
 import { AppShell } from "@/components/layout/app-shell";
 import { LocalNotificationProvider } from "@/components/notifications/local-notification-provider";
 import ErrorBoundary from "@/components/error-boundary";
+import { PwaUpdater } from "@/components/pwa-updater";
 
 export const metadata: Metadata = {
   title: "Fitness Tracker",
@@ -42,6 +43,7 @@ export default function RootLayout({
           <Providers>
             <LocalNotificationProvider>
               <MaintenanceBanner />
+              <PwaUpdater />
               <AppShell>{children}</AppShell>
             </LocalNotificationProvider>
           </Providers>
