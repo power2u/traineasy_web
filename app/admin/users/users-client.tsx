@@ -14,7 +14,7 @@ import {
     resetUserPassword,
 } from '@/app/actions/admin';
 import { listPackages } from '@/app/actions/packages';
-import { getActiveMembership, createMembership, syncMembershipStatus } from '@/app/actions/memberships';
+import { createMembership, syncMembershipStatus } from '@/app/actions/memberships';
 
 export interface User {
     id: string;
@@ -106,20 +106,7 @@ export function UsersClient({ initialUsers, initialPackages, currentUser }: User
         try {
             const result = await listUsers();
             if (result.success && result.users) {
-                const usersWithMemberships = await Promise.all(
-                    result.users.map(async (u: User) => {
-                        const membershipResult = await getActiveMembership(u.id);
-                        return {
-                            ...u,
-                            activeMembership: membershipResult.membership ? {
-                                package_name: membershipResult.membership.package_name,
-                                days_remaining: membershipResult.membership.days_remaining,
-                                is_expired: membershipResult.membership.is_expired,
-                            } : null,
-                        };
-                    })
-                );
-                setUsers(usersWithMemberships);
+                setUsers(result.users);
             }
         } catch (error) {
             console.error('Failed to load users:', error);
@@ -302,25 +289,7 @@ export function UsersClient({ initialUsers, initialPackages, currentUser }: User
         }
     };
 
-    const handleSyncStatus = async () => {
-        if (!confirm('This will expire all past-due memberships and disable login for those users. Continue?')) return;
 
-        setIsLoading(true);
-        try {
-            const result = await syncMembershipStatus();
-            if (result.success) {
-                alert(result.message);
-                await loadUsers();
-                router.refresh();
-            } else {
-                alert('Failed to sync status: ' + result.error);
-            }
-        } catch (error) {
-            alert('An error occurred during sync');
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     const stats = {
         total: users.length,
@@ -375,11 +344,7 @@ export function UsersClient({ initialUsers, initialPackages, currentUser }: User
                         <Button variant="ghost" size="sm" onPress={loadUsers} isDisabled={isLoading}>
                             {isLoading ? 'Loading...' : 'Refresh'}
                         </Button>
-                        <Button variant="ghost" size="sm" onPress={handleSyncStatus} isDisabled={isLoading}>
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                            <span className="hidden sm:inline">Sync Status</span>
-                            <span className="sm:hidden">Sync</span>
-                        </Button>
+
                         <Button variant="primary" size="sm" onPress={() => setIsCreateModalOpen(true)}>
                             <span className="hidden sm:inline">+ Create User</span>
                             <span className="sm:hidden">+ User</span>

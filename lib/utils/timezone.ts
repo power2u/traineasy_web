@@ -7,26 +7,64 @@
  */
 export function getCurrentTimeInTimezone(timezone: string = 'Asia/Kolkata') {
   const now = new Date();
-  
-  // Get time in user's timezone
-  const userTime = now.toLocaleString("en-US", {
-    timeZone: timezone,
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
-  
-  const [hour, minute, second] = userTime.split(':').map(Number);
-  
-  return {
-    hour,
-    minute,
-    second,
-    timeString: userTime,
-    totalMinutes: hour * 60 + minute,
-    timezone
-  };
+
+  // Check if timezone is an offset string (e.g., "+05:30" or "-04:00")
+  const offsetMatch = timezone.match(/^([+-])(\d{2}):(\d{2})$/);
+
+  if (offsetMatch) {
+    const sign = offsetMatch[1] === '+' ? 1 : -1;
+    const hours = parseInt(offsetMatch[2], 10);
+    const minutes = parseInt(offsetMatch[3], 10);
+    const totalOffsetMinutes = sign * (hours * 60 + minutes);
+
+    // Create date object shifted by the offset
+    // Get UTC time in ms
+    const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+    // Add target offset
+    const targetMs = utcMs + (totalOffsetMinutes * 60000);
+    const targetDate = new Date(targetMs);
+
+    const h = targetDate.getHours();
+    const m = targetDate.getMinutes();
+    const s = targetDate.getSeconds();
+
+    const timeString = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+    return {
+      hour: h,
+      minute: m,
+      second: s,
+      timeString: timeString,
+      totalMinutes: h * 60 + m,
+      timezone
+    };
+  }
+
+  // Fallback to IANA timezone
+  try {
+    const userTime = now.toLocaleString("en-US", {
+      timeZone: timezone,
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+
+    const [hour, minute, second] = userTime.split(':').map(Number);
+
+    return {
+      hour,
+      minute,
+      second,
+      timeString: userTime,
+      totalMinutes: hour * 60 + minute,
+      timezone
+    };
+  } catch (e) {
+    // If invalid timezone, default to UTC
+    console.error(`Invalid timezone: ${timezone}, defaulting to UTC`);
+    return getCurrentTimeInTimezone('UTC');
+  }
 }
 
 /**
@@ -53,7 +91,7 @@ export function shouldSendMealReminder(
   const userTime = getCurrentTimeInTimezone(userTimezone);
   const mealTimeMinutes = parseMealTimeToMinutes(mealTimeString);
   const timeSinceMeal = userTime.totalMinutes - mealTimeMinutes;
-  
+
   return {
     shouldSend: timeSinceMeal >= (hourThreshold * 60),
     timeSinceMeal,
@@ -72,7 +110,7 @@ export function shouldSendGoodMorningNotification(userTimezone: string): {
   userMinute: number;
 } {
   const userTime = getCurrentTimeInTimezone(userTimezone);
-  
+
   return {
     shouldSend: userTime.hour === 7,
     userCurrentTime: userTime.timeString,
@@ -95,11 +133,11 @@ export function shouldSendGoodNightNotification(
   targetHour: number;
 } {
   const userTime = getCurrentTimeInTimezone(userTimezone);
-  
+
   // If dinner time is configured, send notification 1 hour after dinner
   // Otherwise, send at 8 PM (20:00)
   let targetHour = 20; // Default to 8 PM
-  
+
   if (dinnerTime) {
     const [dinnerHour] = dinnerTime.split(':').map(Number);
     // Send notification 1 hour after dinner, but not before 8 PM
@@ -107,7 +145,7 @@ export function shouldSendGoodNightNotification(
     // Cap at 11 PM to avoid late night notifications
     targetHour = Math.min(23, targetHour);
   }
-  
+
   return {
     shouldSend: userTime.hour === targetHour,
     userCurrentTime: userTime.timeString,
@@ -122,6 +160,30 @@ export function shouldSendGoodNightNotification(
  */
 export function getCurrentDateInTimezone(timezone: string = 'Asia/Kolkata'): string {
   const now = new Date();
+
+  // Check if timezone is an offset string (e.g., "+05:30" or "-04:00")
+  const offsetMatch = timezone.match(/^([+-])(\d{2}):(\d{2})$/);
+
+  if (offsetMatch) {
+    const sign = offsetMatch[1] === '+' ? 1 : -1;
+    const hours = parseInt(offsetMatch[2], 10);
+    const minutes = parseInt(offsetMatch[3], 10);
+    const totalOffsetMinutes = sign * (hours * 60 + minutes);
+
+    // Get UTC time in ms
+    const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+    // Add target offset
+    const targetMs = utcMs + (totalOffsetMinutes * 60000);
+    const targetDate = new Date(targetMs);
+
+    // Return YYYY-MM-DD
+    const y = targetDate.getFullYear();
+    const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const d = String(targetDate.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  // Fallback for IANA timezones
   return now.toLocaleDateString("en-CA", { // ISO format YYYY-MM-DD
     timeZone: timezone
   });

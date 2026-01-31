@@ -2,6 +2,7 @@
 
 import { AuthProvider } from '@/lib/contexts/auth-context';
 import { ThemeProvider } from '@/lib/contexts/theme-context';
+import { TimezoneUpdater } from '@/components/auth/timezone-updater';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Toaster } from 'sonner';
@@ -27,6 +28,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <AuthProvider>
           <ThemeProvider>
             <FCMForegroundHandler />
+            <TimezoneUpdater />
             {children}
             <Toaster position="top-center" richColors />
           </ThemeProvider>

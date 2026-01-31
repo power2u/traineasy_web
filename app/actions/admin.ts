@@ -7,6 +7,7 @@ import { authOptions } from '@/lib/auth';
 import { sendEmail } from '@/lib/email/smtp';
 import { render } from '@react-email/render';
 import { WelcomeEmail } from '@/lib/email/templates/welcome-user';
+import { calculateMembershipDetails } from '@/lib/utils/membership-calculations';
 
 /**
  * Helper to ensure the caller is a super admin
@@ -119,37 +120,52 @@ export async function createUser(email: string, password: string, displayName: s
       }
     });
 
-    // 3. Send Welcome Email
-    try {
-      const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-      const loginUrl = `${baseUrl}/auth/signin`;
+    // 3. Send Welcome Email (Fire and forget to prevent blocking UI)
+    const sendWelcomeEmail = async () => {
+      try {
+        // Determine base URL for email images - prioritize public URL
+        let baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 
-      const emailHtml = await render(
-        WelcomeEmail({
-          userEmail: email,
-          userName: displayName,
-          password: password,
-          loginUrl,
-          baseUrl,
-          supportEmail: process.env.SMTP_FROM || 'support@traineasy.com',
-        })
-      );
+        // Handle Vercel deployments where NEXTAUTH_URL might not be set in preview
+        if (process.env.VERCEL_URL) {
+          baseUrl = `https://${process.env.VERCEL_URL}`;
+        }
 
-      const emailResult = await sendEmail({
-        to: email,
-        subject: 'Welcome to TrainEasy! 🚀',
-        html: emailHtml,
-        text: `Welcome to TrainEasy! Your account has been created.\n\nLogin Email: ${email}\nPassword: ${password}\n\nLogin here: ${loginUrl}`,
-      });
+        // Remove trailing slash if present to avoid double slashes with image paths
+        baseUrl = baseUrl.replace(/\/$/, '');
 
-      if (emailResult.success) {
-        console.log(`[createUser] Welcome email sent to ${email}`);
-      } else {
-        console.warn(`[createUser] Failed to send welcome email: ${emailResult.error}`);
+        const loginUrl = `${baseUrl}/auth/signin`;
+
+        const emailHtml = await render(
+          WelcomeEmail({
+            userEmail: email,
+            userName: displayName,
+            password: password,
+            loginUrl,
+            baseUrl,
+            supportEmail: process.env.SMTP_FROM || 'support@traineasy.com',
+          })
+        );
+
+        const emailResult = await sendEmail({
+          to: email,
+          subject: 'Welcome to TrainEasy! 🚀',
+          html: emailHtml,
+          text: `Welcome to TrainEasy! Your account has been created.\n\nLogin Email: ${email}\nPassword: ${password}\n\nLogin here: ${loginUrl}`,
+        });
+
+        if (emailResult.success) {
+          console.log(`[createUser] Welcome email sent to ${email}`);
+        } else {
+          console.warn(`[createUser] Failed to send welcome email: ${emailResult.error}`);
+        }
+      } catch (emailError) {
+        console.error('[createUser] Error sending welcome email:', emailError);
       }
-    } catch (emailError) {
-      console.error('[createUser] Error sending welcome email:', emailError);
-    }
+    };
+
+    // Execute without await
+    sendWelcomeEmail();
 
     return {
       success: true,
@@ -244,12 +260,22 @@ export async function listUsers() {
     await requireSuperAdmin();
 
     const users = await prisma.userPreference.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      include: {
+        userMemberships: {
+          where: { status: 'active' },
+          orderBy: { endDate: 'desc' },
+          take: 1,
+          include: { package: true }
+        }
+      }
     });
 
     return {
       success: true,
       users: users.map(u => {
+        const activeMembership = u.userMemberships[0] ? calculateMembershipDetails(u.userMemberships[0]) : null;
+
         return {
           id: u.id,
           email: u.email || '',
@@ -261,6 +287,7 @@ export async function listUsers() {
           is_banned: !!(u.bannedUntil && u.bannedUntil > new Date()),
           email_confirmed_at: u.createdAt.toISOString(),
           provider: 'email',
+          activeMembership: activeMembership,
         };
       }),
     };

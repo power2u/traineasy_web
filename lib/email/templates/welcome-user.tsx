@@ -34,7 +34,7 @@ export const WelcomeEmail = ({
     return (
         <Html>
             <Head />
-            <Preview>Welcome to TrainEasy! 🚀</Preview>
+            <Preview>Welcome to TrainEasy! 🚀 Your account is ready.</Preview>
             <Body style={main}>
                 <Container style={container}>
                     {/* Logo Section */}
@@ -53,25 +53,33 @@ export const WelcomeEmail = ({
                     <Section style={contentSection}>
                         <Heading style={title}>Welcome, {userName}! 👋</Heading>
                         <Text style={text}>
-                            Your account has been successfully created. We're excited to have you on board!
+                            Your account has been successfully created. We're excited to help you achieve your fitness goals!
                         </Text>
 
                         <Section style={credentialsSection}>
-                            <Text style={subheading}>Your Login Details:</Text>
+                            <Text style={subheading}>Your Login Credentials</Text>
                             <div style={credentialBox}>
-                                <Text style={credentialText}>
-                                    <strong>Email:</strong> {userEmail}
-                                </Text>
+                                <div style={credentialRow}>
+                                    <Text style={credentialLabel}>Email:</Text>
+                                    <Text style={credentialValue}>{userEmail}</Text>
+                                </div>
                                 {password && (
-                                    <Text style={credentialText}>
-                                        <strong>Password:</strong> {password}
-                                    </Text>
+                                    <>
+                                        <Hr style={credentialDivider} />
+                                        <div style={credentialRow}>
+                                            <Text style={credentialLabel}>Temporary Password:</Text>
+                                            <Text style={credentialValue}>{password}</Text>
+                                        </div>
+                                    </>
                                 )}
                             </div>
+                            <Text style={captionText}>
+                                Please copy your password to log in. You can allow your browser to save it, or change it after logging in.
+                            </Text>
                         </Section>
 
                         <Text style={text}>
-                            Click the button below to log in and get started:
+                            Ready to get started? Click the button below to access your dashboard:
                         </Text>
 
                         {/* CTA Button */}
@@ -94,8 +102,9 @@ export const WelcomeEmail = ({
 
                         {/* Security Notice */}
                         <Section style={noticeSection}>
+                            <Text style={noticeTitle}>🔒 Security Check</Text>
                             <Text style={noticeText}>
-                                🔒 <strong>Security Tip:</strong> We recommend changing your password after your first login.
+                                For your security, we recommend <strong>changing your password</strong> immediately after your first login. You can do this from your Profile settings.
                             </Text>
                         </Section>
                     </Section>
@@ -123,80 +132,116 @@ export default WelcomeEmail;
 // Styles
 const main = {
     backgroundColor: '#f6f9fc',
-    fontFamily:
-        '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
+    fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
+    padding: '12px',
 };
 
 const container = {
     backgroundColor: '#ffffff',
     margin: '0 auto',
-    padding: '20px 0 48px',
-    marginBottom: '64px',
-    maxWidth: '600px',
+    padding: '0',
+    marginBottom: '48px',
+    maxWidth: '580px',
     borderRadius: '12px',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+    border: '1px solid #e2e8f0',
+    overflow: 'hidden' as const,
 };
 
 const logoSection = {
     padding: '32px 20px',
     textAlign: 'center' as const,
-    borderBottom: '1px solid #e6e6e6',
+    backgroundColor: '#ffffff',
+    borderBottom: '1px solid #f1f5f9',
 };
 
 const logo = {
     margin: '0 auto',
     borderRadius: '12px',
+    display: 'block',
 };
 
 const heading = {
     fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    margin: '12px 0 0 0',
+    fontWeight: '800',
+    color: '#0f172a',
+    margin: '16px 0 0 0',
+    letterSpacing: '-0.5px',
 };
 
 const contentSection = {
-    padding: '32px 40px',
+    padding: '40px 48px',
 };
 
 const title = {
-    fontSize: '28px',
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    margin: '0 0 24px 0',
+    fontSize: '26px',
+    fontWeight: '700',
+    color: '#0f172a',
+    margin: '0 0 20px 0',
+    letterSpacing: '-0.5px',
 };
 
 const subheading = {
-    fontSize: '18px',
+    fontSize: '16px',
     fontWeight: '600',
-    color: '#404040',
+    color: '#334155',
     margin: '0 0 12px 0',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
 };
 
 const text = {
     fontSize: '16px',
-    lineHeight: '24px',
-    color: '#525252',
+    lineHeight: '26px',
+    color: '#475569',
     margin: '16px 0',
 };
 
 const credentialsSection = {
-    margin: '24px 0',
+    margin: '32px 0',
 };
 
 const credentialBox = {
-    backgroundColor: '#f1f5f9',
-    padding: '16px',
-    borderRadius: '8px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '12px',
     border: '1px solid #e2e8f0',
+    overflow: 'hidden' as const,
 };
 
-const credentialText = {
-    fontSize: '16px',
-    lineHeight: '24px',
-    color: '#334155',
-    margin: '4px 0',
-    fontFamily: 'monospace',
+const credentialRow = {
+    padding: '16px 20px',
+};
+
+const credentialDivider = {
+    margin: '0',
+    borderColor: '#e2e8f0',
+    borderWidth: '1px',
+};
+
+const credentialLabel = {
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#64748b',
+    margin: '0 0 4px 0',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
+};
+
+const credentialValue = {
+    fontSize: '18px',
+    fontFamily: 'SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace',
+    fontWeight: '600',
+    color: '#0f172a',
+    margin: '0',
+    wordBreak: 'break-all' as const,
+};
+
+const captionText = {
+    fontSize: '13px',
+    lineHeight: '20px',
+    color: '#94a3b8',
+    marginTop: '12px',
+    textAlign: 'center' as const,
 };
 
 const buttonSection = {
@@ -206,66 +251,73 @@ const buttonSection = {
 
 const button = {
     backgroundColor: '#2563eb',
-    borderRadius: '8px',
+    borderRadius: '10px',
     color: '#fff',
     fontSize: '16px',
-    fontWeight: 'bold',
+    fontWeight: '600',
     textDecoration: 'none',
     textAlign: 'center' as const,
     display: 'inline-block',
-    padding: '14px 40px',
+    padding: '16px 48px',
     cursor: 'pointer',
-    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)',
+    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2), 0 2px 4px -1px rgba(37, 99, 235, 0.1)',
 };
 
 const linkText = {
     fontSize: '14px',
-    lineHeight: '20px',
-    color: '#737373',
+    lineHeight: '22px',
+    color: '#64748b',
     margin: '8px 0',
     wordBreak: 'break-all' as const,
 };
 
 const link = {
     color: '#2563eb',
-    textDecoration: 'underline',
+    textDecoration: 'none',
+    fontWeight: '500',
 };
 
 const hr = {
-    borderColor: '#e6e6e6',
+    borderColor: '#e2e8f0',
     margin: '32px 0',
 };
 
 const noticeSection = {
     backgroundColor: '#eff6ff',
-    borderRadius: '8px',
-    padding: '16px',
-    margin: '24px 0 0',
-    border: '1px solid #bfdbfe',
+    borderRadius: '12px',
+    padding: '20px',
+    border: '1px solid #dbeafe',
+};
+
+const noticeTitle = {
+    fontSize: '14px',
+    fontWeight: '700',
+    color: '#1e40af',
+    margin: '0 0 8px 0',
 };
 
 const noticeText = {
     fontSize: '14px',
-    lineHeight: '20px',
-    color: '#1e40af',
+    lineHeight: '22px',
+    color: '#1e3a8a',
     margin: '0',
 };
 
 const footer = {
-    padding: '0 40px',
-    borderTop: '1px solid #e6e6e6',
-    paddingTop: '24px',
+    backgroundColor: '#f8fafc',
+    padding: '32px 20px',
+    borderTop: '1px solid #f1f5f9',
     textAlign: 'center' as const,
 };
 
 const footerText = {
-    fontSize: '12px',
-    lineHeight: '16px',
-    color: '#a3a3a3',
+    fontSize: '13px',
+    lineHeight: '20px',
+    color: '#94a3b8',
     margin: '8px 0',
 };
 
 const footerLink = {
-    color: '#2563eb',
+    color: '#64748b',
     textDecoration: 'underline',
 };

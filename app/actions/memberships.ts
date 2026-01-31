@@ -5,75 +5,9 @@ import { enableUser, disableUser } from './admin';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export interface UserMembership {
-  id: string;
-  user_id: string;
-  package_id: string;
-  package_name: string;
-  package_duration_days: number;
-  start_date: string;
-  end_date: string;
-  status: 'active' | 'expired' | 'cancelled';
-  days_elapsed: number;
-  days_remaining: number;
-  total_days: number;
-  progress_percentage: number;
-  is_expired: boolean;
-  notes?: string;
-}
+import { calculateMembershipDetails, UserMembership } from '@/lib/utils/membership-calculations';
 
-// Helper to calculate membership details
-function calculateMembershipDetails(membership: any): UserMembership {
-  const startDate = new Date(membership.startDate);
-  const endDate = new Date(membership.endDate);
-  const today = new Date();
-
-  // Reset time components for accurate day comparison if needed, though usually Date comparison is fine.
-  // Assuming @db.Date returns JS Date at 00:00 UTC? Or Local?
-  // Let's assume JS Dates are comparable.
-
-  const oneDay = 24 * 60 * 60 * 1000;
-  const totalDays = Math.round(Math.abs((endDate.getTime() - startDate.getTime()) / oneDay)) || 1; // avoid divide by zero
-
-  // Days elapsed
-  let daysElapsed = Math.round((today.getTime() - startDate.getTime()) / oneDay);
-  if (daysElapsed < 0) daysElapsed = 0;
-  if (daysElapsed > totalDays) daysElapsed = totalDays;
-
-  // Days remaining
-  let daysRemaining = totalDays - daysElapsed;
-  if (daysRemaining < 0) daysRemaining = 0;
-
-  const progress = Math.round((daysElapsed / totalDays) * 100);
-  const isExpired = today > endDate && membership.status !== 'cancelled'; // If cancelled, it's not "expired" in the natural sense for active check, but effectively dead.
-  // However, status assumes precedence.
-
-  return {
-    id: membership.id,
-    user_id: membership.userId,
-    package_id: membership.packageId,
-    package_name: membership.package?.name || 'Unknown Package',
-    package_duration_days: membership.package?.durationDays || 0,
-    start_date: startDate.toISOString().split('T')[0],
-    end_date: endDate.toISOString().split('T')[0],
-    status: membership.status as 'active' | 'expired' | 'cancelled',
-    days_elapsed: daysElapsed,
-    days_remaining: daysRemaining,
-    total_days: totalDays,
-    progress_percentage: progress,
-    is_expired: isExpired,
-    // notes field missing in Prisma UserMembership model?
-    // Let's check schema. I don't recall seeing notes in UserMembership model.
-    // I viewed schema lines 238-250 for UserMembership. 
-    // It has `id`, `userId`, `packageId`, `status`, `startDate`, `endDate`, `createdAt`, `updatedAt`.
-    // NO `notes`. The interface had `notes`. `createMembership` in original admin.ts accepted `notes`.
-    // Maybe I missed it in schema view? Or it's missing.
-    // If missing, I can't return it. I'll omit it or return undefined.
-    // Wait, UserPackage had `notes`. UserMembership did not in the snippet I saw.
-    // I'll skip notes if not in data.
-    notes: undefined,
-  };
-}
+// Re-export UserMembership compatibility removed to fix build error. Import from '@/lib/utils/membership-calculations' instead.
 
 async function verifyUserOrAdmin(userId: string) {
   const session = await getServerSession(authOptions);

@@ -60,24 +60,26 @@ export const authOptions: NextAuthOptions = {
                         return null;
                     }
 
-                    // Check email verification (optional - you can disable this for existing users)
-                    if (!user.emailVerified && process.env.REQUIRE_EMAIL_VERIFICATION === 'true') {
-                        console.log("[Auth] User email not verified:", user.email);
-                        throw new Error("Please verify your email address before signing in.");
+                    // Auto-verify email on successful login
+                    const updateData: any = {
+                        lastSignInAt: new Date(),
+                        lastActiveAt: new Date(),
+                    };
+
+                    if (!user.emailVerified) {
+                        updateData.emailVerified = new Date();
+                        console.log("[Auth] Auto-verifying email for user:", user.email);
                     }
 
-                    // Update last_sign_in_at with error handling
+                    // Update user stats
                     try {
                         await prisma.userPreference.update({
                             where: { id: user.id },
-                            data: {
-                                lastSignInAt: new Date(),
-                                lastActiveAt: new Date(),
-                            },
+                            data: updateData,
                         });
-                        console.log("[Auth] Successfully updated last_sign_in_at for user:", user.id);
+                        console.log("[Auth] Successfully updated user stats:", user.id);
                     } catch (updateError) {
-                        handleAuthError(updateError, "Update Sign-in Time");
+                        handleAuthError(updateError, "Update Sign-in Stats");
                         // Don't fail auth if this update fails
                     }
 

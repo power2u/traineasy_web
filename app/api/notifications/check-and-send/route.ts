@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendPushNotification } from '@/lib/firebase/admin';
 import { getActiveNotificationMessage } from '@/app/actions/notification-messages';
+import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
 
 // Types
 interface NotificationResult {
@@ -65,7 +66,7 @@ export async function GET(request: Request) {
       }
 
       const userTimezone = user.timezone || 'Asia/Kolkata';
-      const { hours: userHours, minutes: userMinutes, timeStr: userTimeStr } = getTimeInTimezone(userTimezone);
+      const { hour: userHours, minute: userMinutes, timeString: userTimeStr } = getCurrentTimeInTimezone(userTimezone);
 
       const shouldProcess = await shouldProcessUser(user, userHours, userMinutes);
       if (!shouldProcess) {
@@ -428,26 +429,7 @@ async function sendNotification({
   }
 }
 
-// Time Utils
-function getTimeInTimezone(timezone: string) {
-  const now = new Date();
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
-
-  const parts = formatter.formatToParts(now);
-  const hours = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
-  const minutes = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
-  const seconds = parseInt(parts.find(p => p.type === 'second')?.value || '0');
-
-  const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-
-  return { hours, minutes, timeStr };
-}
+// Time Utils handled by imported function from '@/lib/utils/timezone';
 
 function isTimeMatch(userHours: number, userMinutes: number, targetTime: string): boolean {
   if (!targetTime) return false;

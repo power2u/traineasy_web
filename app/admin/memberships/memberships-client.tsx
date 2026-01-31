@@ -6,9 +6,9 @@ import { Button, Card, Spinner, TextField, Label, Input, Select, SelectValue, Li
 import {
     createMembership,
     getUserMemberships,
-    cancelMembership,
-    type UserMembership
+    cancelMembership
 } from '@/app/actions/memberships';
+import { type UserMembership } from '@/lib/utils/membership-calculations';
 import { Calendar, Package, User, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 
 interface MembershipsClientProps {

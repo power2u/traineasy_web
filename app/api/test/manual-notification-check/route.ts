@@ -1,56 +1,35 @@
-import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
 
-/**
- * Manual test endpoint to check notification logic
- * This helps debug why users are being skipped
- */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
 
-    console.log(`[Manual Test] Running notification check at ${now.toISOString()}`);
-
-    // Get all users with notifications enabled
+    // Fetch users for the test - limiting to 50 for performance in manual check
     const users = await prisma.userPreference.findMany({
-      where: {
-        notificationsEnabled: true
-      },
+      where: { notificationsEnabled: true },
       select: {
         id: true,
         fullName: true,
-        notificationsEnabled: true,
-        mealRemindersEnabled: true,
-        waterRemindersEnabled: true,
-        weightRemindersEnabled: true,
+        timezone: true,
         breakfastTime: true,
         snack1Time: true,
         lunchTime: true,
         snack2Time: true,
         dinnerTime: true,
-        timezone: true
-      }
+        // Add other fields if needed for the logic below
+      },
+      take: 50
     });
 
     const results = [];
 
-    for (const user of users || []) {
+    for (const user of users) {
       const userTimezone = user.timezone || 'Asia/Kolkata';
 
-      // Get time in user's timezone
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: userTimezone,
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-
-      const parts = formatter.formatToParts(now);
-      const userHours = parseInt(parts.find(part => part.type === 'hour')?.value || '0');
-      const userMinutes = parseInt(parts.find(part => part.type === 'minute')?.value || '0');
-      const userTimeStr = `${userHours.toString().padStart(2, '0')}:${userMinutes.toString().padStart(2, '0')}`;
+      // Get time in user's timezone using the robust utility
+      const { hour: userHours, minute: userMinutes, timeString: userTimeStr } = getCurrentTimeInTimezone(userTimezone);
 
       // Check notification times
       const notificationTimes = [
@@ -94,10 +73,6 @@ export async function GET() {
           diff: diff,
           is_match: isMatch
         });
-
-        if (isMatch) {
-          // This will be included in matches above
-        }
       }
 
       results.push({
