@@ -130,6 +130,16 @@ export function UsersClient({ initialUsers, initialPackages, currentUser }: User
             const result = await createUser(email, password, displayName || '');
 
             if (result.success && result.user) {
+                // Immediately stop loading state
+                setIsCreating(false);
+                setCreateSuccess(`User ${email} created successfully!`);
+
+                // Clear form
+                setEmail('');
+                setPassword('');
+                setDisplayName('');
+                setCreatePackageId('');
+
                 if (createPackageId) {
                     const selectedPkg = packages.find(p => p.id === createPackageId);
                     if (selectedPkg) {
@@ -147,23 +157,21 @@ export function UsersClient({ initialUsers, initialPackages, currentUser }: User
                     }
                 }
 
-                setCreateSuccess(`User ${email} created successfully!`);
-                setEmail('');
-                setPassword('');
-                setDisplayName('');
-                setCreatePackageId('');
-                await loadUsers();
-                router.refresh();
+                // Schedule closing
                 setTimeout(() => {
                     setIsCreateModalOpen(false);
                     setCreateSuccess('');
                 }, 1500);
+
+                // Update data in background
+                await loadUsers();
+                router.refresh();
             } else {
                 setCreateError(result.error || 'Failed to create user');
+                setIsCreating(false);
             }
         } catch (error) {
             setCreateError('An error occurred while creating user');
-        } finally {
             setIsCreating(false);
         }
     };
