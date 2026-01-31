@@ -134,7 +134,7 @@ export async function createUser(email: string, password: string, displayName: s
         // Remove trailing slash if present to avoid double slashes with image paths
         baseUrl = baseUrl.replace(/\/$/, '');
 
-        const loginUrl = `${baseUrl}/auth/signin`;
+        const loginUrl = `${baseUrl}/auth/login`;
 
         const emailHtml = await render(
           WelcomeEmail({
