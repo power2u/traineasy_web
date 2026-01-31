@@ -3,8 +3,9 @@ import withPWA from '@ducanh2912/next-pwa';
 import withBundleAnalyzer from '@next/bundle-analyzer';
 
 const nextConfig: NextConfig = {
-  turbopack: {}, // Enable Turbopack explicitly
-
+  // Disable Turbopack in production to avoid chunk issues
+  // Use traditional webpack for stable production builds
+  
   // Performance optimizations
   reactStrictMode: true,
 
@@ -30,6 +31,46 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['@heroui/react', 'recharts'],
   },
 
+  // Enhanced webpack configuration for production
+  webpack: (config, { dev, isServer }) => {
+    // Production optimizations
+    if (!dev) {
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          chunks: 'all',
+          cacheGroups: {
+            default: {
+              minChunks: 2,
+              priority: -20,
+              reuseExistingChunk: true,
+            },
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: 'vendors',
+              priority: -10,
+              chunks: 'all',
+            },
+            firebase: {
+              test: /[\\/]node_modules[\\/](firebase|@firebase)[\\/]/,
+              name: 'firebase',
+              priority: 10,
+              chunks: 'all',
+            },
+            heroui: {
+              test: /[\\/]node_modules[\\/]@heroui[\\/]/,
+              name: 'heroui',
+              priority: 10,
+              chunks: 'all',
+            },
+          },
+        },
+      };
+    }
+
+    return config;
+  },
+
   // Headers for caching
   async headers() {
     return [
@@ -51,7 +92,36 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // Security headers for production
+      ...(process.env.NODE_ENV === 'production' ? [
+        {
+          source: '/(.*)',
+          headers: [
+            {
+              key: 'X-Frame-Options',
+              value: 'DENY',
+            },
+            {
+              key: 'X-Content-Type-Options',
+              value: 'nosniff',
+            },
+            {
+              key: 'Referrer-Policy',
+              value: 'strict-origin-when-cross-origin',
+            },
+          ],
+        },
+      ] : []),
     ];
+  },
+
+  // Output configuration for better production builds
+  output: 'standalone',
+  
+  // Enhanced error handling
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
   },
 };
 
@@ -73,6 +143,17 @@ export default bundleAnalyzer(withPWA({
           expiration: {
             maxEntries: 100,
             maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+          },
+        },
+      },
+      {
+        urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'google-fonts-cache',
+          expiration: {
+            maxEntries: 10,
+            maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
           },
         },
       },

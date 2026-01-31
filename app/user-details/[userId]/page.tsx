@@ -3,7 +3,6 @@ import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getAdminUserDetails } from '@/app/actions/admin-details';
 import { UserDetailsClient } from './user-details-client';
-import { Button, Card } from '@heroui/react';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -33,12 +32,10 @@ export default async function UserDetailsPage({ params }: PageProps) {
     return (
       <div className="container mx-auto px-4 py-12 text-center">
         <h1 className="text-2xl font-bold mb-4 text-red-500">Error Loading User</h1>
-        <p className="text-default-500 mb-6">{result.error || 'Unknown error occurred'}</p>
-        <Link href="/admin/users">
-          <Button variant="ghost" className="flex items-center gap-2 mx-auto">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Users
-          </Button>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">{result.error || 'Unknown error occurred'}</p>
+        <Link href="/admin/users" className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md transition-colors">
+          <ArrowLeft className="w-4 h-4" />
+          Back to Users
         </Link>
       </div>
     );

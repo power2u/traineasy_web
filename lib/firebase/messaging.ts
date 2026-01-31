@@ -1,7 +1,7 @@
 'use client';
 
 import { getToken, onMessage, Messaging } from 'firebase/messaging';
-import { messaging } from './config';
+import { getFirebaseMessaging, isFirebaseAvailable } from './config';
 
 /**
  * Request notification permission and get FCM token
@@ -10,6 +10,13 @@ export async function requestNotificationPermission(): Promise<string | null> {
   try {
     console.log('🔔 Starting FCM token request...');
 
+    // Check if Firebase is available
+    if (!isFirebaseAvailable()) {
+      console.warn('⚠️ Firebase not available, skipping FCM token request');
+      return null;
+    }
+
+    const messaging = await getFirebaseMessaging();
     if (!messaging) {
       if (process.env.NODE_ENV === 'development') {
         console.warn('⚠️ Firebase messaging not supported or not initialized');
@@ -32,7 +39,7 @@ export async function requestNotificationPermission(): Promise<string | null> {
 
     if (permission !== 'granted') {
       console.warn('⚠️ Notification permission denied or dismissed by user');
-      return null; // Return null instead of throwing error
+      return null;
     }
 
     // Get FCM token
@@ -65,27 +72,38 @@ export async function requestNotificationPermission(): Promise<string | null> {
       });
     }
 
-    return null; // Return null instead of throwing
+    return null;
   }
 }
 
 /**
  * Listen for foreground messages
  */
-export function onForegroundMessage(callback: (payload: any) => void) {
-  if (!messaging) {
-    // console.warn('Firebase messaging not supported');
-    return () => { };
+export async function onForegroundMessage(callback: (payload: any) => void): Promise<() => void> {
+  try {
+    if (!isFirebaseAvailable()) {
+      console.warn('⚠️ Firebase not available, skipping foreground message setup');
+      return () => {};
+    }
+
+    const messaging = await getFirebaseMessaging();
+    if (!messaging) {
+      console.warn('⚠️ Firebase messaging not available');
+      return () => {};
+    }
+
+    console.log('📡 Setting up foreground message listener...');
+
+    const unsubscribe = onMessage(messaging, (payload) => {
+      console.log('📨 Foreground message received:', payload);
+      callback(payload);
+    });
+
+    return unsubscribe;
+  } catch (error) {
+    console.warn('⚠️ Failed to setup foreground message listener:', error);
+    return () => {};
   }
-
-  console.log('📡 Setting up foreground message listener...');
-
-  const unsubscribe = onMessage(messaging, (payload) => {
-    console.log('📨 Foreground message received:', payload);
-    callback(payload);
-  });
-
-  return unsubscribe;
 }
 
 /**
@@ -136,11 +154,14 @@ export async function removeFCMToken(userId: string, removeAll: boolean = false)
     let currentToken = null;
 
     // If not removing all tokens, get current browser's token
-    if (!removeAll && messaging) {
+    if (!removeAll && isFirebaseAvailable()) {
       try {
-        const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
-        if (vapidKey) {
-          currentToken = await getToken(messaging, { vapidKey });
+        const messaging = await getFirebaseMessaging();
+        if (messaging) {
+          const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+          if (vapidKey) {
+            currentToken = await getToken(messaging, { vapidKey });
+          }
         }
       } catch (error) {
         console.warn('Could not get current token for removal:', error);
@@ -157,6 +178,6 @@ export async function removeFCMToken(userId: string, removeAll: boolean = false)
     return true; // If no token to remove, consider it successful
   } catch (error) {
     console.warn('Error removing FCM token:', error);
-    return false; // Return false but don't throw
+    return false;
   }
 }

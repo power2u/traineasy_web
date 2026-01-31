@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/layout/app-shell";
 import { LocalNotificationProvider } from "@/components/notifications/local-notification-provider";
+import ErrorBoundary from "@/components/error-boundary";
 
 export const metadata: Metadata = {
   title: "Fitness Tracker",
@@ -37,12 +38,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased font-sans">
-        <Providers>
-          <LocalNotificationProvider>
-            <MaintenanceBanner />
-            <AppShell>{children}</AppShell>
-          </LocalNotificationProvider>
-        </Providers>
+        <ErrorBoundary>
+          <Providers>
+            <LocalNotificationProvider>
+              <MaintenanceBanner />
+              <AppShell>{children}</AppShell>
+            </LocalNotificationProvider>
+          </Providers>
+        </ErrorBoundary>
       </body>
     </html>
   );

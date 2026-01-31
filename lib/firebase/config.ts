@@ -13,18 +13,74 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-let app: FirebaseApp;
+let app: FirebaseApp | null = null;
 let messaging: Messaging | null = null;
 
-if (typeof window !== 'undefined') {
-  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-  
-  // Initialize messaging only if supported
-  isSupported().then((supported) => {
-    if (supported) {
-      messaging = getMessaging(app);
+// Enhanced initialization with error handling
+const initializeFirebase = async () => {
+  try {
+    // Only initialize on client side
+    if (typeof window === 'undefined') {
+      console.log('[Firebase] Server-side environment detected, skipping client initialization');
+      return;
     }
-  });
+
+    // Initialize Firebase app
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    console.log('[Firebase] App initialized successfully');
+    
+    // Initialize messaging only if supported and in secure context
+    try {
+      const supported = await isSupported();
+      if (supported && window.isSecureContext) {
+        messaging = getMessaging(app);
+        console.log('[Firebase] Messaging initialized successfully');
+      } else {
+        console.warn('[Firebase] Messaging not supported or not in secure context');
+      }
+    } catch (messagingError) {
+      console.warn('[Firebase] Failed to initialize messaging:', messagingError);
+      // Don't throw error, just log warning
+    }
+  } catch (error) {
+    console.error('[Firebase] Failed to initialize:', error);
+    // Don't throw error in production to prevent app crash
+    if (process.env.NODE_ENV === 'development') {
+      throw error;
+    }
+  }
+};
+
+// Initialize Firebase when module loads (client-side only)
+if (typeof window !== 'undefined') {
+  initializeFirebase();
 }
+
+// Helper function to get messaging safely
+export const getFirebaseMessaging = async (): Promise<Messaging | null> => {
+  try {
+    if (typeof window === 'undefined') {
+      console.warn('[Firebase] getFirebaseMessaging called on server-side');
+      return null;
+    }
+
+    if (!messaging) {
+      const supported = await isSupported();
+      if (supported && window.isSecureContext && app) {
+        messaging = getMessaging(app);
+      }
+    }
+    
+    return messaging;
+  } catch (error) {
+    console.warn('[Firebase] Failed to get messaging:', error);
+    return null;
+  }
+};
+
+// Helper function to check if Firebase is available
+export const isFirebaseAvailable = (): boolean => {
+  return typeof window !== 'undefined' && app !== null;
+};
 
 export { app, messaging, firebaseConfig };

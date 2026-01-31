@@ -7,11 +7,14 @@ const prismaClientSingleton = () => {
         throw new Error('DATABASE_URL environment variable is not set')
     }
 
+    console.log('[Prisma] Initializing database connection...')
+    
     const adapter = new PrismaPg({ connectionString })
 
     return new PrismaClient({
         adapter,
         log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+        errorFormat: 'pretty',
     })
 }
 
@@ -21,6 +24,35 @@ const globalForPrisma = globalThis as unknown as {
     prisma: PrismaClientSingleton | undefined
 }
 
-export const prisma = globalForPrisma.prisma ?? prismaClientSingleton()
+// Enhanced error handling for database operations
+const createPrismaClient = () => {
+    try {
+        const client = prismaClientSingleton()
+        
+        // Test connection on initialization in production
+        if (process.env.NODE_ENV === 'production') {
+            client.$connect()
+                .then(() => console.log('[Prisma] Database connection established'))
+                .catch((error) => console.error('[Prisma] Failed to connect to database:', error))
+        }
+
+        return client
+    } catch (error) {
+        console.error('[Prisma] Failed to initialize database client:', error)
+        throw error
+    }
+}
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+// Graceful shutdown handler
+process.on('beforeExit', async () => {
+    try {
+        await prisma.$disconnect()
+        console.log('[Prisma] Database connection closed')
+    } catch (error) {
+        console.error('[Prisma] Error during database disconnect:', error)
+    }
+})

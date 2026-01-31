@@ -1,4 +1,3 @@
-import { Card, Text } from '@heroui/react';
 import { getTodayWaterCount, getWaterTarget, getTodayMeals } from '@/lib/data/cached-queries';
 
 export async function QuickStats({ userId }: { userId: string }) {
@@ -23,22 +22,22 @@ export async function QuickStats({ userId }: { userId: string }) {
     }
 
     return (
-        <Card className="mt-3 p-3 md:mt-6 md:p-6">
+        <div className="mt-3 p-3 md:mt-6 md:p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <h3 className="mb-2 text-base font-semibold md:mb-4 md:text-xl">Today's Summary</h3>
             <div className="grid gap-3 sm:grid-cols-3">
                 <div>
-                    <Text className="text-[10px] text-muted-foreground md:text-sm">Water Goal</Text>
+                    <span className="text-[10px] text-gray-600 dark:text-gray-400 md:text-sm">Water Goal</span>
                     <div className="mt-0.5 text-lg font-bold md:text-2xl">{waterCount} / {waterTarget} glasses</div>
                 </div>
                 <div>
-                    <Text className="text-[10px] text-muted-foreground md:text-sm">Meals Today</Text>
+                    <span className="text-[10px] text-gray-600 dark:text-gray-400 md:text-sm">Meals Today</span>
                     <div className="mt-0.5 text-lg font-bold md:text-2xl">{mealsCompleted}/5</div>
                 </div>
                 <div>
-                    <Text className="text-[10px] text-muted-foreground md:text-sm">Completion Rate</Text>
+                    <span className="text-[10px] text-gray-600 dark:text-gray-400 md:text-sm">Completion Rate</span>
                     <div className="mt-0.5 text-lg font-bold md:text-2xl">{Math.round((mealsCompleted / 5) * 100)}%</div>
                 </div>
             </div>
-        </Card>
+        </div>
     );
 }

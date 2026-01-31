@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { onForegroundMessage } from '@/lib/firebase/messaging';
+import { isFirebaseAvailable } from '@/lib/firebase/config';
 
 /**
  * Component to handle FCM foreground notifications
@@ -11,55 +12,84 @@ export function FCMForegroundHandler() {
   useEffect(() => {
     console.log('🔔 Setting up FCM foreground message handler...');
 
+    // Check if Firebase is available
+    if (!isFirebaseAvailable()) {
+      console.warn('⚠️ Firebase not available, skipping FCM setup');
+      return;
+    }
+
     // Only run if supported and in secure context (required for Service Workers)
     if (typeof window !== 'undefined' && (!window.isSecureContext && window.location.hostname !== 'localhost')) {
       console.warn('⚠️ FCM not supported: Insecure context (HTTP) detected. Service workers require HTTPS or localhost.');
       return;
     }
 
-    const unsubscribe = onForegroundMessage((payload) => {
-      console.log('📨 Foreground message received:', payload);
+    let unsubscribe: (() => void) | null = null;
 
-      // Extract notification data
-      const title = payload.notification?.title || payload.data?.title || 'Train Easy';
-      const body = payload.notification?.body || payload.data?.body || 'You have a new notification';
-      const icon = '/logo.png';
-      const data = payload.data || {};
+    const setupForegroundHandler = async () => {
+      try {
+        unsubscribe = await onForegroundMessage((payload) => {
+          console.log('📨 Foreground message received:', payload);
 
-      // Show browser notification
-      if ('Notification' in window && Notification.permission === 'granted') {
-        console.log('🔔 Showing browser notification:', { title, body });
+          // Extract notification data
+          const title = payload.notification?.title || payload.data?.title || 'Train Easy';
+          const body = payload.notification?.body || payload.data?.body || 'You have a new notification';
+          const icon = '/logo.png';
+          const data = payload.data || {};
 
-        const notification = new Notification(title, {
-          body,
-          icon,
-          badge: icon,
-          tag: data.type || 'default',
-          data,
-          requireInteraction: false,
+          // Show browser notification
+          if ('Notification' in window && Notification.permission === 'granted') {
+            console.log('🔔 Showing browser notification:', { title, body });
+
+            const notification = new Notification(title, {
+              body,
+              icon,
+              badge: icon,
+              tag: data.type || 'default',
+              data,
+              requireInteraction: false,
+            });
+
+            // Handle notification click
+            notification.onclick = (event) => {
+              event.preventDefault();
+              console.log('🖱️ Notification clicked:', data);
+
+              try {
+                // SECURITY: Validate URL to prevent open redirect attacks
+                const { safeRedirect } = require('@/lib/utils/url-security');
+                const url = safeRedirect(data.url, '/dashboard');
+                
+                window.focus();
+                window.location.href = url;
+                notification.close();
+              } catch (error) {
+                console.error('Error handling notification click:', error);
+                window.focus();
+                window.location.href = '/dashboard';
+                notification.close();
+              }
+            };
+          } else {
+            console.warn('⚠️ Cannot show notification - permission not granted');
+          }
         });
-
-        // Handle notification click
-        notification.onclick = (event) => {
-          event.preventDefault();
-          console.log('🖱️ Notification clicked:', data);
-
-          // SECURITY: Validate URL to prevent open redirect attacks
-          const { safeRedirect } = require('@/lib/utils/url-security');
-          const url = safeRedirect(data.url, '/dashboard');
-          
-          window.focus();
-          window.location.href = url;
-          notification.close();
-        };
-      } else {
-        console.warn('⚠️ Cannot show notification - permission not granted');
+      } catch (error) {
+        console.warn('⚠️ Failed to setup FCM foreground handler:', error);
       }
-    });
+    };
+
+    setupForegroundHandler();
 
     return () => {
       console.log('🔕 Cleaning up FCM foreground message handler');
-      unsubscribe();
+      if (unsubscribe) {
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.warn('Error during FCM cleanup:', error);
+        }
+      }
     };
   }, []);
 

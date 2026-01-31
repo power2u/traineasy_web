@@ -6,7 +6,7 @@ import { MeasurementType } from '@/lib/types';
 import { MeasurementsClient } from './measurements-client';
 
 interface PageProps {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export default async function MeasurementsPage({ searchParams }: PageProps) {

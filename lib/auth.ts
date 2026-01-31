@@ -3,6 +3,15 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
+// Enhanced error handling for production
+function handleAuthError(error: any, context: string): void {
+    console.error(`[Auth Error - ${context}]:`, {
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+    });
+}
+
 export const authOptions: NextAuthOptions = {
     providers: [
         CredentialsProvider({
@@ -20,6 +29,14 @@ export const authOptions: NextAuthOptions = {
                         return null;
                     }
 
+                    // Test database connection first
+                    try {
+                        await prisma.$connect();
+                    } catch (dbError) {
+                        handleAuthError(dbError, "Database Connection");
+                        return null;
+                    }
+
                     const user = await prisma.userPreference.findUnique({
                         where: { email: credentials.email },
                     });
@@ -30,7 +47,6 @@ export const authOptions: NextAuthOptions = {
                     }
 
                     console.log("[Auth] User found:", user.id);
-                    // console.log("[Auth] Stored hash from DB:", user.passwordHash);
 
                     const passwordMatch = await bcrypt.compare(
                         credentials.password,
@@ -47,7 +63,7 @@ export const authOptions: NextAuthOptions = {
                     // Check for ban
                     if (user.bannedUntil && user.bannedUntil > new Date()) {
                         console.log("[Auth] User is banned until:", user.bannedUntil);
-                        return null; // Or throw Error("Your account has been suspended.")
+                        return null;
                     }
 
                     // Check email verification (optional - you can disable this for existing users)
@@ -56,7 +72,7 @@ export const authOptions: NextAuthOptions = {
                         throw new Error("Please verify your email address before signing in.");
                     }
 
-                    // Update last_sign_in_at
+                    // Update last_sign_in_at with error handling
                     try {
                         await prisma.userPreference.update({
                             where: { id: user.id },
@@ -67,7 +83,8 @@ export const authOptions: NextAuthOptions = {
                         });
                         console.log("[Auth] Successfully updated last_sign_in_at for user:", user.id);
                     } catch (updateError) {
-                        console.error("[Auth] Failed to update sign-in time:", updateError);
+                        handleAuthError(updateError, "Update Sign-in Time");
+                        // Don't fail auth if this update fails
                     }
 
                     console.log("[Auth] Authorize returning:", {
@@ -84,8 +101,15 @@ export const authOptions: NextAuthOptions = {
                         password_change_required: user.passwordChangeRequired,
                     };
                 } catch (error) {
-                    console.error("[Auth] UNEXPECTED ERROR in authorize:", error);
+                    handleAuthError(error, "Authorization");
                     return null;
+                } finally {
+                    // Ensure database connection is closed
+                    try {
+                        await prisma.$disconnect();
+                    } catch (disconnectError) {
+                        console.warn("[Auth] Failed to disconnect from database:", disconnectError);
+                    }
                 }
             },
         }),
@@ -95,81 +119,104 @@ export const authOptions: NextAuthOptions = {
     },
     callbacks: {
         async jwt({ token, user, trigger, session }) {
-            // Initial sign in
-            if (user) {
-                console.log("[Auth] JWT: User object present on sign-in:", JSON.stringify(user));
-                token.id = user.id;
-                token.role = user.role;
-                token.name = user.name; // Store the full name in token
-                token.password_change_required = user.password_change_required;
-            }
-
-            // Failsafe: if role is missing but we have email, try to fetch it
-            if (!token.role && token.email) {
-                console.log("[Auth] JWT: Role missing for email:", token.email, "Fetching from DB...");
-                try {
-                    const userPref = await prisma.userPreference.findUnique({
-                        where: { email: token.email },
-                        select: { role: true },
-                    });
-
-                    if (userPref?.role) {
-                        console.log("[Auth] JWT: Role fetched successfully:", userPref.role);
-                        token.role = userPref.role as 'user' | 'super_admin';
-                    }
-                } catch (err) {
-                    console.error("[Auth] JWT: Failed to fetch fallback role", err);
+            try {
+                // Initial sign in
+                if (user) {
+                    console.log("[Auth] JWT: User object present on sign-in:", JSON.stringify(user));
+                    token.id = user.id;
+                    token.role = user.role;
+                    token.name = user.name;
+                    token.password_change_required = user.password_change_required;
                 }
-            }
 
-            // Fetch Active Membership Status (if not already set or on update)
-            if (token.id && token.hasActiveMembership === undefined) {
-                // Optimization: Admins always have active membership access
-                if (token.role === 'super_admin') {
-                    token.hasActiveMembership = true;
-                } else {
+                // Failsafe: if role is missing but we have email, try to fetch it
+                if (!token.role && token.email) {
+                    console.log("[Auth] JWT: Role missing for email:", token.email, "Fetching from DB...");
                     try {
-                        // Check for ANY active membership
-                        const membership = await prisma.userMembership.findFirst({
-                            where: {
-                                userId: token.id as string,
-                                status: "active",
-                            },
-                            select: { status: true },
+                        await prisma.$connect();
+                        const userPref = await prisma.userPreference.findUnique({
+                            where: { email: token.email },
+                            select: { role: true },
                         });
 
-                        // If we found a row with status 'active', they have a membership
-                        token.hasActiveMembership = !!membership;
+                        if (userPref?.role) {
+                            console.log("[Auth] JWT: Role fetched successfully:", userPref.role);
+                            token.role = userPref.role as 'user' | 'super_admin';
+                        }
                     } catch (err) {
-                        console.error("[Auth] JWT: Failed to fetch membership status", err);
-                        token.hasActiveMembership = false;
+                        handleAuthError(err, "JWT Role Fetch");
+                    } finally {
+                        try {
+                            await prisma.$disconnect();
+                        } catch (disconnectError) {
+                            console.warn("[Auth] JWT: Failed to disconnect:", disconnectError);
+                        }
                     }
                 }
-            }
 
+                // Fetch Active Membership Status (if not already set or on update)
+                if (token.id && token.hasActiveMembership === undefined) {
+                    // Optimization: Admins always have active membership access
+                    if (token.role === 'super_admin') {
+                        token.hasActiveMembership = true;
+                    } else {
+                        try {
+                            await prisma.$connect();
+                            // Check for ANY active membership
+                            const membership = await prisma.userMembership.findFirst({
+                                where: {
+                                    userId: token.id as string,
+                                    status: "active",
+                                },
+                                select: { status: true },
+                            });
 
-            if (trigger === "update" && session) {
-                // Allow client to update the session (e.g. after password change)
-                if (session.user) {
-                    token.password_change_required = session.user.password_change_required;
-                    if (session.user.role) token.role = session.user.role;
-                    // Allow manual update of membership status if needed
-                    if (session.user.hasActiveMembership !== undefined) {
-                        token.hasActiveMembership = session.user.hasActiveMembership;
+                            // If we found a row with status 'active', they have a membership
+                            token.hasActiveMembership = !!membership;
+                        } catch (err) {
+                            handleAuthError(err, "JWT Membership Fetch");
+                            token.hasActiveMembership = false;
+                        } finally {
+                            try {
+                                await prisma.$disconnect();
+                            } catch (disconnectError) {
+                                console.warn("[Auth] JWT: Failed to disconnect:", disconnectError);
+                            }
+                        }
                     }
                 }
+
+                if (trigger === "update" && session) {
+                    // Allow client to update the session (e.g. after password change)
+                    if (session.user) {
+                        token.password_change_required = session.user.password_change_required;
+                        if (session.user.role) token.role = session.user.role;
+                        // Allow manual update of membership status if needed
+                        if (session.user.hasActiveMembership !== undefined) {
+                            token.hasActiveMembership = session.user.hasActiveMembership;
+                        }
+                    }
+                }
+                return token;
+            } catch (error) {
+                handleAuthError(error, "JWT Callback");
+                return token; // Return existing token on error
             }
-            return token;
         },
         async session({ session, token }) {
-            if (token && session.user) {
-                session.user.id = token.id as string;
-                session.user.name = token.name as string; // Pass the full name to session
-                session.user.role = token.role as 'user' | 'super_admin';
-                session.user.password_change_required = token.password_change_required as boolean;
-                session.user.hasActiveMembership = token.hasActiveMembership as boolean;
+            try {
+                if (token && session.user) {
+                    session.user.id = token.id as string;
+                    session.user.name = token.name as string;
+                    session.user.role = token.role as 'user' | 'super_admin';
+                    session.user.password_change_required = token.password_change_required as boolean;
+                    session.user.hasActiveMembership = token.hasActiveMembership as boolean;
+                }
+                return session;
+            } catch (error) {
+                handleAuthError(error, "Session Callback");
+                return session; // Return existing session on error
             }
-            return session;
         },
     },
     pages: {

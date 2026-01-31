@@ -17,7 +17,8 @@
     "test:run": "vitest run",
     "test:bot-detection": "node scripts/test-bot-detection.js",
     "analyze": "ANALYZE=true next build",
-    "build:prod": "next build && next-sitemap",
+    "build:prod": "node scripts/validate-production-env.js && next build && next-sitemap",
+    "validate:env": "node scripts/validate-production-env.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {
