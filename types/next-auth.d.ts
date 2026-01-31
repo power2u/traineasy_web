@@ -5,6 +5,7 @@ declare module "next-auth" {
     interface Session {
         user: {
             id: string
+            name?: string
             role: 'user' | 'super_admin'
             password_change_required?: boolean
             hasActiveMembership?: boolean
@@ -13,6 +14,7 @@ declare module "next-auth" {
 
     interface User {
         id: string
+        name?: string
         role: 'user' | 'super_admin'
         full_name?: string
         password_hash?: string
@@ -24,6 +26,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
     interface JWT {
         id: string
+        name?: string
         role: 'user' | 'super_admin'
         password_change_required?: boolean
         hasActiveMembership?: boolean

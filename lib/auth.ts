@@ -100,6 +100,7 @@ export const authOptions: NextAuthOptions = {
                 console.log("[Auth] JWT: User object present on sign-in:", JSON.stringify(user));
                 token.id = user.id;
                 token.role = user.role;
+                token.name = user.name; // Store the full name in token
                 token.password_change_required = user.password_change_required;
             }
 
@@ -163,6 +164,7 @@ export const authOptions: NextAuthOptions = {
         async session({ session, token }) {
             if (token && session.user) {
                 session.user.id = token.id as string;
+                session.user.name = token.name as string; // Pass the full name to session
                 session.user.role = token.role as 'user' | 'super_admin';
                 session.user.password_change_required = token.password_change_required as boolean;
                 session.user.hasActiveMembership = token.hasActiveMembership as boolean;

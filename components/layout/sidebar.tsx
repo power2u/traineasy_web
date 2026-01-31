@@ -63,10 +63,15 @@ export const Sidebar = memo(function Sidebar() {
     return items;
   }, [isSuperAdmin]);
 
-  const displayName = useMemo(() =>
-    user?.displayName || user?.email?.split('@')[0],
-    [user]
-  );
+  const displayName = useMemo(() => {
+    // Try multiple sources for the display name
+    const name = user?.displayName || 
+                 user?.name || 
+                 (user as any)?.fullName || 
+                 user?.email?.split('@')[0] || 
+                 'User';
+    return name;
+  }, [user]);
 
   return (
     <aside className="hidden w-64 flex-col border-r border-border bg-card md:flex">
