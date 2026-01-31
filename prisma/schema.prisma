@@ -27,7 +27,7 @@ model UserPreference {
   bloodGroup                   String?                @map("blood_group")
   breakfastTime                String?                @map("breakfast_time")
   currentCondition             String?                @map("current_condition")
-  dailyWaterTarget             Int                    @default(2000) @map("daily_water_target")
+  dailyWaterTarget             Int                    @default(8) @map("daily_water_target")
   dateOfBirth                  DateTime?              @map("date_of_birth") @db.Date
   dinnerTime                   String?                @map("dinner_time")
   emailEnabled                 Boolean                @default(false) @map("email_enabled")

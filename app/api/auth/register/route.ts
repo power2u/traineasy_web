@@ -18,14 +18,14 @@ export async function POST(req: Request) {
 
         // 2. Apply rate limiting
         const rateLimitResult = rateLimit(req, RATE_LIMITS.REGISTER);
-        
+
         if (!rateLimitResult.allowed) {
             const headers = createRateLimitHeaders(
                 rateLimitResult.remaining,
                 rateLimitResult.resetTime,
                 RATE_LIMITS.REGISTER.limit
             );
-            
+
             return NextResponse.json(
                 { error: "Too many registration attempts. Please try again later." },
                 { status: 429, headers }
@@ -40,30 +40,30 @@ export async function POST(req: Request) {
             );
         }
         // 4. Enhanced input validation
-        const { 
-            email, 
-            password, 
-            full_name, 
-            mathAnswer, 
-            mathToken, 
+        const {
+            email,
+            password,
+            full_name,
+            mathAnswer,
+            mathToken,
             timeToken,
-            ...honeypotFields 
+            ...honeypotFields
         } = await req.json();
 
         // CAPTCHA validation
         if (process.env.ENABLE_CAPTCHA !== 'false') {
             const { verifyMathChallenge, verifyTimeChallenge, verifyHoneypot } = await import('@/lib/utils/captcha');
-            
+
             // Verify math challenge
             if (!mathAnswer || !mathToken || !verifyMathChallenge(mathToken, parseInt(mathAnswer))) {
                 return NextResponse.json({ error: "Invalid security challenge answer" }, { status: 400 });
             }
-            
+
             // Verify time challenge (form should take reasonable time to fill)
             if (!timeToken || !verifyTimeChallenge(timeToken, 5, 600)) { // 5 seconds to 10 minutes
                 return NextResponse.json({ error: "Form submitted too quickly or too slowly" }, { status: 400 });
             }
-            
+
             // Verify honeypot fields (should be empty)
             for (const [key, value] of Object.entries(honeypotFields)) {
                 if (value && value !== '') {
@@ -106,8 +106,8 @@ export async function POST(req: Request) {
         const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
         if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
-            return NextResponse.json({ 
-                error: "Password must contain at least one uppercase letter, one lowercase letter, and one number" 
+            return NextResponse.json({
+                error: "Password must contain at least one uppercase letter, one lowercase letter, and one number"
             }, { status: 400 });
         }
 
@@ -121,7 +121,7 @@ export async function POST(req: Request) {
             /admin/i, /test/i, /bot/i, /crawler/i, /script/i, /hack/i,
             /null/i, /undefined/i, /anonymous/i, /guest/i, /temp/i
         ];
-        
+
         if (suspiciousPatterns.some(pattern => pattern.test(full_name))) {
             return NextResponse.json({ error: "Invalid name provided" }, { status: 400 });
         }
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
 
         if (existing) {
             // Don't reveal if email exists for security
-            return NextResponse.json({ 
+            return NextResponse.json({
                 success: true,
                 message: "If this email is not already registered, you will receive a verification email shortly."
             });
@@ -165,7 +165,7 @@ export async function POST(req: Request) {
                 weightRemindersEnabled: true,
                 preferredUnit: 'kg',
                 goalWeightUnit: 'kg',
-                dailyWaterTarget: 2000,
+                dailyWaterTarget: 8,
                 glassSizeMl: 250,
                 theme: 'system',
                 language: 'en'
@@ -178,14 +178,14 @@ export async function POST(req: Request) {
         // Send email verification
         const { sendEmailVerification } = await import('@/app/actions/email-verification');
         const verificationResult = await sendEmailVerification(newUser.id, email);
-        
+
         if (!verificationResult.success) {
             console.warn('[Registration] Failed to send verification email:', verificationResult.error);
             // Don't fail registration if email fails, but log it
         }
 
-        return NextResponse.json({ 
-            success: true, 
+        return NextResponse.json({
+            success: true,
             userId: newUser.id,
             message: "Account created successfully! Please check your email to verify your account before signing in."
         });

@@ -434,7 +434,7 @@ export async function getUserNotificationPreferences(userId?: string) {
       language: 'en',
       preferred_unit: 'kg',
       goal_weight_unit: 'kg',
-      daily_water_target: 2000,
+      daily_water_target: 8,
       glass_size_ml: 250,
     } as UserPreferences;
 
