@@ -492,8 +492,8 @@ if __name__ == "__main__":
             check_and_send_notifications()
             elapsed = time.time() - start_time
             
-            # Sleep for remainder of minute
-            sleep_time = max(0, 60 - elapsed)
+            # Sleep for 1 hour
+            sleep_time = 3600
             logger.info(f"Cycle complete in {elapsed:.2f}s. Sleeping for {sleep_time:.2f}s...")
             time.sleep(sleep_time)
             
