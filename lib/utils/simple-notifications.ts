@@ -1,71 +1,25 @@
 /**
  * Simple, production-focused notification system
- * Enhanced for mobile and PWA support
+ * Mobile-compatible functionality
  */
 
 export class SimpleNotifications {
   /**
-   * Detect if running as PWA
-   */
-  static isPWA(): boolean {
-    if (typeof window === 'undefined') return false;
-    
-    // Check if running in standalone mode (PWA)
-    return (
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true ||
-      document.referrer.includes('android-app://')
-    );
-  }
-
-  /**
-   * Detect mobile device
-   */
-  static isMobile(): boolean {
-    if (typeof window === 'undefined') return false;
-    
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-      navigator.userAgent
-    );
-  }
-
-  /**
-   * Detect iOS device
-   */
-  static isIOS(): boolean {
-    if (typeof window === 'undefined') return false;
-    
-    return /iPad|iPhone|iPod/.test(navigator.userAgent);
-  }
-
-  /**
    * Check if notifications are supported and enabled
    */
   static isAvailable(): boolean {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      return false;
-    }
-
-    // For iOS, notifications only work in PWA mode
-    if (this.isIOS() && !this.isPWA()) {
-      console.log('ℹ️ iOS notifications require PWA mode (add to home screen)');
-      return false;
-    }
-
-    return Notification.permission === 'granted';
+    return (
+      typeof window !== 'undefined' &&
+      'Notification' in window &&
+      Notification.permission === 'granted'
+    );
   }
 
   /**
-   * Request notification permission with mobile-specific handling
+   * Request notification permission with mobile compatibility
    */
   static async requestPermission(): Promise<NotificationPermission> {
     if (typeof window === 'undefined' || !('Notification' in window)) {
-      return 'denied';
-    }
-
-    // Check iOS PWA requirement
-    if (this.isIOS() && !this.isPWA()) {
-      console.warn('⚠️ iOS requires app to be added to home screen for notifications');
       return 'denied';
     }
 
@@ -74,42 +28,59 @@ export class SimpleNotifications {
     }
 
     try {
-      // For mobile, we need to request permission in response to user interaction
-      const permission = await Notification.requestPermission();
-      console.log('🔔 Permission requested (mobile-aware):', permission);
+      // Ensure we're in a user gesture context (required for mobile)
+      // This should be called from a click handler
+      console.log('🔔 Requesting notification permission...');
       
-      // Additional mobile-specific setup
-      if (permission === 'granted' && this.isMobile()) {
-        await this.setupMobileNotifications();
+      // Use the callback-style API for better mobile compatibility
+      let permission: NotificationPermission;
+      
+      if (typeof Notification.requestPermission === 'function') {
+        // Modern promise-based API
+        permission = await Notification.requestPermission();
+      } else {
+        // Fallback for older browsers
+        permission = await new Promise((resolve) => {
+          Notification.requestPermission((result) => {
+            resolve(result as NotificationPermission);
+          });
+        });
+      }
+      
+      console.log('🔔 Permission result:', permission);
+      
+      // Test notification capability immediately after permission grant
+      if (permission === 'granted') {
+        console.log('✅ Permission granted, testing notification capability...');
+        
+        // Small delay to ensure permission is fully processed
+        setTimeout(() => {
+          try {
+            const testNotification = new Notification('Permission Granted', {
+              body: 'Notifications are now enabled!',
+              icon: '/logo.png',
+              tag: 'permission-test',
+              requireInteraction: false,
+            });
+            
+            setTimeout(() => {
+              testNotification.close();
+            }, 2000);
+          } catch (error) {
+            console.warn('⚠️ Test notification failed:', error);
+          }
+        }, 100);
       }
       
       return permission;
     } catch (error) {
       console.error('❌ Permission request failed:', error);
-      return 'denied';
+      return Notification.permission;
     }
   }
 
   /**
-   * Setup mobile-specific notification handling
-   */
-  static async setupMobileNotifications(): Promise<void> {
-    try {
-      // Register service worker for PWA notifications
-      if ('serviceWorker' in navigator && this.isPWA()) {
-        const registration = await navigator.serviceWorker.ready;
-        console.log('✅ Service worker ready for mobile notifications');
-        
-        // Store registration for later use
-        (window as any).swRegistration = registration;
-      }
-    } catch (error) {
-      console.warn('⚠️ Mobile notification setup failed:', error);
-    }
-  }
-
-  /**
-   * Show notification with mobile/PWA support
+   * Show notification with mobile compatibility
    */
   static show(title: string, body: string, options: {
     icon?: string;
@@ -119,158 +90,121 @@ export class SimpleNotifications {
   } = {}): boolean {
     if (!this.isAvailable()) {
       console.warn('❌ Notifications not available');
-      this.showFallbackAlert(title, body);
+      console.log('📋 Permission status:', Notification.permission);
+      console.log('📋 Notification support:', 'Notification' in window);
       return false;
     }
 
     try {
-      // Use service worker for PWA notifications on mobile
-      if (this.isPWA() && this.isMobile() && (window as any).swRegistration) {
-        return this.showPWANotification(title, body, options);
-      }
-
-      // Standard notification for desktop and mobile browsers
-      return this.showStandardNotification(title, body, options);
-    } catch (error) {
-      console.error('❌ Failed to show notification:', error);
-      this.showFallbackAlert(title, body);
-      return false;
-    }
-  }
-
-  /**
-   * Show PWA notification via service worker
-   */
-  static showPWANotification(title: string, body: string, options: {
-    icon?: string;
-    tag?: string;
-    url?: string;
-    autoClose?: number;
-  } = {}): boolean {
-    try {
-      const registration = (window as any).swRegistration;
-      if (!registration) {
-        return this.showStandardNotification(title, body, options);
-      }
-
-      const notificationOptions = {
-        body,
-        icon: options.icon || '/logo.png',
-        badge: '/logo.png',
-        tag: options.tag || 'pwa-notification',
-        requireInteraction: this.isMobile(), // Keep visible on mobile
-        data: {
-          url: options.url || '/dashboard',
-          timestamp: Date.now()
-        },
-        actions: this.isMobile() ? [
-          {
-            action: 'open',
-            title: 'Open App',
-            icon: '/logo.png'
-          }
-        ] : undefined
-      };
-
-      registration.showNotification(title, notificationOptions);
-      console.log('✅ PWA notification shown:', title);
+      console.log('🔔 Creating notification:', title);
       
-      // Auto-close for non-mobile (mobile handles this differently)
-      if (!this.isMobile() && options.autoClose) {
-        // PWA notifications don't support setTimeout, handled by service worker
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('❌ PWA notification failed:', error);
-      return this.showStandardNotification(title, body, options);
-    }
-  }
-
-  /**
-   * Show standard browser notification
-   */
-  static showStandardNotification(title: string, body: string, options: {
-    icon?: string;
-    tag?: string;
-    url?: string;
-    autoClose?: number;
-  } = {}): boolean {
-    try {
-      const notification = new Notification(title, {
+      // Create notification with mobile-compatible options
+      const notificationOptions: NotificationOptions = {
         body,
         icon: options.icon || '/logo.png',
         tag: options.tag || 'simple-notification',
-        requireInteraction: this.isMobile(), // Keep visible on mobile
-      });
+        requireInteraction: false,
+        silent: false, // Ensure sound/vibration on mobile
+      };
 
-      // Handle click
+      // Add badge for mobile PWA support
+      if ('badge' in Notification.prototype) {
+        (notificationOptions as any).badge = '/logo.png';
+      }
+
+      // Add vibration pattern for mobile
+      if ('vibrate' in navigator) {
+        (notificationOptions as any).vibrate = [200, 100, 200];
+      }
+
+      const notification = new Notification(title, notificationOptions);
+
+      // Enhanced event handling
+      notification.onshow = () => {
+        console.log('✅ Notification displayed:', title);
+      };
+
+      notification.onerror = (error) => {
+        console.error('❌ Notification error:', error);
+      };
+
+      notification.onclose = () => {
+        console.log('🔔 Notification closed:', title);
+      };
+
+      // Handle click with mobile-friendly navigation
       if (options.url) {
-        notification.onclick = () => {
-          window.focus();
-          window.location.href = options.url!;
+        notification.onclick = (event) => {
+          console.log('🖱️ Notification clicked:', title);
+          event.preventDefault();
+          
+          try {
+            // For mobile, try to focus existing window first
+            if (window.parent && window.parent !== window) {
+              window.parent.focus();
+            } else {
+              window.focus();
+            }
+            
+            // Navigate to URL
+            if (options.url!.startsWith('/')) {
+              window.location.href = options.url!;
+            } else {
+              window.open(options.url!, '_blank');
+            }
+          } catch (navError) {
+            console.error('❌ Navigation error:', navError);
+          }
+          
           notification.close();
         };
       }
 
-      // Auto close (longer timeout for mobile)
-      const closeTime = options.autoClose || (this.isMobile() ? 10000 : 5000);
+      // Auto close with mobile-appropriate timing
+      const closeTime = options.autoClose || 8000; // Longer for mobile
       setTimeout(() => {
-        notification.close();
+        try {
+          notification.close();
+        } catch (e) {
+          // Ignore close errors
+        }
       }, closeTime);
 
-      console.log('✅ Standard notification shown:', title);
+      console.log('✅ Notification created successfully:', title);
       return true;
     } catch (error) {
-      console.error('❌ Standard notification failed:', error);
+      console.error('❌ Failed to show notification:', error);
+      console.log('📋 Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        permission: Notification.permission,
+        userAgent: navigator.userAgent
+      });
       return false;
     }
   }
 
   /**
-   * Fallback alert for when notifications fail
-   */
-  static showFallbackAlert(title: string, body: string): void {
-    if (this.isMobile()) {
-      // On mobile, show a less intrusive console message
-      console.log(`📱 ${title}: ${body}`);
-    } else {
-      // On desktop, can use alert as fallback
-      alert(`${title}\n\n${body}`);
-    }
-  }
-
-  /**
-   * Show test notification with mobile detection
+   * Show test notification
    */
   static showTest(userName: string = 'there'): boolean {
-    const deviceInfo = this.getDeviceInfo();
-    console.log('🧪 Test notification - Device info:', deviceInfo);
+    console.log('🧪 Test notification starting...');
+    console.log('📱 User agent:', navigator.userAgent);
+    console.log('🔔 Permission:', Notification.permission);
     
     return this.show(
       '🧪 Test Notification',
-      `Hi ${userName}! Your notifications are working on ${deviceInfo.type}!`,
+      `Hi ${userName}! Your notifications are working!`,
       {
         tag: 'test-notification',
         url: '/dashboard',
-        autoClose: this.isMobile() ? 8000 : 5000
+        autoClose: 8000
       }
     );
   }
 
   /**
-   * Get device information for debugging
-   */
-  static getDeviceInfo(): { type: string; isPWA: boolean; canNotify: boolean } {
-    return {
-      type: this.isIOS() ? 'iOS' : this.isMobile() ? 'Mobile' : 'Desktop',
-      isPWA: this.isPWA(),
-      canNotify: this.isAvailable()
-    };
-  }
-
-  /**
-   * Show meal reminder with mobile optimization
+   * Show meal reminder
    */
   static showMealReminder(mealType: string, userName: string = 'there'): boolean {
     const mealEmojis: Record<string, string> = {
@@ -298,13 +232,13 @@ export class SimpleNotifications {
       {
         tag: `meal-${mealType}`,
         url: '/meals',
-        autoClose: this.isMobile() ? 30000 : 20000 // Longer on mobile
+        autoClose: 30000
       }
     );
   }
 
   /**
-   * Show water reminder with mobile optimization
+   * Show water reminder
    */
   static showWaterReminder(userName: string = 'there'): boolean {
     return this.show(
@@ -313,7 +247,7 @@ export class SimpleNotifications {
       {
         tag: 'water-reminder',
         url: '/water',
-        autoClose: this.isMobile() ? 20000 : 15000
+        autoClose: 20000
       }
     );
   }
