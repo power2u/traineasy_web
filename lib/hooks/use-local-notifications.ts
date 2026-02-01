@@ -124,15 +124,46 @@ export function useLocalNotifications() {
 
   // Show a test notification
   const showTestNotification = useCallback(async () => {
-    if (!user) return false;
+    if (!user) {
+      console.error('❌ Test notification failed: No user');
+      return false;
+    }
 
-    return await localNotificationManager.showNotification({
-      title: '🎉 Test Notification',
-      body: `Hi ${user.displayName}! Your local notifications are working perfectly!`,
-      tag: 'test-notification',
-      url: '/dashboard',
-      data: { type: 'test' }
-    });
+    console.log('🧪 Starting test notification...');
+    console.log('📋 Permission status:', Notification.permission);
+    console.log('👤 User:', user.displayName || user.email);
+
+    // Try direct notification first (simpler approach)
+    if (Notification.permission !== 'granted') {
+      console.error('❌ Test notification failed: Permission not granted');
+      return false;
+    }
+
+    try {
+      console.log('🔔 Creating test notification...');
+      const notification = new Notification('🧪 Test Notification', {
+        body: `Hi ${user.displayName || 'there'}! Your notifications are working!`,
+        icon: '/logo.png',
+        tag: 'test-notification',
+        requireInteraction: false,
+      });
+
+      notification.onclick = () => {
+        console.log('🖱️ Test notification clicked');
+        window.focus();
+        notification.close();
+      };
+
+      setTimeout(() => {
+        notification.close();
+      }, 5000);
+
+      console.log('✅ Test notification created successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Test notification error:', error);
+      return false;
+    }
   }, [user]);
 
   // Show meal reminder

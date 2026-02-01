@@ -35,7 +35,16 @@ export function NotificationSettings() {
   useEffect(() => {
     const next = getNextMeal();
     setNextMeal(next);
-  }, [getNextMeal, mealStatus]);
+    
+    // Debug logging
+    console.log('🔍 Notification Settings Debug:', {
+      permissionStatus,
+      mealEnabledResult: mealEnabled(),
+      mealStatus: status,
+      scheduledCount,
+      nextMeal: next
+    });
+  }, [getNextMeal, mealStatus, permissionStatus, mealEnabled, status, scheduledCount]);
 
   const handleEnableNotifications = async () => {
     if (canShowPrompt) {
@@ -55,13 +64,22 @@ export function NotificationSettings() {
   const handleTestNotification = async () => {
     setIsTesting(true);
     try {
+      console.log('🧪 Test notification button clicked');
+      console.log('📋 Current permission:', permissionStatus);
+      console.log('🔧 Meal scheduler enabled:', mealEnabled());
+      console.log('📊 Meal scheduler status:', status);
+      
       const success = await showTestNotification();
+      console.log('🎯 Test notification result:', success);
+      
       if (!success) {
-        alert('Failed to send test notification. Please check your notification settings.');
+        alert('Failed to send test notification. Please check your notification settings and browser console for details.');
+      } else {
+        console.log('✅ Test notification should have appeared');
       }
     } catch (error) {
-      console.error('Error sending test notification:', error);
-      alert('Error sending test notification.');
+      console.error('❌ Error sending test notification:', error);
+      alert('Error sending test notification: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setIsTesting(false);
     }

@@ -51,11 +51,20 @@ export class MealNotificationScheduler {
     
     await this.loadUserPreferences();
     
+    // Check browser notification permission
+    const browserPermission = typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported';
+    console.log('🔔 Browser notification permission:', browserPermission);
+    
     // Only schedule if notifications are enabled and permission granted
     if (areNotificationsEnabled() && this.canScheduleNotifications()) {
       this.scheduleAllMealNotifications();
+      console.log('✅ Meal notifications initialized successfully');
     } else {
-      console.log('📵 Meal notifications not scheduled - permission or settings disabled');
+      console.log('📵 Meal notifications not scheduled - checking requirements:');
+      console.log('  - Browser permission granted:', areNotificationsEnabled());
+      console.log('  - User notifications enabled:', this.preferences?.notificationsEnabled);
+      console.log('  - User meal reminders enabled:', this.preferences?.mealRemindersEnabled);
+      console.log('  - Can schedule:', this.canScheduleNotifications());
     }
   }
 
@@ -66,7 +75,9 @@ export class MealNotificationScheduler {
     if (!this.user) return;
 
     try {
+      console.log('🔄 Loading user preferences for meal scheduler...');
       const response = await fetch(`/api/user/preferences`);
+      
       if (response.ok) {
         const data = await response.json();
         this.preferences = data.preferences;
@@ -77,11 +88,20 @@ export class MealNotificationScheduler {
           lunchTime: this.preferences?.lunchTime,
           dinnerTime: this.preferences?.dinnerTime,
         });
+        
+        if (!this.preferences?.notificationsEnabled) {
+          console.warn('⚠️ User has notifications disabled in preferences');
+        }
+        if (!this.preferences?.mealRemindersEnabled) {
+          console.warn('⚠️ User has meal reminders disabled in preferences');
+        }
       } else {
-        console.warn('Failed to load user preferences:', response.statusText);
+        console.error('❌ Failed to load user preferences:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Response body:', errorText);
       }
     } catch (error) {
-      console.warn('Failed to load user preferences:', error);
+      console.error('❌ Error loading user preferences:', error);
     }
   }
 
@@ -322,23 +342,50 @@ export class MealNotificationScheduler {
    * Show a test meal notification
    */
   showTestMealNotification(): boolean {
+    console.log('🧪 Meal scheduler test notification starting...');
+    console.log('📋 Permission check:', typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported');
+    
     if (!areNotificationsEnabled()) {
-      console.warn('Cannot show test notification: permission not granted');
+      console.warn('❌ Cannot show test notification: permission not granted');
       return false;
     }
 
-    const userName = this.getUserDisplayName();
-    const testMeal: MealTime = {
-      type: 'breakfast',
-      time: '08:00',
-      name: 'Test Meal',
-      emoji: '🧪'
-    };
+    try {
+      const userName = this.getUserDisplayName();
+      console.log('👤 User name for notification:', userName);
 
-    this.showMealNotification(testMeal, userName);
-    return true;
+      const notification = new Notification('🧪 Test Meal Reminder', {
+        body: `Hey ${userName}! This is a test meal notification from the scheduler.`,
+        icon: '/logo.png',
+        badge: '/logo.png',
+        tag: 'test-meal-notification',
+        requireInteraction: false,
+      });
+
+      notification.onclick = () => {
+        console.log('🖱️ Test meal notification clicked');
+        window.focus();
+        window.location.href = '/meals';
+        notification.close();
+      };
+
+      setTimeout(() => {
+        notification.close();
+      }, 5000);
+
+      console.log('✅ Test meal notification created successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Test meal notification error:', error);
+      return false;
+    }
   }
 }
 
 // Export singleton instance
 export const mealScheduler = MealNotificationScheduler.getInstance();
+
+// Expose for debugging in production
+if (typeof window !== 'undefined') {
+  (window as any).mealScheduler = mealScheduler;
+}
