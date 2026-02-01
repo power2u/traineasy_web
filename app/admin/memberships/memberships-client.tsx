@@ -303,19 +303,20 @@ export function MembershipsClient({ initialUsers, initialPackages, initialStats 
                     {users.map((u) => (
                         <div
                             key={u.id}
-                            className="flex items-center justify-between rounded-lg border border-border p-4"
+                            className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
                         >
-                            <div className="flex items-center gap-3">
-                                <User className="h-5 w-5 text-muted-foreground" />
-                                <div>
-                                    <p className="font-medium">{u.display_name || u.email}</p>
-                                    <p className="text-sm text-muted-foreground">{u.email}</p>
+                            <div className="flex items-center gap-3 overflow-hidden">
+                                <User className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate font-medium">{u.display_name || u.email}</p>
+                                    <p className="truncate text-sm text-muted-foreground">{u.email}</p>
                                 </div>
                             </div>
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 onPress={() => handleViewMemberships(u.id)}
+                                className="w-full sm:w-auto"
                             >
                                 View Memberships
                             </Button>

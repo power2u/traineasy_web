@@ -88,7 +88,7 @@ export function MealsClient({ userId, initialData }: MealsClientProps) {
     const totalMeals = 5;
 
     return (
-        <div className="p-6 max-w-4xl mx-auto">
+        <div className="p-0 max-w-4xl mx-auto">
             <div className="mb-3 md:mb-6">
                 <h1 className="text-xl font-bold md:text-2xl">Meals Tracker</h1>
                 <p className="text-xs text-default-500 mt-0.5 md:text-sm md:mt-1">Track your daily meals</p>
@@ -125,8 +125,8 @@ export function MealsClient({ userId, initialData }: MealsClientProps) {
                         <div
                             key={meal.type}
                             className={`flex items-center justify-between p-2.5 rounded-lg border-2 transition-all md:p-4 ${meal.completed
-                                    ? 'border-green-500 bg-green-500/10'
-                                    : 'border-default-200 hover:border-default-300'
+                                ? 'border-green-500 bg-green-500/10'
+                                : 'border-default-200 hover:border-default-300'
                                 }`}
                         >
                             <div className="flex items-center gap-2 flex-1 md:gap-4">

@@ -42,8 +42,23 @@ export function ProfileClient({ initialProfile, initialPlan }: ProfileClientProp
     const [heightCm, setHeightCm] = useState(initialProfile?.height_cm?.toString() || '');
     const [goalWeight, setGoalWeight] = useState(initialProfile?.goal_weight?.toString() || '');
     const [goalWeightUnit, setGoalWeightUnit] = useState<string>(initialProfile?.goal_weight_unit || 'kg');
-    const [dailyWaterTarget, setDailyWaterTarget] = useState(initialProfile?.daily_water_target?.toString() || '8');
     const [glassSizeMl, setGlassSizeMl] = useState(initialProfile?.glass_size_ml?.toString() || '250');
+
+    // Calculate initial daily water target (handle legacy ML values)
+    const getInitialWaterTarget = () => {
+        const rawTarget = initialProfile?.daily_water_target;
+        if (!rawTarget) return '8';
+
+        // If target is unrealistically high for a glass count (e.g. > 50), assume it's in ML
+        if (rawTarget > 50) {
+            const glassSize = initialProfile?.glass_size_ml || 250;
+            return Math.ceil(rawTarget / glassSize).toString();
+        }
+
+        return rawTarget.toString();
+    };
+
+    const [dailyWaterTarget, setDailyWaterTarget] = useState(getInitialWaterTarget());
 
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');

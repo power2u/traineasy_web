@@ -12,7 +12,7 @@ import {
     type MotivationBanner
 } from '@/app/actions/banners';
 import { toast } from 'sonner';
-import { Sparkles, Plus, Edit, Trash2, Power, PowerOff } from 'lucide-react';
+import { Sparkles, Plus, Edit, Trash2, Power, PowerOff, Pen } from 'lucide-react';
 
 interface BannersClientProps {
     initialBanners: MotivationBanner[];
@@ -233,7 +233,7 @@ export function BannersClient({ initialBanners }: BannersClientProps) {
                                     Update Banner
                                 </Button>
                                 <Button
-                                    variant="secondary"
+                                    variant="primary"
                                     onPress={cancelEdit}
                                 >
                                     Cancel
@@ -318,7 +318,7 @@ export function BannersClient({ initialBanners }: BannersClientProps) {
                                     )}
 
                                     <Button
-                                        variant="secondary"
+                                        variant="primary"
                                         size="sm"
                                         onPress={() => startEdit(banner)}
                                     >

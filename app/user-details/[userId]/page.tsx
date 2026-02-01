@@ -30,7 +30,7 @@ export default async function UserDetailsPage({ params }: PageProps) {
 
   if (!result.success) {
     return (
-      <div className="container mx-auto px-4 py-12 text-center">
+      <div className="container mx-auto px-0 py-6 text-center">
         <h1 className="text-2xl font-bold mb-4 text-red-500">Error Loading User</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">{result.error || 'Unknown error occurred'}</p>
         <Link href="/admin/users" className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md transition-colors">

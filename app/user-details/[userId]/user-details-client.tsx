@@ -23,7 +23,7 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
     const lastActivity = userProfile.lastActiveAt || userProfile.lastSignInAt;
 
     return (
-        <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="container mx-auto px-0 py-6 space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <Button
@@ -45,7 +45,7 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
             </div>
 
             {/* User Profile Card */}
-            <Card className="p-6">
+            <Card className="p-3">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-bold">{userProfile.fullName || 'Unnamed User'}</h1>
@@ -128,7 +128,7 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
             </div>
 
             {/* Tab Navigation */}
-            <Card className="p-6">
+            <Card className="p-3">
                 <div className="flex items-center gap-1 mb-6 border-b border-default-200 dark:border-default-700">
                     {[
                         { key: 'calendar', label: 'Activity Calendar', icon: Calendar },
@@ -310,7 +310,7 @@ export function UserDetailsClient({ userId, initialData }: UserDetailsClientProp
 
                         {/* Membership Info */}
                         {membership && (
-                            <Card className="p-6">
+                            <Card className="p-3">
                                 <h3 className="text-lg font-semibold mb-4">Membership Status</h3>
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
