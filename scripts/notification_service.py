@@ -356,6 +356,7 @@ def send_notification(conn, cur, user, notif_type, templates):
     tokens = [r['token'] for r in cur.fetchall()]
     
     if not tokens:
+        logger.warning(f"No FCM tokens found for user {user_id} ({user.get('full_name', 'N/A')}). Skipping notification.")
         return False
         
     # Prepare Content
@@ -442,39 +443,58 @@ def send_startup_test_notification():
     try:
         with DatabaseConnection(DB_URL) as conn:
             with conn.cursor() as cur:
-                # Try to find an admin user first, then any user with a token
-                # We prioritize admin to avoid spamming real users if this is prod data
+                # 1. Get ALL Admins first to check who is missing tokens
+                cur.execute("SELECT id, full_name, role FROM user_preferences WHERE role = 'super_admin' OR role = 'admin'")
+                admins = cur.fetchall()
+                logger.info(f"Found {len(admins)} admins in database.")
+
+                for admin in admins:
+                    # Check for token
+                    cur.execute("SELECT token FROM fcm_tokens WHERE user_id = %s ORDER BY updated_at DESC LIMIT 1", (admin['id'],))
+                    token_row = cur.fetchone()
+
+                    if token_row:
+                        token = token_row['token']
+                        try:
+                            message = messaging.Message(
+                                notification=messaging.Notification(
+                                    title="Service Started",
+                                    body=f"Notification Service is running. Time: {datetime.datetime.now().strftime('%H:%M:%S')}",
+                                ),
+                                token=token
+                            )
+                            messaging.send(message)
+                            logger.info(f"[SUCCESS] Startup test notification sent to Admin: {admin['full_name']}")
+                        except Exception as send_err:
+                            logger.error(f"[ERROR] Failed to send to {admin['full_name']}: {send_err}")
+                    else:
+                        logger.warning(f"[WARNING] NO FCM TOKEN found for Admin: {admin['full_name']}")
+
+                # 2. Also send to ANY logged in user from last 24h to verify general token storage
                 cur.execute("""
-                    SELECT up.id, up.full_name, ft.token 
+                    SELECT up.full_name, ft.token 
                     FROM user_preferences up 
                     JOIN fcm_tokens ft ON up.id = ft.user_id 
-                    WHERE up.role = 'admin' 
-                    ORDER BY ft.updated_at DESC LIMIT 1
+                    WHERE up.last_active_at > NOW() - INTERVAL '24 hours'
+                    AND up.role != 'super_admin' AND up.role != 'admin'
                 """)
-                user = cur.fetchone()
-                
-                if not user:
-                    # Fallback to any user if no admin (likely dev environment)
-                    cur.execute("""
-                        SELECT up.id, up.full_name, ft.token 
-                        FROM user_preferences up 
-                        JOIN fcm_tokens ft ON up.id = ft.user_id 
-                        ORDER BY ft.updated_at DESC LIMIT 1
-                    """)
-                    user = cur.fetchone()
-                
-                if user:
-                    message = messaging.Message(
-                        notification=messaging.Notification(
-                            title="Service Started",
-                            body=f"Notification Service is running. Time: {datetime.datetime.now().strftime('%H:%M:%S')}",
-                        ),
-                        token=user['token']
-                    )
-                    messaging.send(message)
-                    logger.info(f"Startup test notification sent to {user['full_name']}")
-                else:
-                    logger.warning("No FCM tokens found to send test notification.")
+                active_users = cur.fetchall()
+                if active_users:
+                     logger.info(f"Sending test to {len(active_users)} other active users...")
+                     for u in active_users:
+                        try:
+                            message = messaging.Message(
+                                notification=messaging.Notification(
+                                    title="Service Started",
+                                    body=f"Service restarted. Testing delivery.",
+                                ),
+                                token=u['token']
+                            )
+                            messaging.send(message)
+                            # logger.info(f"Sent to user {u['full_name']}")
+                        except:
+                            pass
+
     except Exception as e:
         logger.error(f"Failed to send startup notification: {e}")
 

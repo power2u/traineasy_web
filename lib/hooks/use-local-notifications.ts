@@ -24,8 +24,9 @@ export function useLocalNotifications() {
           console.log('Permission already granted, syncing FCM token...');
           const token = await requestFCMToken();
           if (token) {
+            console.log('✅ FCM Init: Token retrieved, attempting to save to DB...', token.substring(0, 10) + '...');
             await saveFCMToken(user.id, token);
-            console.log('FCM Token synced on initialization');
+            console.log('✅ FCM Init: Token save action completed');
           }
         } catch (fcmError) {
           console.error('Error syncing FCM token on init:', fcmError);
