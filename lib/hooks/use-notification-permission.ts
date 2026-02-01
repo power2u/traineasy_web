@@ -70,11 +70,13 @@ export function useNotificationPermission() {
 
   // Manually trigger the prompt (for settings page, etc.)
   const triggerPrompt = useCallback(() => {
-    if (isSupported && permissionStatus === 'default') {
+    if (isSupported) {
+      // Always allow triggering the prompt manually, regardless of current permission status
+      // This is useful for settings pages where users want to change their notification preferences
       setShowPrompt(true);
       setHasShownPrompt(true);
     }
-  }, [isSupported, permissionStatus]);
+  }, [isSupported]);
 
   return {
     showPrompt,

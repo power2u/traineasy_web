@@ -64,16 +64,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Side effects for FCM and Cron sync (simplified/commented out for now or need reintegration)
-  // Since we are migrating auth first, let's focus on login/logout.
-  // Ideally we should call FCM setup here when user is set.
-  /*
+  // Simple FCM token registration on login (for admin notifications only)
   useEffect(() => {
-      if (user?.id) {
-          // Re-implement FCM setup if needed
-      }
+    if (user?.id) {
+      const registerFCMToken = async () => {
+        try {
+          // Only register FCM token if user already has notification permission
+          // Don't prompt for permission here - let the modal system handle it
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            const { requestNotificationPermission, saveFCMToken } = await import('@/lib/firebase/messaging');
+            const token = await requestNotificationPermission();
+            if (token) {
+              await saveFCMToken(user.id, token);
+              console.log('✅ FCM token registered for admin notifications');
+            }
+          }
+        } catch (error) {
+          console.warn('FCM token registration failed (this is normal):', error);
+        }
+      };
+
+      // Register FCM token after login (only if permission already granted)
+      setTimeout(registerFCMToken, 2000);
+    }
   }, [user]);
-  */
 
   const value = useMemo(() => ({
     user,

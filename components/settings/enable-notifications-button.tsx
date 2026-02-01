@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { Card, Button, Text } from '@heroui/react';
 import { Bell, BellOff } from 'lucide-react';
 import { useLocalNotifications } from '@/lib/hooks/use-local-notifications';
+import { getEnableNotificationsInstructions } from '@/lib/utils/notification-utils';
 
 export function EnableNotificationsButton() {
     const { isSupported, permissionStatus, requestPermission } = useLocalNotifications();
@@ -44,9 +45,16 @@ export function EnableNotificationsButton() {
                 </Button>
             </div>
             {permissionStatus === 'denied' && (
-                <Text className="mt-2 text-xs text-destructive">
-                    Notifications are blocked. Please enable them in your browser settings.
-                </Text>
+                <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                    <Text className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-2">
+                        Notifications are blocked. To enable them:
+                    </Text>
+                    <ol className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                        {getEnableNotificationsInstructions().map((instruction, index) => (
+                            <li key={index}>{instruction}</li>
+                        ))}
+                    </ol>
+                </div>
             )}
         </Card>
     );

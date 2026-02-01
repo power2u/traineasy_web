@@ -18,31 +18,34 @@ export function useLocalNotifications() {
     try {
       const success = await localNotificationManager.initialize();
 
-      // Check if we already have permission, if so, ensure token is registered
+      // Only try FCM token sync if user already has permission (don't prompt)
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
         try {
-          console.log('Permission already granted, syncing FCM token...');
+          console.log('🔔 Permission already granted, syncing FCM token...');
           const token = await requestFCMToken();
           if (token) {
             console.log('✅ FCM Init: Token retrieved, attempting to save to DB...', token.substring(0, 10) + '...');
-            await saveFCMToken(user.id, token);
-            console.log('✅ FCM Init: Token save action completed');
+            const saveResult = await saveFCMToken(user.id, token);
+            if (saveResult) {
+              console.log('✅ FCM Init: Token saved successfully to database');
+            } else {
+              console.warn('⚠️ FCM Init: Token save failed');
+            }
+          } else {
+            console.log('ℹ️ FCM Init: No token available (FCM may not be working)');
           }
-        } catch (fcmError) {
-          console.error('Error syncing FCM token on init:', fcmError);
+        } catch (fcmError: any) {
+          console.warn('⚠️ FCM token sync failed during initialization (this is normal if FCM is not configured):', fcmError?.message || 'Unknown FCM error');
+          // Don't let FCM errors prevent local notifications from working
         }
       }
 
       if (success) {
         console.log('Local notifications initialized successfully');
         isInitialized.current = true;
-      } else {
-        // Suppress warning - likely just not supported or pwa not installed
-        // console.warn('Failed to initialize local notifications');
       }
-    } catch (error) {
-      // Suppress error log for initialization
-      // console.error('Error initializing local notifications:', error);
+    } catch (error: any) {
+      console.warn('Error initializing local notifications:', error?.message || 'Unknown error');
     }
   }, [user]);
 
@@ -90,14 +93,24 @@ export function useLocalNotifications() {
   // Request notification permission
   const requestPermission = useCallback(async () => {
     try {
+      console.log('🔔 Permission request initiated...');
+      
       // First try to get FCM token (this triggers the permission prompt)
       const token = await requestFCMToken();
+      console.log('🎫 FCM token result:', token ? `${token.substring(0, 10)}...` : 'null');
 
       const permission = Notification.permission;
+      console.log('📋 Final permission status:', permission);
 
       if (permission === 'granted' && token && user) {
         // Save the token
-        await saveFCMToken(user.id, token);
+        console.log('💾 Saving FCM token to database...');
+        const saveResult = await saveFCMToken(user.id, token);
+        if (saveResult) {
+          console.log('✅ FCM token saved successfully');
+        } else {
+          console.warn('⚠️ FCM token save failed');
+        }
         return 'granted';
       }
 

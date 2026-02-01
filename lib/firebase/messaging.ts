@@ -16,23 +16,13 @@ export async function requestNotificationPermission(): Promise<string | null> {
       return null;
     }
 
-    const messaging = await getFirebaseMessaging();
-    if (!messaging) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️ Firebase messaging not supported or not initialized');
-      }
-      return null;
-    }
-
-    console.log('✅ Firebase messaging initialized');
-
     // Check if notifications are supported
     if (!('Notification' in window)) {
       console.warn('⚠️ Notifications not supported in this browser');
       return null;
     }
 
-    // Request permission
+    // Request permission first (before initializing messaging)
     console.log('📋 Requesting notification permission...');
     const permission = await Notification.requestPermission();
     console.log('📋 Permission result:', permission);
@@ -42,7 +32,7 @@ export async function requestNotificationPermission(): Promise<string | null> {
       return null;
     }
 
-    // Get FCM token
+    // Get VAPID key first
     const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
     console.log('🔑 VAPID key present:', !!vapidKey);
 
@@ -51,24 +41,69 @@ export async function requestNotificationPermission(): Promise<string | null> {
       return null;
     }
 
-    console.log('🎫 Requesting FCM token from Firebase...');
-    const token = await getToken(messaging, { vapidKey });
+    // Try to get FCM token with better error handling
+    try {
+      // Only initialize messaging after permission is granted
+      const messaging = await getFirebaseMessaging();
+      if (!messaging) {
+        console.warn('⚠️ Firebase messaging not supported or not initialized');
+        return null;
+      }
 
-    if (token) {
-      console.log('✅ FCM Token received:', token.substring(0, 20) + '...');
-      return token;
-    } else {
-      console.warn('⚠️ No registration token available from Firebase');
+      console.log('✅ Firebase messaging initialized');
+      console.log('🎫 Requesting FCM token from Firebase...');
+      
+      // Try with custom service worker registration first
+      let token = null;
+      
+      try {
+        // Register custom service worker
+        const swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+          scope: '/firebase-cloud-messaging-push-scope',
+        });
+        
+        console.log('✅ Custom service worker registered');
+        
+        token = await getToken(messaging, { 
+          vapidKey,
+          serviceWorkerRegistration: swRegistration
+        });
+      } catch (swError) {
+        console.warn('⚠️ Custom service worker registration failed, trying default:', swError);
+        
+        // Fallback to default service worker
+        try {
+          token = await getToken(messaging, { vapidKey });
+        } catch (defaultError) {
+          console.warn('⚠️ Default service worker also failed:', defaultError);
+          return null;
+        }
+      }
+
+      if (token) {
+        console.log('✅ FCM Token received:', token.substring(0, 20) + '...');
+        return token;
+      } else {
+        console.warn('⚠️ No registration token available from Firebase');
+        return null;
+      }
+      
+    } catch (messagingError) {
+      console.warn('⚠️ Firebase messaging error:', messagingError);
       return null;
     }
+
   } catch (error: any) {
-    // Only log detailed error info in development
+    // Better error logging
+    console.warn('⚠️ FCM token request failed:', error?.message || 'Unknown error');
+    
     if (process.env.NODE_ENV === 'development') {
-      console.warn('⚠️ FCM token request failed (this is normal if notifications are disabled):', error.message);
       console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        stack: error.stack,
+        message: error?.message || 'No message',
+        code: error?.code || 'No code',
+        name: error?.name || 'No name',
+        stack: error?.stack || 'No stack',
+        fullError: error
       });
     }
 
@@ -136,12 +171,16 @@ export function isNotificationSupported(): boolean {
  */
 export async function saveFCMToken(userId: string, token: string): Promise<boolean> {
   try {
+    console.log('🔄 saveFCMToken client function called for user:', userId, 'token:', token.substring(0, 20) + '...');
+    
     // Import server action dynamically to avoid SSR issues
     const { saveFCMToken: saveFCMTokenAction } = await import('@/app/actions/fcm-actions');
     const result = await saveFCMTokenAction(token);
+    
+    console.log('📊 saveFCMToken result:', result);
     return result.success;
   } catch (error) {
-    console.error('Error saving FCM token:', error);
+    console.error('❌ Error saving FCM token:', error);
     return false;
   }
 }

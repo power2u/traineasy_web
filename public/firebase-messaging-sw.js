@@ -18,7 +18,6 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 // Handle background messages
-// Handle background messages
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message:', payload);
 
@@ -29,13 +28,14 @@ messaging.onBackgroundMessage((payload) => {
     return;
   }
 
-  const notificationTitle = payload.notification?.title || 'Train Easy';
+  // Only show custom notification if no notification property exists
+  const notificationTitle = payload.data?.title || 'Train Easy';
   const notificationOptions = {
-    body: payload.notification?.body || '',
+    body: payload.data?.body || 'You have a new notification',
     icon: '/logo.png',
     badge: '/logo.png',
     data: payload.data,
-    tag: payload.data?.type || 'default',
+    tag: payload.data?.type || 'admin-notification',
     requireInteraction: false,
   };
 

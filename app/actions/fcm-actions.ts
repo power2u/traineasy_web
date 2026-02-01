@@ -6,13 +6,18 @@ import { prisma } from "@/lib/prisma";
 
 export async function saveFCMToken(token: string) {
   try {
+    console.log('🔄 saveFCMToken called with token:', token.substring(0, 20) + '...');
+    
     const session = await getServerSession(authOptions);
+    console.log('🔐 Session check:', !!session, !!session?.user);
 
     if (!session || !session.user) {
+      console.error('❌ User not authenticated in saveFCMToken');
       throw new Error('User not authenticated');
     }
 
     const userId = (session.user as any).id;
+    console.log('👤 User ID from session:', userId);
 
     // First check if user exists in database
     const userExists = await prisma.userPreference.findUnique({
@@ -20,8 +25,10 @@ export async function saveFCMToken(token: string) {
       select: { id: true }
     });
 
+    console.log('🔍 User exists in database:', !!userExists);
+
     if (!userExists) {
-      console.log(`User ${userId} not found in database, skipping FCM token save`);
+      console.log(`❌ User ${userId} not found in database, skipping FCM token save`);
       return { success: false, error: 'User not found in database' };
     }
 
@@ -29,6 +36,8 @@ export async function saveFCMToken(token: string) {
     const existingToken = await prisma.fcmToken.findFirst({
       where: { userId, token }
     });
+
+    console.log('🔍 Existing token found:', !!existingToken);
 
     if (existingToken) {
       // Update timestamp
@@ -40,19 +49,19 @@ export async function saveFCMToken(token: string) {
       return { success: true, message: 'Token updated successfully' };
     } else {
       // Create new
-      await prisma.fcmToken.create({
+      const newToken = await prisma.fcmToken.create({
         data: {
           userId,
           token,
           lastUsedAt: new Date()
         }
       });
-      console.log('✅ FCM token saved successfully');
+      console.log('✅ FCM token saved successfully with ID:', newToken.id);
       return { success: true, message: 'Token saved successfully' };
     }
 
   } catch (error: any) {
-    console.error('Error in saveFCMToken:', error);
+    console.error('❌ Error in saveFCMToken:', error);
     return { success: false, error: error.message };
   }
 }
