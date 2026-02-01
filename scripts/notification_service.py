@@ -153,29 +153,46 @@ def check_and_send_notifications():
         with DatabaseConnection(DB_URL) as conn:
             with conn.cursor() as cur:
                 # Get users with notifications enabled
+                # Get users with notifications enabled AND valid tokens
                 cur.execute("""
-                    SELECT 
-                        id, 
-                        full_name, 
-                        email,
-                        notifications_enabled,
-                        meal_reminders_enabled,
-                        water_reminders_enabled,
-                        weight_reminders_enabled,
-                        breakfast_time,
-                        snack1_time,
-                        lunch_time,
-                        snack2_time,
-                        dinner_time,
-                        timezone,
-                        last_active_at
-                    FROM user_preferences
-                    WHERE notifications_enabled = true
+                    SELECT DISTINCT
+                        up.id, 
+                        up.full_name, 
+                        up.email,
+                        up.notifications_enabled,
+                        up.meal_reminders_enabled,
+                        up.water_reminders_enabled,
+                        up.weight_reminders_enabled,
+                        up.breakfast_time,
+                        up.snack1_time,
+                        up.lunch_time,
+                        up.snack2_time,
+                        up.dinner_time,
+                        up.timezone,
+                        up.last_active_at
+                    FROM user_preferences up
+                    INNER JOIN fcm_tokens ft ON up.id = ft.user_id
+                    WHERE up.notifications_enabled = true
                 """)
                 # Fetch all users. For very large datasets, consider server-side cursors or pagination.
                 users = cur.fetchall()
-                logger.info(f"Found {len(users)} users with notifications enabled.")
+                logger.info(f"Found {len(users)} users with notifications enabled and valid tokens.")
                 
+                # Fetch tokens for all these users in bulk
+                user_ids = [u['id'] for u in users]
+                user_tokens_map = {}
+                
+                if user_ids:
+                    # Cast to uuid[] to avoid "operator does not exist: uuid = text" error
+                    cur.execute("SELECT user_id, token FROM fcm_tokens WHERE user_id = ANY(%s::uuid[])", (user_ids,))
+                    for row in cur.fetchall():
+                        uid = row['user_id']
+                        if uid not in user_tokens_map:
+                            user_tokens_map[uid] = []
+                        user_tokens_map[uid].append(row['token'])
+                
+                logger.info(f"Loaded tokens for {len(user_tokens_map)} users.")
+
                 # Pre-fetch notification templates
                 templates = {}
                 cur.execute("SELECT notification_type, title, message FROM notification_messages WHERE is_active = true")
@@ -184,7 +201,10 @@ def check_and_send_notifications():
 
                 for user in users:
                     try:
-                        process_user(conn, cur, user, templates)
+                        # Get tokens for this user
+                        user_tokens = user_tokens_map.get(user['id'], [])
+                        if user_tokens:
+                            process_user(conn, cur, user, templates, user_tokens)
                     except Exception as e:
                         logger.error(f"Error processing user {user['id']}: {e}")
             
@@ -193,12 +213,13 @@ def check_and_send_notifications():
             # Explicit memory cleanup
             del users
             del templates
+            del user_tokens_map
             gc.collect()
             
     except Exception as e:
         logger.error(f"Critical error in check_and_send_notifications: {e}")
 
-def process_user(conn, cur, user, templates):
+def process_user(conn, cur, user, templates, tokens):
     user_id = user['id']
     timezone = user['timezone'] or 'Asia/Kolkata'
     current_time = get_current_time_in_timezone(timezone)
@@ -222,27 +243,27 @@ def process_user(conn, cur, user, templates):
 
     # --- Meal Reminders ---
     if user['meal_reminders_enabled']:
-        process_meal_reminders(conn, cur, user, current_time, today_str, logged_in, templates)
+        process_meal_reminders(conn, cur, user, current_time, today_str, logged_in, templates, tokens)
 
     # --- Water Reminder (12:00) ---
     if user['water_reminders_enabled'] and is_time_match(current_time, '12:00'):
-         process_water_reminder(conn, cur, user, current_time, today_str, logged_in, templates)
+         process_water_reminder(conn, cur, user, current_time, today_str, logged_in, templates, tokens)
 
     # --- Good Morning (07:00) ---
     if is_time_match(current_time, '07:00') and not logged_in:
-        process_generic_notification(conn, cur, user, 'good_morning', current_time, today_str, templates)
+        process_generic_notification(conn, cur, user, 'good_morning', current_time, today_str, templates, tokens)
 
     # --- Good Night (21:00) ---
     if is_time_match(current_time, '21:00') and not logged_in:
-        process_generic_notification(conn, cur, user, 'good_night', current_time, today_str, templates)
+        process_generic_notification(conn, cur, user, 'good_night', current_time, today_str, templates, tokens)
 
     # --- Weekly Measurement (Saturday 19:00) ---
     if user['weight_reminders_enabled']:
         # 5 = Saturday in python weekday() (0=Monday)
         if current_time.weekday() == 5 and is_time_match(current_time, '19:00') and not logged_in:
-             process_generic_notification(conn, cur, user, 'weekly_measurement_reminder', current_time, today_str, templates)
+             process_generic_notification(conn, cur, user, 'weekly_measurement_reminder', current_time, today_str, templates, tokens)
 
-def process_meal_reminders(conn, cur, user, current_time, today_str, logged_in, templates):
+def process_meal_reminders(conn, cur, user, current_time, today_str, logged_in, templates, tokens):
     meal_reminders = [
         {'type': 'breakfast', 'time': user['breakfast_time'], 'field': 'breakfast'},
         {'type': 'snack1', 'time': user['snack1_time'], 'field': 'snack1'},
@@ -294,7 +315,7 @@ def process_meal_reminders(conn, cur, user, current_time, today_str, logged_in, 
         
         if ((not is_completed or not logged_in) and not sent_at and not recently_sent):
             notif_type = f"meal_reminder_{reminder['type']}"
-            if send_notification(conn, cur, user, notif_type, templates):
+            if send_notification(conn, cur, user, notif_type, templates, tokens):
                 # Update meal record
                 cur.execute(
                     f"UPDATE meals SET {field_notif_sent} = %s WHERE id = %s",
@@ -302,7 +323,7 @@ def process_meal_reminders(conn, cur, user, current_time, today_str, logged_in, 
                 )
                 logger.info(f"Sent {notif_type} to user {user['full_name']}")
 
-def process_water_reminder(conn, cur, user, current_time, today_str, logged_in, templates):
+def process_water_reminder(conn, cur, user, current_time, today_str, logged_in, templates, tokens):
     # Check if sent today
     # notification_logs -> sent_at
     # Logic: sent_at >= today start
@@ -333,10 +354,10 @@ def process_water_reminder(conn, cur, user, current_time, today_str, logged_in, 
         return # User logged water
         
     if not logged_in:
-        if send_notification(conn, cur, user, 'water_reminder', templates):
+        if send_notification(conn, cur, user, 'water_reminder', templates, tokens):
             logger.info(f"Sent water_reminder to user {user['full_name']}")
 
-def process_generic_notification(conn, cur, user, notif_type, current_time, today_str, templates):
+def process_generic_notification(conn, cur, user, notif_type, current_time, today_str, templates, tokens):
     # Check if sent today
     cur.execute("""
         SELECT id FROM notification_logs 
@@ -348,21 +369,17 @@ def process_generic_notification(conn, cur, user, notif_type, current_time, toda
     if cur.fetchone():
         return
 
-    if send_notification(conn, cur, user, notif_type, templates):
+    if send_notification(conn, cur, user, notif_type, templates, tokens):
         logger.info(f"Sent {notif_type} to user {user['full_name']}")
 
-def send_notification(conn, cur, user, notif_type, templates):
+def send_notification(conn, cur, user, notif_type, templates, tokens):
     """
     Sends notification via Firebase and logs it.
     """
     user_id = user['id']
     
-    # Get FCM tokens
-    cur.execute("SELECT token FROM fcm_tokens WHERE user_id = %s", (user_id,))
-    tokens = [r['token'] for r in cur.fetchall()]
-    
     if not tokens:
-        logger.warning(f"No FCM tokens found for user {user_id} ({user.get('full_name', 'N/A')}). Skipping notification.")
+        # Should not happen given the new query, but safe to keep check
         return False
         
     # Prepare Content

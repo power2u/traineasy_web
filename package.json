@@ -7,7 +7,6 @@
   },
   "scripts": {
     "dev": "next dev --turbopack",
-    "dev:all": "concurrently \"npm run dev\" \"pip install -r scripts/requirements.txt && python scripts/notification_service.py\"",
     "build": "next build --webpack",
     "build:prod": "node scripts/validate-production-env.js && next build && next-sitemap",
     "start": "next start",
