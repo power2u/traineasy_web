@@ -6,11 +6,11 @@ import { areNotificationsEnabled } from '@/lib/utils/notification-utils';
 
 interface UserPreferences {
   id: string;
-  full_name?: string;
-  notifications_enabled: boolean;
-  water_reminders_enabled: boolean;
-  daily_water_target: number;
-  glass_size_ml: number;
+  fullName?: string;
+  notificationsEnabled: boolean;
+  waterRemindersEnabled: boolean;
+  dailyWaterTarget: number;
+  glassSizeMl: number;
 }
 
 export class WaterNotificationScheduler {
@@ -60,10 +60,10 @@ export class WaterNotificationScheduler {
         const data = await response.json();
         this.preferences = data.preferences;
         console.log('💧 Loaded water preferences:', {
-          notificationsEnabled: this.preferences?.notifications_enabled,
-          waterRemindersEnabled: this.preferences?.water_reminders_enabled,
-          dailyTarget: this.preferences?.daily_water_target,
-          glassSize: this.preferences?.glass_size_ml,
+          notificationsEnabled: this.preferences?.notificationsEnabled,
+          waterRemindersEnabled: this.preferences?.waterRemindersEnabled,
+          dailyTarget: this.preferences?.dailyWaterTarget,
+          glassSize: this.preferences?.glassSizeMl,
         });
       }
     } catch (error) {
@@ -76,8 +76,8 @@ export class WaterNotificationScheduler {
    */
   private canScheduleNotifications(): boolean {
     return !!(
-      this.preferences?.notifications_enabled && 
-      this.preferences?.water_reminders_enabled &&
+      this.preferences?.notificationsEnabled && 
+      this.preferences?.waterRemindersEnabled &&
       areNotificationsEnabled()
     );
   }
@@ -110,7 +110,7 @@ export class WaterNotificationScheduler {
    * Get user display name
    */
   private getUserDisplayName(): string {
-    return this.user?.displayName || this.preferences?.full_name || 'there';
+    return this.user?.displayName || this.preferences?.fullName || 'there';
   }
 
   /**
@@ -165,7 +165,7 @@ export class WaterNotificationScheduler {
     }
 
     try {
-      const glassSize = this.preferences?.glass_size_ml || 250;
+      const glassSize = this.preferences?.glassSizeMl || 250;
       const notification = new Notification('💧 Hydration Time!', {
         body: `Hey ${userName}! Time to drink water. Stay hydrated with a ${glassSize}ml glass!`,
         icon: '/logo.png',
@@ -237,8 +237,8 @@ export class WaterNotificationScheduler {
   isEnabled(): boolean {
     return !!(
       this.isActive &&
-      this.preferences?.notifications_enabled && 
-      this.preferences?.water_reminders_enabled &&
+      this.preferences?.notificationsEnabled && 
+      this.preferences?.waterRemindersEnabled &&
       areNotificationsEnabled()
     );
   }
@@ -281,8 +281,8 @@ export class WaterNotificationScheduler {
       canSchedule: this.canScheduleNotifications(),
       scheduledCount: this.scheduledNotifications.size,
       nextReminder: this.getNextReminder(),
-      dailyTarget: this.preferences?.daily_water_target || 0,
-      glassSize: this.preferences?.glass_size_ml || 250,
+      dailyTarget: this.preferences?.dailyWaterTarget || 0,
+      glassSize: this.preferences?.glassSizeMl || 250,
     };
   }
 

@@ -245,7 +245,7 @@ export function ProfileClient({ initialProfile, initialPlan }: ProfileClientProp
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <TextField value={dailyWaterTarget} onChange={setDailyWaterTarget} isDisabled={isSaving}>
                             <Label>Daily Water Target (glasses)</Label>
                             <Input type="number" placeholder="8" min="1" max="20" />
@@ -255,7 +255,7 @@ export function ProfileClient({ initialProfile, initialPlan }: ProfileClientProp
                             <Label>Glass Size (ml)</Label>
                             <Input type="number" placeholder="250" step="50" />
                         </TextField>
-                    </div>
+                    </div> */}
                 </div>
             </Card>
 

@@ -14,14 +14,14 @@ interface MealTime {
 
 interface UserPreferences {
   id: string;
-  full_name?: string;
-  notifications_enabled: boolean;
-  meal_reminders_enabled: boolean;
-  breakfast_time?: string;
-  snack1_time?: string;
-  lunch_time?: string;
-  snack2_time?: string;
-  dinner_time?: string;
+  fullName?: string;
+  notificationsEnabled: boolean;
+  mealRemindersEnabled: boolean;
+  breakfastTime?: string;
+  snack1Time?: string;
+  lunchTime?: string;
+  snack2Time?: string;
+  dinnerTime?: string;
 }
 
 export class MealNotificationScheduler {
@@ -71,11 +71,11 @@ export class MealNotificationScheduler {
         const data = await response.json();
         this.preferences = data.preferences;
         console.log('📋 Loaded user meal preferences:', {
-          notificationsEnabled: this.preferences?.notifications_enabled,
-          mealRemindersEnabled: this.preferences?.meal_reminders_enabled,
-          breakfastTime: this.preferences?.breakfast_time,
-          lunchTime: this.preferences?.lunch_time,
-          dinnerTime: this.preferences?.dinner_time,
+          notificationsEnabled: this.preferences?.notificationsEnabled,
+          mealRemindersEnabled: this.preferences?.mealRemindersEnabled,
+          breakfastTime: this.preferences?.breakfastTime,
+          lunchTime: this.preferences?.lunchTime,
+          dinnerTime: this.preferences?.dinnerTime,
         });
       } else {
         console.warn('Failed to load user preferences:', response.statusText);
@@ -90,8 +90,8 @@ export class MealNotificationScheduler {
    */
   private canScheduleNotifications(): boolean {
     return !!(
-      this.preferences?.notifications_enabled && 
-      this.preferences?.meal_reminders_enabled &&
+      this.preferences?.notificationsEnabled && 
+      this.preferences?.mealRemindersEnabled &&
       areNotificationsEnabled()
     );
   }
@@ -109,11 +109,11 @@ export class MealNotificationScheduler {
     this.clearAllNotifications();
 
     const mealTimes: MealTime[] = [
-      { type: 'breakfast', time: this.preferences!.breakfast_time || '08:00', name: 'Breakfast', emoji: '🍳' },
-      { type: 'snack1', time: this.preferences!.snack1_time || '10:30', name: 'Morning Snack', emoji: '🍎' },
-      { type: 'lunch', time: this.preferences!.lunch_time || '13:00', name: 'Lunch', emoji: '🍱' },
-      { type: 'snack2', time: this.preferences!.snack2_time || '16:00', name: 'Afternoon Snack', emoji: '🥤' },
-      { type: 'dinner', time: this.preferences!.dinner_time || '19:00', name: 'Dinner', emoji: '🍽️' },
+      { type: 'breakfast', time: this.preferences!.breakfastTime || '08:00', name: 'Breakfast', emoji: '🍳' },
+      { type: 'snack1', time: this.preferences!.snack1Time || '10:30', name: 'Morning Snack', emoji: '🍎' },
+      { type: 'lunch', time: this.preferences!.lunchTime || '13:00', name: 'Lunch', emoji: '🍱' },
+      { type: 'snack2', time: this.preferences!.snack2Time || '16:00', name: 'Afternoon Snack', emoji: '🥤' },
+      { type: 'dinner', time: this.preferences!.dinnerTime || '19:00', name: 'Dinner', emoji: '🍽️' },
     ];
 
     const userName = this.getUserDisplayName();
@@ -133,7 +133,7 @@ export class MealNotificationScheduler {
    * Get user display name
    */
   private getUserDisplayName(): string {
-    return this.user?.displayName || this.preferences?.full_name || 'there';
+    return this.user?.displayName || this.preferences?.fullName || 'there';
   }
 
   /**
@@ -261,8 +261,8 @@ export class MealNotificationScheduler {
   isEnabled(): boolean {
     return !!(
       this.isActive &&
-      this.preferences?.notifications_enabled && 
-      this.preferences?.meal_reminders_enabled &&
+      this.preferences?.notificationsEnabled && 
+      this.preferences?.mealRemindersEnabled &&
       areNotificationsEnabled()
     );
   }
@@ -275,11 +275,11 @@ export class MealNotificationScheduler {
 
     const now = new Date();
     const mealTimes = [
-      { name: 'Breakfast', time: this.preferences.breakfast_time || '08:00' },
-      { name: 'Morning Snack', time: this.preferences.snack1_time || '10:30' },
-      { name: 'Lunch', time: this.preferences.lunch_time || '13:00' },
-      { name: 'Afternoon Snack', time: this.preferences.snack2_time || '16:00' },
-      { name: 'Dinner', time: this.preferences.dinner_time || '19:00' },
+      { name: 'Breakfast', time: this.preferences.breakfastTime || '08:00' },
+      { name: 'Morning Snack', time: this.preferences.snack1Time || '10:30' },
+      { name: 'Lunch', time: this.preferences.lunchTime || '13:00' },
+      { name: 'Afternoon Snack', time: this.preferences.snack2Time || '16:00' },
+      { name: 'Dinner', time: this.preferences.dinnerTime || '19:00' },
     ];
 
     for (const meal of mealTimes) {
@@ -309,6 +309,8 @@ export class MealNotificationScheduler {
       isActive: this.isActive,
       hasUser: !!this.user,
       hasPreferences: !!this.preferences,
+      preferences: this.preferences, // Include full preferences for debugging
+      browserPermission: typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported',
       notificationsEnabled: areNotificationsEnabled(),
       canSchedule: this.canScheduleNotifications(),
       scheduledCount: this.scheduledNotifications.size,
