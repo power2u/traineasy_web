@@ -203,6 +203,7 @@ export async function updateProfile(userId: string, profileData: Partial<UserPre
       create: {
         id: userId,
         email: session.user.email!,
+        fullName: session.user.name || 'User',
         passwordHash: '', // Required by schema but session doesn't have it here
         ...dataToUpdate
       }

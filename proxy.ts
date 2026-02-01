@@ -17,11 +17,12 @@ function addSecurityHeaders(response: NextResponse | undefined | null) {
     response.headers.set(
         'Content-Security-Policy',
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.gstatic.com https://www.googleapis.com; " +
+        "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.gstatic.com https://www.googleapis.com blob:; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
         "img-src 'self' data: https:; " +
         "connect-src 'self' https://fcm.googleapis.com https://firebase.googleapis.com; " +
+        "worker-src 'self' blob:; " +
         "frame-ancestors 'none'; " +
         "base-uri 'self';"
     );

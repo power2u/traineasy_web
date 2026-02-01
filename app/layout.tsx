@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { LocalNotificationProvider } from "@/components/notifications/local-notification-provider";
 import ErrorBoundary from "@/components/error-boundary";
 import { PwaUpdater } from "@/components/pwa-updater";
+import { SwCleanup } from "@/components/sw-cleanup";
 import { TimezoneSync } from "@/components/auth/timezone-sync";
 
 export const metadata: Metadata = {
@@ -45,6 +46,7 @@ export default function RootLayout({
             <LocalNotificationProvider>
               <MaintenanceBanner />
               <PwaUpdater />
+              <SwCleanup />
               <TimezoneSync />
               <AppShell>{children}</AppShell>
             </LocalNotificationProvider>

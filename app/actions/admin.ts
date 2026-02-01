@@ -407,3 +407,29 @@ export async function resetUserPassword(userId: string, newPassword: string) {
     };
   }
 }
+
+/**
+ * Demote a super admin back to a regular user
+ */
+export async function demoteFromSuperAdmin(userId: string) {
+  try {
+    await requireSuperAdmin();
+
+    await prisma.userPreference.update({
+      where: { id: userId },
+      data: { role: 'user' }
+    });
+
+    return {
+      success: true,
+      message: `Successfully demoted user from super_admin!`,
+    };
+  } catch (error: any) {
+    console.error('Error demoting user:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to demote user',
+    };
+  }
+}
+

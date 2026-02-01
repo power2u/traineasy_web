@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
-import { Button, Card, Spinner, TextField, Label, Input, Chip, Select, ListBox } from '@heroui/react';
-import { Edit2, RefreshCw, Eye } from 'lucide-react';
+import { Button, Card, Spinner, TextField, Label, Input, Chip, Select, ListBox, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, DropdownPopover } from '@heroui/react';
+import { Edit2, RefreshCw, Eye, MoreVertical, Key, BadgeCheck, Trash2, Power } from 'lucide-react';
 import {
     createUser,
     deleteUser,
@@ -12,6 +12,7 @@ import {
     disableUser,
     enableUser,
     resetUserPassword,
+    demoteFromSuperAdmin,
 } from '@/app/actions/admin';
 import { listPackages } from '@/app/actions/packages';
 import { createMembership, syncMembershipStatus } from '@/app/actions/memberships';
@@ -207,6 +208,23 @@ export function UsersClient({ initialUsers, initialPackages, currentUser }: User
             alert('An error occurred while promoting user');
         }
     };
+
+    const handleDemoteUser = async (userId: string, userEmail: string) => {
+        if (!confirm(`Are you sure you want to demote ${userEmail} to a regular user?`)) return;
+
+        try {
+            const result = await demoteFromSuperAdmin(userId);
+            if (result.success) {
+                await loadUsers();
+                router.refresh();
+            } else {
+                alert(result.error || 'Failed to demote user');
+            }
+        } catch (error) {
+            alert('An error occurred while demoting user');
+        }
+    };
+
 
     const handleToggleUserStatus = async (userId: string, userEmail: string, isBanned: boolean) => {
         const action = isBanned ? 'enable' : 'disable';
@@ -408,7 +426,7 @@ export function UsersClient({ initialUsers, initialPackages, currentUser }: User
                                                     <td className="py-3 px-2 min-w-[120px]">
                                                         <div className="flex flex-col gap-1">
                                                             {u.role === 'super_admin' && (
-                                                                <Chip size="sm" variant="soft" color="accent">Admin</Chip>
+                                                                <Chip size="sm" variant="primary" color="accent">Admin</Chip>
                                                             )}
                                                             {u.is_banned ? (
                                                                 <Chip size="sm" variant="soft" color="danger">Disabled</Chip>
@@ -445,25 +463,91 @@ export function UsersClient({ initialUsers, initialPackages, currentUser }: User
                                                         )}
                                                     </td>
                                                     <td className="py-3 px-2 min-w-[120px]">
-                                                        <div className="flex gap-1 justify-end">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                onPress={() => router.push(`/user-details/${u.id}`)}
-                                                                className="text-xs px-2 py-1"
-                                                            >
-                                                                <Eye className="w-3 h-3" />
-                                                            </Button>
-                                                            {u.id !== currentUser.id && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant={u.is_banned ? 'primary' : 'danger'}
-                                                                    onPress={() => handleToggleUserStatus(u.id, u.email, u.is_banned)}
-                                                                    className="text-xs px-2 py-1"
-                                                                >
-                                                                    {u.is_banned ? 'Enable' : 'Disable'}
-                                                                </Button>
-                                                            )}
+                                                        <div className="flex justify-end">
+                                                            <Dropdown>
+                                                                <DropdownTrigger>
+                                                                    <div className="p-1 hover:bg-default-100 rounded-lg cursor-pointer transition-colors inline-flex items-center justify-center w-8 h-8">
+                                                                        <MoreVertical className="w-4 h-4 text-default-500" />
+                                                                    </div>
+                                                                </DropdownTrigger>
+                                                                <DropdownPopover>
+                                                                    <DropdownMenu aria-label="User Actions">
+                                                                        <DropdownItem
+                                                                            key="view"
+                                                                            onPress={() => router.push(`/user-details/${u.id}`)}
+                                                                        >
+                                                                            <div className="flex items-center gap-2">
+                                                                                <Eye className="w-4 h-4" />
+                                                                                <span>View Details</span>
+                                                                            </div>
+                                                                        </DropdownItem>
+
+                                                                        {u.id !== currentUser.id ? (
+                                                                            <>
+                                                                                <DropdownItem
+                                                                                    key="status"
+                                                                                    className={u.is_banned ? "text-success" : "text-warning"}
+                                                                                    onPress={() => handleToggleUserStatus(u.id, u.email, u.is_banned)}
+                                                                                >
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <Power className="w-4 h-4" />
+                                                                                        <span>{u.is_banned ? 'Enable User' : 'Disable User'}</span>
+                                                                                    </div>
+                                                                                </DropdownItem>
+
+                                                                                {u.provider === 'email' && (
+                                                                                    <DropdownItem
+                                                                                        key="reset"
+                                                                                        onPress={() => handleResetPassword(u.id, u.email)}
+                                                                                    >
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <Key className="w-4 h-4" />
+                                                                                            <span>Reset Password</span>
+                                                                                        </div>
+                                                                                    </DropdownItem>
+                                                                                )}
+
+                                                                                {u.role !== 'super_admin' ? (
+                                                                                    <DropdownItem
+                                                                                        key="promote"
+                                                                                        onPress={() => handlePromoteUser(u.id, u.email)}
+                                                                                    >
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <BadgeCheck className="w-4 h-4" />
+                                                                                            <span>Promote to Admin</span>
+                                                                                        </div>
+                                                                                    </DropdownItem>
+                                                                                ) : (
+                                                                                    <DropdownItem
+                                                                                        key="demote"
+                                                                                        onPress={() => handleDemoteUser(u.id, u.email)}
+                                                                                    >
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <BadgeCheck className="w-4 h-4 text-warning" />
+                                                                                            <span>Demote from Admin</span>
+                                                                                        </div>
+                                                                                    </DropdownItem>
+                                                                                )}
+
+                                                                                <DropdownItem
+                                                                                    key="delete"
+                                                                                    className="text-danger"
+                                                                                    onPress={() => handleDeleteUser(u.id, u.email)}
+                                                                                >
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <Trash2 className="w-4 h-4" />
+                                                                                        <span>Delete User</span>
+                                                                                    </div>
+                                                                                </DropdownItem>
+                                                                            </>
+                                                                        ) : (
+                                                                            <DropdownItem key="readonly" className="opacity-50 cursor-default">
+                                                                                Current User
+                                                                            </DropdownItem>
+                                                                        )}
+                                                                    </DropdownMenu>
+                                                                </DropdownPopover>
+                                                            </Dropdown>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -574,8 +658,10 @@ export function UsersClient({ initialUsers, initialPackages, currentUser }: User
                                                             {u.provider === 'email' && (
                                                                 <Button size="sm" variant="ghost" onPress={() => handleResetPassword(u.id, u.email)}>Reset</Button>
                                                             )}
-                                                            {u.role !== 'super_admin' && (
+                                                            {u.role !== 'super_admin' ? (
                                                                 <Button size="sm" variant="ghost" onPress={() => handlePromoteUser(u.id, u.email)}>Promote</Button>
+                                                            ) : (
+                                                                <Button size="sm" variant="ghost" onPress={() => handleDemoteUser(u.id, u.email)} className="text-warning">Demote</Button>
                                                             )}
                                                             <Button size="sm" variant="danger" onPress={() => handleDeleteUser(u.id, u.email)}>Delete</Button>
                                                         </>
