@@ -22,23 +22,36 @@ export default function TestNotificationsPage() {
     setResult(null);
 
     try {
-      // Try authenticated endpoint first
-      let response = await fetch(`/api/test-meal-notification?meal=${mealType}&test=true`);
-      let data = await response.json();
+      // Use local notification system instead of deleted API
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const mealLabels: Record<string, string> = {
+          breakfast: 'Breakfast',
+          snack1: 'Morning Snack', 
+          lunch: 'Lunch',
+          snack2: 'Afternoon Snack',
+          dinner: 'Dinner'
+        };
 
-      // If authentication fails, try public endpoint
-      if (response.status === 401) {
-        console.log('Authentication failed, trying public endpoint...');
-        response = await fetch(`/api/test-meal-notification-public?meal=${mealType}`);
-        data = await response.json();
-      }
+        const notification = new Notification(`🍽️ ${mealLabels[mealType]} Time!`, {
+          body: `Time for your ${mealLabels[mealType].toLowerCase()}. Stay on track with your nutrition goals!`,
+          icon: '/logo.png',
+          tag: `test-${mealType}`
+        });
 
-      setResult(data);
+        setTimeout(() => notification.close(), 5000);
 
-      if (response.ok) {
+        setResult({ 
+          success: true, 
+          details: { 
+            mealLabel: mealLabels[mealType],
+            notificationMessage: `${mealLabels[mealType]} reminder sent locally`,
+            tokensCount: 1,
+            fcmResponse: 'Local notification (no FCM used)'
+          }
+        });
         toast.success(`Test notification sent for ${mealType}!`);
       } else {
-        toast.error(data.error || 'Failed to send notification');
+        throw new Error('Notifications not permitted or supported');
       }
     } catch (error: any) {
       toast.error('Error sending notification');
@@ -189,10 +202,7 @@ export default function TestNotificationsPage() {
           <p>3. Click any meal type button above</p>
           <p>4. Check your device for the notification</p>
           <p className="mt-4 text-xs text-default-500">
-            💡 Tip: You can also test directly via URL:
-            <code className="block mt-1 bg-default-100 p-2 rounded">
-              /api/test-meal-notification?meal=breakfast&test=true
-            </code>
+            💡 Tip: This uses local browser notifications for testing
           </p>
         </div>
       </Card>
