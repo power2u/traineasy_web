@@ -72,15 +72,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Only register FCM token if user already has notification permission
           // Don't prompt for permission here - let the modal system handle it
           if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            console.log('🔔 Attempting FCM token registration...');
+            
+            // Import Firebase messaging with CSP error handling
             const { requestNotificationPermission, saveFCMToken } = await import('@/lib/firebase/messaging');
-            const token = await requestNotificationPermission();
+            
+            // Try to get FCM token with timeout to detect CSP blocks
+            const token = await Promise.race([
+              requestNotificationPermission(),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('FCM registration timeout')), 5000)
+              )
+            ]) as string | null;
+            
             if (token) {
-              await saveFCMToken(user.id, token);
-              console.log('✅ FCM token registered for admin notifications');
+              const saved = await saveFCMToken(user.id, token);
+              if (saved) {
+                console.log('✅ FCM token registered for admin notifications');
+              } else {
+                console.warn('⚠️ FCM token received but failed to save to database');
+              }
+            } else {
+              console.warn('⚠️ FCM token not available (CSP blocked or not supported)');
             }
+          } else {
+            console.log('ℹ️ Notification permission not granted - skipping FCM registration');
           }
-        } catch (error) {
-          console.warn('FCM token registration failed (this is normal):', error);
+        } catch (error: any) {
+          // Handle CSP violations gracefully
+          if (error?.message?.includes('Content Security Policy') ||
+              error?.message?.includes('Failed to fetch') ||
+              error?.message?.includes('violates the document') ||
+              error?.message?.includes('timeout')) {
+            console.warn('⚠️ FCM registration blocked by Content Security Policy (this is normal in production)');
+          } else {
+            console.warn('⚠️ FCM token registration failed:', error?.message || 'Unknown error');
+          }
         }
       };
 

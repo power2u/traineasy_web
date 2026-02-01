@@ -80,6 +80,7 @@ export class MealNotificationScheduler {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest', // Required to bypass middleware security check
         },
         credentials: 'include', // Include cookies for authentication
       });

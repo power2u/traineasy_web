@@ -41,11 +41,11 @@ export function NotificationSettings() {
     console.log('🔍 Notification Settings Debug:', {
       permissionStatus,
       mealEnabledResult: mealEnabled(),
-      mealStatus: status,
+      mealStatus,
       scheduledCount,
       nextMeal: next
     });
-  }, [getNextMeal, mealStatus, permissionStatus, mealEnabled, status, scheduledCount]);
+  }, [getNextMeal, mealStatus, permissionStatus, mealEnabled, scheduledCount]);
 
   const handleEnableNotifications = async () => {
     if (canShowPrompt) {
