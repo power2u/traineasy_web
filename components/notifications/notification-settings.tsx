@@ -70,6 +70,10 @@ export function NotificationSettings() {
       console.log('🔧 Meal scheduler enabled:', mealEnabled());
       console.log('📊 Meal scheduler status:', mealStatus);
       
+      // Get device info for better debugging
+      const deviceInfo = SimpleNotifications.getDeviceInfo();
+      console.log('📱 Device info:', deviceInfo);
+      
       // Use simple notification system (more reliable in production)
       let success = false;
       
@@ -78,13 +82,32 @@ export function NotificationSettings() {
         success = SimpleNotifications.showTest('there');
       } else {
         console.log('🎯 Simple notifications not available, trying complex system...');
+        
+        // Show device-specific guidance
+        if (SimpleNotifications.isIOS() && !SimpleNotifications.isPWA()) {
+          alert('📱 iOS Tip: For notifications to work, please:\n1. Add this app to your Home Screen\n2. Launch it from the Home Screen (not Safari)\n3. Then try the test notification again');
+          setIsTesting(false);
+          return;
+        }
+        
         success = await showTestNotification();
       }
       
       console.log('🎯 Test notification result:', success);
       
       if (!success) {
-        alert('Failed to send test notification. Please check your notification settings and browser console for details.');
+        const deviceInfo = SimpleNotifications.getDeviceInfo();
+        let message = 'Failed to send test notification. ';
+        
+        if (deviceInfo.type === 'iOS' && !deviceInfo.isPWA) {
+          message += 'On iOS, please add the app to your Home Screen and launch it from there.';
+        } else if (deviceInfo.type === 'Mobile') {
+          message += 'On mobile, make sure notifications are enabled in your browser settings.';
+        } else {
+          message += 'Please check your notification settings and browser console for details.';
+        }
+        
+        alert(message);
       } else {
         console.log('✅ Test notification should have appeared');
       }
@@ -137,6 +160,12 @@ export function NotificationSettings() {
 
   const statusInfo = getStatusInfo();
   const isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isMobile = typeof window !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isPWA = typeof window !== 'undefined' && (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true ||
+    document.referrer.includes('android-app://')
+  );
 
   return (
     <div className="space-y-6">
@@ -159,6 +188,53 @@ export function NotificationSettings() {
           </div>
         </div>
       </div>
+
+      {/* Mobile/PWA Specific Guidance */}
+      {isMobile && (
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="flex items-start gap-3">
+            <Smartphone className="w-5 h-5 text-blue-500 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-blue-800 dark:text-blue-200">
+                Mobile Device Detected
+              </h4>
+              <div className="text-sm text-blue-700 dark:text-blue-300 mt-1 space-y-2">
+                <p>Device: {isIOS ? 'iOS' : 'Android/Mobile'} | PWA Mode: {isPWA ? '✅ Yes' : '❌ No'}</p>
+                
+                {isIOS && !isPWA && (
+                  <div className="bg-yellow-100 dark:bg-yellow-900/30 p-3 rounded border border-yellow-300 dark:border-yellow-700">
+                    <p className="font-medium text-yellow-800 dark:text-yellow-200">📱 iOS Setup Required:</p>
+                    <ol className="mt-1 space-y-1 text-yellow-700 dark:text-yellow-300">
+                      <li>1. Tap the Share button in Safari</li>
+                      <li>2. Select "Add to Home Screen"</li>
+                      <li>3. Launch the app from your Home Screen</li>
+                      <li>4. Then enable notifications</li>
+                    </ol>
+                  </div>
+                )}
+                
+                {!isIOS && isMobile && !isPWA && (
+                  <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded border border-green-300 dark:border-green-700">
+                    <p className="font-medium text-green-800 dark:text-green-200">📱 Android Tip:</p>
+                    <p className="text-green-700 dark:text-green-300">
+                      For best experience, add this app to your Home Screen for PWA mode.
+                    </p>
+                  </div>
+                )}
+                
+                {isPWA && (
+                  <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded border border-green-300 dark:border-green-700">
+                    <p className="font-medium text-green-800 dark:text-green-200">✅ PWA Mode Active</p>
+                    <p className="text-green-700 dark:text-green-300">
+                      Perfect! You're running in PWA mode. Notifications should work great.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notification Status (when enabled) */}
       {permissionStatus === 'granted' && (

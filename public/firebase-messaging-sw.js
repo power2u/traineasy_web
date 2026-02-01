@@ -1,4 +1,5 @@
 // Firebase Cloud Messaging Service Worker
+// Enhanced for PWA meal notifications
 
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
@@ -42,27 +43,73 @@ messaging.onBackgroundMessage((payload) => {
   return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-// Handle notification clicks
+// Handle PWA notification actions
 self.addEventListener('notificationclick', (event) => {
   console.log('[firebase-messaging-sw.js] Notification clicked:', event);
 
   event.notification.close();
 
-  const urlToOpen = event.notification.data?.url || '/dashboard';
-
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        // Check if there's already a window open
-        for (const client of clientList) {
-          if (client.url.includes(urlToOpen) && 'focus' in client) {
-            return client.focus();
+  // Handle different notification actions
+  if (event.action === 'open') {
+    const urlToOpen = event.notification.data?.url || '/dashboard';
+    
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true })
+        .then((clientList) => {
+          // Check if there's already a window open
+          for (const client of clientList) {
+            if (client.url.includes(urlToOpen) && 'focus' in client) {
+              return client.focus();
+            }
           }
-        }
-        // Open a new window
-        if (clients.openWindow) {
-          return clients.openWindow(urlToOpen);
-        }
-      })
-  );
+          // Open a new window
+          if (clients.openWindow) {
+            return clients.openWindow(urlToOpen);
+          }
+        })
+    );
+  } else {
+    // Default click behavior
+    const urlToOpen = event.notification.data?.url || '/dashboard';
+
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true })
+        .then((clientList) => {
+          // Check if there's already a window open
+          for (const client of clientList) {
+            if (client.url.includes(urlToOpen) && 'focus' in client) {
+              return client.focus();
+            }
+          }
+          // Open a new window
+          if (clients.openWindow) {
+            return clients.openWindow(urlToOpen);
+          }
+        })
+    );
+  }
+});
+
+// Handle notification close events
+self.addEventListener('notificationclose', (event) => {
+  console.log('[firebase-messaging-sw.js] Notification closed:', event.notification.tag);
+});
+
+// Enhanced PWA notification support
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    const { title, body, options } = event.data;
+    
+    const notificationOptions = {
+      body,
+      icon: options.icon || '/logo.png',
+      badge: '/logo.png',
+      tag: options.tag || 'pwa-notification',
+      requireInteraction: options.requireInteraction || false,
+      data: options.data || {},
+      actions: options.actions || []
+    };
+
+    self.registration.showNotification(title, notificationOptions);
+  }
 });
