@@ -68,16 +68,16 @@ export function NotificationSettings() {
       console.log('🧪 Test notification button clicked');
       console.log('📋 Current permission:', permissionStatus);
       console.log('🔧 Meal scheduler enabled:', mealEnabled());
-      console.log('📊 Meal scheduler status:', status);
+      console.log('📊 Meal scheduler status:', mealStatus);
       
-      // Try simple notification first (more reliable)
+      // Use simple notification system (more reliable in production)
       let success = false;
       
       if (SimpleNotifications.isAvailable()) {
         console.log('🎯 Using simple notification system...');
         success = SimpleNotifications.showTest('there');
       } else {
-        console.log('🎯 Falling back to complex notification system...');
+        console.log('🎯 Simple notifications not available, trying complex system...');
         success = await showTestNotification();
       }
       

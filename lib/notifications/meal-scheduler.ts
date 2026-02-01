@@ -76,7 +76,13 @@ export class MealNotificationScheduler {
 
     try {
       console.log('🔄 Loading user preferences for meal scheduler...');
-      const response = await fetch(`/api/user/preferences`);
+      const response = await fetch(`/api/user/preferences`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for authentication
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -99,9 +105,16 @@ export class MealNotificationScheduler {
         console.error('❌ Failed to load user preferences:', response.status, response.statusText);
         const errorText = await response.text();
         console.error('Response body:', errorText);
+        
+        // If it's a 401, the user might not be authenticated
+        if (response.status === 401) {
+          console.error('🔐 User not authenticated - meal scheduler cannot load preferences');
+          this.isActive = false;
+        }
       }
     } catch (error) {
       console.error('❌ Error loading user preferences:', error);
+      // Don't disable scheduler on network errors, just log them
     }
   }
 
@@ -211,6 +224,20 @@ export class MealNotificationScheduler {
     try {
       console.log(`🔔 Showing ${meal.name} notification for ${userName}`);
       
+      // Try simple notification system first (more reliable)
+      const { SimpleNotifications } = await import('@/lib/utils/simple-notifications');
+      
+      if (SimpleNotifications.isAvailable()) {
+        console.log('🎯 Using simple notification system for meal reminder...');
+        const success = SimpleNotifications.showMealReminder(meal.type, userName);
+        if (success) {
+          console.log(`✅ Showed ${meal.name} notification using simple system`);
+          return;
+        }
+      }
+
+      // Fallback to direct notification API
+      console.log('🎯 Using direct notification API as fallback...');
       const notification = new Notification(`${meal.emoji} ${meal.name} Time!`, {
         body: `Hey ${userName}! Time for your ${meal.name.toLowerCase()}. Stay on track with your nutrition goals!`,
         icon: '/logo.png',
@@ -339,7 +366,7 @@ export class MealNotificationScheduler {
   /**
    * Show a test meal notification
    */
-  showTestMealNotification(): boolean {
+  async showTestMealNotification(): Promise<boolean> {
     console.log('🧪 Meal scheduler test notification starting...');
     console.log('📋 Permission check:', typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported');
     
@@ -352,6 +379,29 @@ export class MealNotificationScheduler {
       const userName = this.getUserDisplayName();
       console.log('👤 User name for notification:', userName);
 
+      // Try simple notification system first
+      const { SimpleNotifications } = await import('@/lib/utils/simple-notifications');
+      
+      if (SimpleNotifications.isAvailable()) {
+        console.log('🎯 Using simple notification system for test...');
+        const success = SimpleNotifications.show(
+          '🧪 Test Meal Reminder',
+          `Hey ${userName}! This is a test meal notification from the scheduler.`,
+          {
+            tag: 'test-meal-notification',
+            url: '/meals',
+            autoClose: 5000
+          }
+        );
+        
+        if (success) {
+          console.log('✅ Test meal notification created successfully (simple system)');
+          return true;
+        }
+      }
+
+      // Fallback to direct API
+      console.log('🎯 Using direct notification API for test...');
       const notification = new Notification('🧪 Test Meal Reminder', {
         body: `Hey ${userName}! This is a test meal notification from the scheduler.`,
         icon: '/logo.png',
@@ -371,7 +421,7 @@ export class MealNotificationScheduler {
         notification.close();
       }, 5000);
 
-      console.log('✅ Test meal notification created successfully');
+      console.log('✅ Test meal notification created successfully (direct API)');
       return true;
     } catch (error) {
       console.error('❌ Test meal notification error:', error);
