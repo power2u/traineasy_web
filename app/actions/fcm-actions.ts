@@ -31,21 +31,25 @@ export async function saveFCMToken(token: string) {
     });
 
     if (existingToken) {
-      console.log('FCM token already exists for user');
-      return { success: true, message: 'Token already registered' };
+      // Update timestamp
+      await prisma.fcmToken.update({
+        where: { id: existingToken.id },
+        data: { lastUsedAt: new Date() }
+      });
+      console.log('✅ FCM token updated');
+      return { success: true, message: 'Token updated successfully' };
+    } else {
+      // Create new
+      await prisma.fcmToken.create({
+        data: {
+          userId,
+          token,
+          lastUsedAt: new Date()
+        }
+      });
+      console.log('✅ FCM token saved successfully');
+      return { success: true, message: 'Token saved successfully' };
     }
-
-    // Insert new token
-    await prisma.fcmToken.create({
-      data: {
-        userId,
-        token,
-        lastUsedAt: new Date()
-      }
-    });
-
-    console.log('✅ FCM token saved successfully');
-    return { success: true, message: 'Token saved successfully' };
 
   } catch (error: any) {
     console.error('Error in saveFCMToken:', error);
