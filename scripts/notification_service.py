@@ -12,12 +12,18 @@ import firebase_admin
 from firebase_admin import credentials, messaging
 
 # Configure logging
+# Force utf-8 for console output on Windows
+import sys
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("notification_service.log")
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("notification_service.log", encoding='utf-8')
     ]
 )
 logger = logging.getLogger("NotificationService")
