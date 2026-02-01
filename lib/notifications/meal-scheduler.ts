@@ -58,6 +58,7 @@ export class MealNotificationScheduler {
     // Only schedule if notifications are enabled and permission granted
     if (areNotificationsEnabled() && this.canScheduleNotifications()) {
       this.scheduleAllMealNotifications();
+      this.saveScheduleToStorage(); // Persist schedule info
       console.log('✅ Meal notifications initialized successfully');
     } else {
       console.log('📵 Meal notifications not scheduled - checking requirements:');
@@ -131,7 +132,7 @@ export class MealNotificationScheduler {
   }
 
   /**
-   * Schedule all meal notifications for today and tomorrow
+   * Schedule all meal notifications for today and the next 7 days
    */
   private scheduleAllMealNotifications() {
     if (!this.canScheduleNotifications()) {
@@ -151,16 +152,26 @@ export class MealNotificationScheduler {
     ];
 
     const userName = this.getUserDisplayName();
-
+    const now = new Date();
     let scheduledCount = 0;
-    mealTimes.forEach(meal => {
-      if (meal.time) {
-        this.scheduleMealNotification(meal, userName);
-        scheduledCount++;
-      }
-    });
 
-    console.log(`✅ Scheduled ${scheduledCount} meal notifications for ${userName}`);
+    // Schedule for the next 7 days (including today)
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const targetDate = new Date(now);
+      targetDate.setDate(now.getDate() + dayOffset);
+      
+      mealTimes.forEach(meal => {
+        if (meal.time) {
+          const scheduled = this.scheduleMealNotificationForDate(meal, userName, targetDate, dayOffset);
+          if (scheduled) scheduledCount++;
+        }
+      });
+    }
+
+    console.log(`✅ Scheduled ${scheduledCount} meal notifications for ${userName} (next 7 days)`);
+    
+    // Set up daily re-scheduling to maintain 7-day window
+    this.setupDailyRescheduling();
   }
 
   /**
@@ -171,46 +182,112 @@ export class MealNotificationScheduler {
   }
 
   /**
-   * Schedule a single meal notification for today and tomorrow
+   * Schedule a single meal notification for a specific date
    */
-  private scheduleMealNotification(meal: MealTime, userName: string) {
+  private scheduleMealNotificationForDate(meal: MealTime, userName: string, targetDate: Date, dayOffset: number): boolean {
     const now = new Date();
     const [hours, minutes] = meal.time.split(':').map(Number);
     
-    // Schedule for today if time hasn't passed
-    const todayTime = new Date();
-    todayTime.setHours(hours, minutes, 0, 0);
+    // Set the exact time for the notification
+    const notificationTime = new Date(targetDate);
+    notificationTime.setHours(hours, minutes, 0, 0);
     
-    if (todayTime > now) {
-      const timeUntilNotification = todayTime.getTime() - now.getTime();
-      console.log(`⏰ Scheduling ${meal.name} for today at ${todayTime.toLocaleTimeString()}`);
-      
-      const timeoutId = setTimeout(() => {
-        this.showMealNotification(meal, userName);
-      }, timeUntilNotification);
-      
-      this.scheduledNotifications.set(`${meal.type}-today`, timeoutId);
+    // Skip if the time has already passed
+    if (notificationTime <= now) {
+      return false;
     }
-
-    // Always schedule for tomorrow
-    const tomorrowTime = new Date();
-    tomorrowTime.setDate(tomorrowTime.getDate() + 1);
-    tomorrowTime.setHours(hours, minutes, 0, 0);
     
-    const timeUntilTomorrow = tomorrowTime.getTime() - now.getTime();
-    console.log(`⏰ Scheduling ${meal.name} for tomorrow at ${tomorrowTime.toLocaleTimeString()}`);
+    const timeUntilNotification = notificationTime.getTime() - now.getTime();
+    const dayLabel = dayOffset === 0 ? 'today' : dayOffset === 1 ? 'tomorrow' : `in ${dayOffset} days`;
     
-    const tomorrowTimeoutId = setTimeout(() => {
+    console.log(`⏰ Scheduling ${meal.name} for ${dayLabel} at ${notificationTime.toLocaleString()}`);
+    
+    const timeoutId = setTimeout(() => {
       this.showMealNotification(meal, userName);
-      // Reschedule for the day after tomorrow
-      setTimeout(() => {
-        if (this.isActive) {
-          this.scheduleMealNotification(meal, userName);
-        }
-      }, 1000);
-    }, timeUntilTomorrow);
+    }, timeUntilNotification);
     
-    this.scheduledNotifications.set(`${meal.type}-tomorrow`, tomorrowTimeoutId);
+    // Use a unique key for each notification
+    const notificationKey = `${meal.type}-day${dayOffset}`;
+    this.scheduledNotifications.set(notificationKey, timeoutId);
+    
+    return true;
+  }
+
+  /**
+   * Set up daily re-scheduling to maintain 7-day notification window
+   */
+  private setupDailyRescheduling() {
+    // Schedule re-scheduling for midnight each day
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    tomorrow.setHours(0, 1, 0, 0); // 12:01 AM tomorrow
+    
+    const timeUntilMidnight = tomorrow.getTime() - now.getTime();
+    
+    console.log(`🔄 Setting up daily re-scheduling in ${Math.round(timeUntilMidnight / 1000 / 60 / 60)} hours`);
+    
+    const midnightTimeout = setTimeout(() => {
+      if (this.isActive) {
+        console.log('🌅 Daily re-scheduling triggered at midnight');
+        this.scheduleAllMealNotifications(); // Re-schedule for next 7 days
+        this.saveScheduleToStorage(); // Update storage
+      }
+    }, timeUntilMidnight);
+    
+    this.scheduledNotifications.set('daily-reschedule', midnightTimeout);
+  }
+
+  /**
+   * Save schedule information to localStorage for persistence
+   */
+  private saveScheduleToStorage() {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const scheduleInfo = {
+        userId: this.user?.id,
+        scheduledAt: new Date().toISOString(),
+        preferences: this.preferences,
+        scheduledCount: this.scheduledNotifications.size,
+        nextScheduleCheck: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
+      };
+      
+      localStorage.setItem('mealSchedulerInfo', JSON.stringify(scheduleInfo));
+      console.log('� Saved meal schedule info to localStorage');
+    } catch (error) {
+      console.warn('⚠️ Failed to save schedule to localStorage:', error);
+    }
+  }
+
+  /**
+   * Load and validate schedule from localStorage
+   */
+  private loadScheduleFromStorage(): any | null {
+    if (typeof window === 'undefined') return null;
+    
+    try {
+      const stored = localStorage.getItem('mealSchedulerInfo');
+      if (!stored) return null;
+      
+      const scheduleInfo = JSON.parse(stored);
+      const scheduledAt = new Date(scheduleInfo.scheduledAt);
+      const now = new Date();
+      
+      // Check if schedule is still valid (within 7 days)
+      const daysSinceScheduled = (now.getTime() - scheduledAt.getTime()) / (1000 * 60 * 60 * 24);
+      
+      if (daysSinceScheduled > 7) {
+        console.log('📅 Stored schedule is too old, will create new one');
+        localStorage.removeItem('mealSchedulerInfo');
+        return null;
+      }
+      
+      return scheduleInfo;
+    } catch (error) {
+      console.warn('⚠️ Failed to load schedule from localStorage:', error);
+      return null;
+    }
   }
 
   /**
@@ -351,6 +428,9 @@ export class MealNotificationScheduler {
    * Get status information
    */
   getStatus() {
+    const storedInfo = this.loadScheduleFromStorage();
+    const now = new Date();
+    
     return {
       isActive: this.isActive,
       hasUser: !!this.user,
@@ -361,6 +441,18 @@ export class MealNotificationScheduler {
       canSchedule: this.canScheduleNotifications(),
       scheduledCount: this.scheduledNotifications.size,
       nextMeal: this.getNextMeal(),
+      
+      // Enhanced status info
+      schedulingWindow: '7 days',
+      lastScheduledAt: storedInfo?.scheduledAt || null,
+      nextRescheduleAt: storedInfo?.nextScheduleCheck || null,
+      persistenceInfo: {
+        hasStoredSchedule: !!storedInfo,
+        storedCount: storedInfo?.scheduledCount || 0,
+        daysSinceLastSchedule: storedInfo ? 
+          Math.round((now.getTime() - new Date(storedInfo.scheduledAt).getTime()) / (1000 * 60 * 60 * 24)) : 
+          null
+      }
     };
   }
 
