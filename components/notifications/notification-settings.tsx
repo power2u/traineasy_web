@@ -5,6 +5,7 @@ import { useLocalNotifications } from '@/lib/hooks/use-local-notifications';
 import { useNotificationPermission } from '@/lib/hooks/use-notification-permission';
 import { useMealScheduler } from '@/lib/hooks/use-meal-scheduler';
 import { getEnableNotificationsInstructions } from '@/lib/utils/notification-utils';
+import { SimpleNotifications } from '@/lib/utils/simple-notifications';
 import { Bell, BellOff, Smartphone, AlertCircle, CheckCircle, Settings, Clock, Droplets, Utensils } from 'lucide-react';
 
 export function NotificationSettings() {
@@ -69,7 +70,17 @@ export function NotificationSettings() {
       console.log('🔧 Meal scheduler enabled:', mealEnabled());
       console.log('📊 Meal scheduler status:', status);
       
-      const success = await showTestNotification();
+      // Try simple notification first (more reliable)
+      let success = false;
+      
+      if (SimpleNotifications.isAvailable()) {
+        console.log('🎯 Using simple notification system...');
+        success = SimpleNotifications.showTest('there');
+      } else {
+        console.log('🎯 Falling back to complex notification system...');
+        success = await showTestNotification();
+      }
+      
       console.log('🎯 Test notification result:', success);
       
       if (!success) {

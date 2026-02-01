@@ -200,7 +200,7 @@ export class MealNotificationScheduler {
   }
 
   /**
-   * Show meal notification
+   * Show meal notification (CSP-safe version)
    */
   private async showMealNotification(meal: MealTime, userName: string) {
     if (!areNotificationsEnabled() || !this.isActive) {
@@ -209,21 +209,19 @@ export class MealNotificationScheduler {
     }
 
     try {
+      console.log(`🔔 Showing ${meal.name} notification for ${userName}`);
+      
       const notification = new Notification(`${meal.emoji} ${meal.name} Time!`, {
         body: `Hey ${userName}! Time for your ${meal.name.toLowerCase()}. Stay on track with your nutrition goals!`,
         icon: '/logo.png',
         badge: '/logo.png',
         tag: `meal-${meal.type}`,
         requireInteraction: true,
-        data: { 
-          type: 'meal_reminder', 
-          mealType: meal.type,
-          url: '/meals'
-        }
       });
 
       // Handle click
       notification.onclick = () => {
+        console.log('🖱️ Meal notification clicked');
         window.focus();
         window.location.href = '/meals';
         notification.close();
@@ -234,10 +232,10 @@ export class MealNotificationScheduler {
         notification.close();
       }, 30000);
 
-      console.log(`🔔 Showed ${meal.name} notification for ${userName}`);
+      console.log(`✅ Showed ${meal.name} notification for ${userName}`);
 
     } catch (error) {
-      console.error('Failed to show meal notification:', error);
+      console.error('❌ Failed to show meal notification:', error);
     }
   }
 

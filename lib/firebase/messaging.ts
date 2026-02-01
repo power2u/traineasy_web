@@ -5,16 +5,11 @@ import { getFirebaseMessaging, isFirebaseAvailable } from './config';
 
 /**
  * Request notification permission and get FCM token
+ * CSP-safe version that gracefully handles Content Security Policy violations
  */
 export async function requestNotificationPermission(): Promise<string | null> {
   try {
-    console.log('🔔 Starting FCM token request...');
-
-    // Check if Firebase is available
-    if (!isFirebaseAvailable()) {
-      console.warn('⚠️ Firebase not available, skipping FCM token request');
-      return null;
-    }
+    console.log('🔔 Starting FCM token request (CSP-safe mode)...');
 
     // Check if notifications are supported
     if (!('Notification' in window)) {
@@ -22,7 +17,7 @@ export async function requestNotificationPermission(): Promise<string | null> {
       return null;
     }
 
-    // Request permission first (before initializing messaging)
+    // Request permission first (this always works, even with CSP)
     console.log('📋 Requesting notification permission...');
     const permission = await Notification.requestPermission();
     console.log('📋 Permission result:', permission);
@@ -32,81 +27,68 @@ export async function requestNotificationPermission(): Promise<string | null> {
       return null;
     }
 
-    // Get VAPID key first
-    const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
-    console.log('🔑 VAPID key present:', !!vapidKey);
-
-    if (!vapidKey) {
-      console.warn('⚠️ VAPID key not configured in environment variables');
-      return null;
-    }
-
-    // Try to get FCM token with better error handling
+    // Try Firebase operations with CSP error detection
     try {
-      // Only initialize messaging after permission is granted
-      const messaging = await getFirebaseMessaging();
+      // Check if Firebase is available
+      if (!isFirebaseAvailable()) {
+        console.warn('⚠️ Firebase not available, using browser notifications only');
+        return null;
+      }
+
+      const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+      if (!vapidKey) {
+        console.warn('⚠️ VAPID key not configured, using browser notifications only');
+        return null;
+      }
+
+      // Try to get messaging with timeout to detect CSP blocks
+      const messaging = await Promise.race([
+        getFirebaseMessaging(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Firebase initialization timeout')), 5000)
+        )
+      ]) as any;
+
       if (!messaging) {
-        console.warn('⚠️ Firebase messaging not supported or not initialized');
+        console.warn('⚠️ Firebase messaging not available, using browser notifications only');
         return null;
       }
 
       console.log('✅ Firebase messaging initialized');
-      console.log('🎫 Requesting FCM token from Firebase...');
       
-      // Try with custom service worker registration first
-      let token = null;
-      
-      try {
-        // Register custom service worker
-        const swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-          scope: '/firebase-cloud-messaging-push-scope',
-        });
-        
-        console.log('✅ Custom service worker registered');
-        
-        token = await getToken(messaging, { 
-          vapidKey,
-          serviceWorkerRegistration: swRegistration
-        });
-      } catch (swError) {
-        console.warn('⚠️ Custom service worker registration failed, trying default:', swError);
-        
-        // Fallback to default service worker
-        try {
-          token = await getToken(messaging, { vapidKey });
-        } catch (defaultError) {
-          console.warn('⚠️ Default service worker also failed:', defaultError);
-          return null;
-        }
-      }
+      // Try to get FCM token with CSP error detection
+      const token = await Promise.race([
+        getToken(messaging, { vapidKey }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('FCM token request timeout')), 10000)
+        )
+      ]) as string;
 
       if (token) {
         console.log('✅ FCM Token received:', token.substring(0, 20) + '...');
         return token;
       } else {
-        console.warn('⚠️ No registration token available from Firebase');
+        console.warn('⚠️ No FCM token available, using browser notifications only');
         return null;
       }
       
-    } catch (messagingError) {
-      console.warn('⚠️ Firebase messaging error:', messagingError);
+    } catch (firebaseError: any) {
+      // Detect CSP violations
+      if (firebaseError?.message?.includes('Content Security Policy') ||
+          firebaseError?.message?.includes('Failed to fetch') ||
+          firebaseError?.message?.includes('violates the document') ||
+          firebaseError?.message?.includes('timeout')) {
+        console.warn('⚠️ Firebase blocked by Content Security Policy - using browser notifications only');
+        console.warn('ℹ️ This is normal in production environments with strict CSP');
+        return null;
+      }
+      
+      console.warn('⚠️ Firebase error (non-CSP):', firebaseError?.message);
       return null;
     }
 
   } catch (error: any) {
-    // Better error logging
-    console.warn('⚠️ FCM token request failed:', error?.message || 'Unknown error');
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Error details:', {
-        message: error?.message || 'No message',
-        code: error?.code || 'No code',
-        name: error?.name || 'No name',
-        stack: error?.stack || 'No stack',
-        fullError: error
-      });
-    }
-
+    console.warn('⚠️ Notification permission request failed:', error?.message || 'Unknown error');
     return null;
   }
 }

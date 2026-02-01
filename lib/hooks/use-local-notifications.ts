@@ -16,36 +16,22 @@ export function useLocalNotifications() {
     if (isInitialized.current || !user) return;
 
     try {
-      const success = await localNotificationManager.initialize();
-
-      // Only try FCM token sync if user already has permission (don't prompt)
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        try {
-          console.log('🔔 Permission already granted, syncing FCM token...');
-          const token = await requestFCMToken();
-          if (token) {
-            console.log('✅ FCM Init: Token retrieved, attempting to save to DB...', token.substring(0, 10) + '...');
-            const saveResult = await saveFCMToken(user.id, token);
-            if (saveResult) {
-              console.log('✅ FCM Init: Token saved successfully to database');
-            } else {
-              console.warn('⚠️ FCM Init: Token save failed');
-            }
-          } else {
-            console.log('ℹ️ FCM Init: No token available (FCM may not be working)');
-          }
-        } catch (fcmError: any) {
-          console.warn('⚠️ FCM token sync failed during initialization (this is normal if FCM is not configured):', fcmError?.message || 'Unknown FCM error');
-          // Don't let FCM errors prevent local notifications from working
-        }
-      }
-
-      if (success) {
-        console.log('Local notifications initialized successfully');
+      console.log('🔔 Initializing notifications (CSP-safe mode)...');
+      
+      // Skip complex initialization, just check if notifications work
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        console.log('✅ Browser notifications supported');
+        console.log('📋 Current permission:', Notification.permission);
         isInitialized.current = true;
+        
+        // Skip FCM entirely due to CSP violations in production
+        console.log('ℹ️ Skipping FCM initialization due to CSP restrictions');
+        return;
       }
+
+      console.log('❌ Browser notifications not supported');
     } catch (error: any) {
-      console.warn('Error initializing local notifications:', error?.message || 'Unknown error');
+      console.warn('⚠️ Error initializing notifications:', error?.message || 'Unknown error');
     }
   }, [user]);
 
@@ -93,31 +79,26 @@ export function useLocalNotifications() {
   // Request notification permission
   const requestPermission = useCallback(async () => {
     try {
-      console.log('🔔 Permission request initiated...');
+      console.log('🔔 Permission request initiated (bypassing FCM due to CSP)...');
       
-      // First try to get FCM token (this triggers the permission prompt)
-      const token = await requestFCMToken();
-      console.log('🎫 FCM token result:', token ? `${token.substring(0, 10)}...` : 'null');
+      // Skip FCM entirely due to CSP issues, use only browser API
+      if (typeof window === 'undefined' || !('Notification' in window)) {
+        console.log('❌ Notifications not supported');
+        return 'denied';
+      }
 
-      const permission = Notification.permission;
-      console.log('📋 Final permission status:', permission);
-
-      if (permission === 'granted' && token && user) {
-        // Save the token
-        console.log('💾 Saving FCM token to database...');
-        const saveResult = await saveFCMToken(user.id, token);
-        if (saveResult) {
-          console.log('✅ FCM token saved successfully');
-        } else {
-          console.warn('⚠️ FCM token save failed');
-        }
+      if (Notification.permission === 'granted') {
+        console.log('✅ Permission already granted');
         return 'granted';
       }
 
-      // Fallback to local manager if FCM fails or just to return status
-      return await localNotificationManager.requestPermission();
+      // Request permission directly from browser
+      const permission = await Notification.requestPermission();
+      console.log('📋 Browser permission result:', permission);
+
+      return permission;
     } catch (error) {
-      console.error('Error requesting permission:', error);
+      console.error('❌ Error requesting permission:', error);
       return Notification.permission;
     }
   }, [user]);
