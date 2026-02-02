@@ -4,16 +4,18 @@ import { useState, useEffect } from 'react';
 import { Button, Card, Switch } from '@heroui/react';
 import { Bell, BellOff, Settings, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { requestNotificationPermission, saveFCMToken, areNotificationsEnabled, refreshFCMToken } from '@/lib/firebase/messaging';
+import { requestNotificationPermission, saveFCMToken, areNotificationsEnabled, refreshFCMToken, isNotificationSupported } from '@/lib/firebase/messaging';
 import { useAuthUser } from '@/lib/contexts/auth-context';
 
 export function NotificationSettings() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSupported, setIsSupported] = useState(false);
   const user = useAuthUser();
 
   useEffect(() => {
-    // Check current notification status
+    // Check current notification status and support
+    setIsSupported(isNotificationSupported());
     setNotificationsEnabled(areNotificationsEnabled());
   }, []);
 
@@ -102,55 +104,46 @@ export function NotificationSettings() {
     }
   };
 
-  const handleCleanupTokens = async () => {
-    if (!user) return;
-    
-    setIsLoading(true);
-    
-    try {
-      const response = await fetch('/api/fcm/cleanup-tokens', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success(`🧹 ${data.message}`);
-      } else {
-        toast.error(data.error || 'Failed to cleanup tokens');
-      }
-    } catch (error) {
-      console.error('Error cleaning up tokens:', error);
-      toast.error('Failed to cleanup tokens');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Don't render if notifications are not supported
+  if (!isSupported) {
+    return (
+      <Card className="p-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+            <BellOff className="w-5 h-5 text-gray-400" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold">Notifications Not Supported</h3>
+            <p className="text-sm text-default-500">
+              Your browser or device doesn't support push notifications.
+            </p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="p-4">
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
           <Settings className="w-5 h-5 text-primary" />
         </div>
-        <div>
+        <div className="min-w-0 flex-1">
           <h3 className="font-semibold">Notification Settings</h3>
           <p className="text-sm text-default-500">Manage your push notifications</p>
         </div>
       </div>
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             {notificationsEnabled ? (
-              <Bell className="w-5 h-5 text-success" />
+              <Bell className="w-5 h-5 text-success flex-shrink-0" />
             ) : (
-              <BellOff className="w-5 h-5 text-default-400" />
+              <BellOff className="w-5 h-5 text-default-400 flex-shrink-0" />
             )}
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="font-medium">Push Notifications</p>
               <p className="text-sm text-default-500">
                 {notificationsEnabled 
@@ -165,6 +158,7 @@ export function NotificationSettings() {
             isSelected={notificationsEnabled}
             onChange={handleToggleNotifications}
             isDisabled={isLoading}
+            className="flex-shrink-0"
           />
         </div>
 
@@ -175,39 +169,27 @@ export function NotificationSettings() {
               size="sm"
               onPress={handleTestNotification}
               isDisabled={isLoading}
-              className="w-full"
+              className="w-full justify-center"
             >
               {isLoading ? 'Sending...' : 'Send Test Notification'}
             </Button>
             
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onPress={handleRefreshToken}
-                isDisabled={isLoading}
-                className="flex-1"
-              >
-                <RefreshCw className="w-4 h-4 mr-1" />
-                Refresh Token
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onPress={handleCleanupTokens}
-                isDisabled={isLoading}
-                className="flex-1"
-              >
-                🧹 Cleanup
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onPress={handleRefreshToken}
+              isDisabled={isLoading}
+              className="w-full justify-center"
+            >
+              <RefreshCw className="w-4 h-4 mr-1" />
+              Refresh Token
+            </Button>
           </div>
         )}
 
         <div className="text-xs text-default-400 pt-2">
           <p>
-            💡 Tokens are automatically refreshed every 30 minutes and when you return to the app. Manual refresh and cleanup options are available above.
+            💡 Tokens are automatically refreshed every 30 minutes and when you return to the app.
           </p>
         </div>
       </div>

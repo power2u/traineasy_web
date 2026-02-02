@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button, Card } from '@heroui/react';
 import { Bell, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { requestNotificationPermission, saveFCMToken, areNotificationsEnabled } from '@/lib/firebase/messaging';
+import { requestNotificationPermission, saveFCMToken, areNotificationsEnabled, isNotificationSupported } from '@/lib/firebase/messaging';
 import { useAuthUser } from '@/lib/contexts/auth-context';
 
 export function NotificationPermissionPrompt() {
@@ -25,6 +25,9 @@ export function NotificationPermissionPrompt() {
     // Check if we should show the prompt
     const checkShouldShow = () => {
       if (!user || isDismissed) return false;
+      
+      // Don't show if notifications are not supported
+      if (!isNotificationSupported()) return false;
       
       // Don't show if notifications are already enabled
       if (areNotificationsEnabled()) return false;
@@ -94,7 +97,7 @@ export function NotificationPermissionPrompt() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-sm">
+    <div className="fixed bottom-4 left-4 right-4 z-50 sm:left-auto sm:right-4 sm:max-w-sm">
       <Card className="p-4 shadow-lg border border-primary/20 bg-background/95 backdrop-blur-sm">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0">
@@ -111,13 +114,13 @@ export function NotificationPermissionPrompt() {
               Get gentle reminders for meals, water intake, and progress updates to help you reach your fitness goals.
             </p>
             
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 size="sm"
                 variant="primary"
                 onPress={handleEnableNotifications}
                 isDisabled={isLoading}
-                className="flex-1"
+                className="flex-1 justify-center"
               >
                 <Bell className="w-4 h-4 mr-1" />
                 Enable
@@ -128,6 +131,7 @@ export function NotificationPermissionPrompt() {
                 variant="ghost"
                 onPress={handleNotNow}
                 isDisabled={isLoading}
+                className="justify-center"
               >
                 Not now
               </Button>
@@ -139,7 +143,7 @@ export function NotificationPermissionPrompt() {
             size="sm"
             onPress={handleDismiss}
             isDisabled={isLoading}
-            className="min-w-0 p-1"
+            className="min-w-0 p-1 flex-shrink-0"
           >
             <X className="w-4 h-4" />
           </Button>

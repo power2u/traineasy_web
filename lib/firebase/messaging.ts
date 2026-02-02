@@ -9,6 +9,8 @@ const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
  * Check if notifications are enabled
  */
 export function areNotificationsEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  
   if (!('Notification' in window)) {
     return false;
   }
@@ -16,19 +18,43 @@ export function areNotificationsEnabled(): boolean {
 }
 
 /**
+ * Check if the device/browser supports notifications
+ */
+export function isNotificationSupported(): boolean {
+  if (typeof window === 'undefined') return false;
+  
+  // Check for basic notification support
+  if (!('Notification' in window)) {
+    return false;
+  }
+  
+  // Check for service worker support (required for FCM)
+  if (!('serviceWorker' in navigator)) {
+    return false;
+  }
+  
+  // Check for Push API support
+  if (!('PushManager' in window)) {
+    return false;
+  }
+  
+  return true;
+}
+
+/**
  * Request notification permission and get FCM token
  */
 export async function requestNotificationPermission(): Promise<string | null> {
   try {
-    // Check if messaging is supported
-    if (!messaging) {
-      console.warn('Firebase messaging not supported');
+    // Check if notifications are supported
+    if (!isNotificationSupported()) {
+      console.warn('Notifications not supported on this device/browser');
       return null;
     }
 
-    // Check if notifications are supported
-    if (!('Notification' in window)) {
-      console.warn('Notifications not supported');
+    // Check if messaging is supported
+    if (!messaging) {
+      console.warn('Firebase messaging not supported');
       return null;
     }
 
@@ -37,6 +63,9 @@ export async function requestNotificationPermission(): Promise<string | null> {
     
     if (permission === 'granted') {
       console.log('Notification permission granted');
+      
+      // Wait a bit for the permission to be fully processed (especially on mobile)
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Get FCM token
       const token = await getToken(messaging, {
