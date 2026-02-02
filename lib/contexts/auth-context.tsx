@@ -1,9 +1,10 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn as nextAuthSignIn, signOut as nextAuthSignOut, useSession } from 'next-auth/react';
 import type { AuthUser, AuthContextValue, AuthProvider as AppAuthProvider, AuthCredentials } from '@/lib/types';
+import { requestNotificationPermission, saveFCMToken as saveFCMTokenClient } from '@/lib/firebase/messaging';
 
 // Define context
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -13,6 +14,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loading = status === 'loading';
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const hasAttemptedFCMRegistration = useRef(false);
 
   // Map session to AuthUser
   const user: AuthUser | null = useMemo(() => {
@@ -64,16 +66,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Side effects for FCM and Cron sync (simplified/commented out for now or need reintegration)
-  // Since we are migrating auth first, let's focus on login/logout.
-  // Ideally we should call FCM setup here when user is set.
-  /*
+  // Automatically attempt FCM token registration once per session
   useEffect(() => {
-      if (user?.id) {
-          // Re-implement FCM setup if needed
+    const setupFCM = async () => {
+      if (!user?.id) return;
+      if (hasAttemptedFCMRegistration.current) return;
+
+      hasAttemptedFCMRegistration.current = true;
+
+      try {
+        const token = await requestNotificationPermission();
+
+        if (token) {
+          const success = await saveFCMTokenClient(user.id, token);
+
+          if (!success && process.env.NODE_ENV === 'development') {
+            console.warn('[AuthContext] Failed to save FCM token for user', user.id);
+          }
+        }
+      } catch (err) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[AuthContext] Error during FCM setup:', err);
+        }
       }
+    };
+
+    setupFCM();
   }, [user]);
-  */
 
   const value = useMemo(() => ({
     user,
