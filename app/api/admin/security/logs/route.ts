@@ -29,8 +29,8 @@ export async function GET(request: Request) {
         const suspiciousUsers = recentUsers.filter(user => 
             !user.emailVerified || 
             user.email.includes('test') || 
-            user.email.includes('admin') ||
-            user.fullName.toLowerCase().includes('admin') ||
+            user.email.includes('super_admin') ||
+            user.fullName.toLowerCase().includes('super_admin') ||
             user.fullName.toLowerCase().includes('test')
         );
 

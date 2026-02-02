@@ -5,7 +5,7 @@ import NextImage from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuthUser } from '@/lib/contexts/auth-context';
 import { Button } from '@heroui/react';
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState, useEffect } from 'react';
 import { LayoutDashboard, Droplet, Utensils, Ruler, User, Wrench, Info } from 'lucide-react';
 
 const navItems = [
@@ -43,16 +43,21 @@ const NavItem = memo(function NavItem({
 
 export const Sidebar = memo(function Sidebar() {
   const pathname = usePathname();
+  const [isClient, setIsClient] = useState(false);
   const user = useAuthUser();
 
+  // Only render on client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   // Check if user is super admin - memoized
-  // Check if user is super admin - memoized
-  const isSuperAdmin = useMemo(() =>
-    (user as any)?.role === 'super_admin' ||
-    user?.raw_app_meta_data?.role === 'super_admin' ||
-    user?.raw_user_meta_data?.role === 'super_admin',
-    [user]
-  );
+  const isSuperAdmin = useMemo(() => {
+    if (!isClient || !user) return false;
+    return (user as any)?.role === 'super_admin' ||
+           user?.raw_app_meta_data?.role === 'super_admin' ||
+           user?.raw_user_meta_data?.role === 'super_admin';
+  }, [user, isClient]);
 
   const allNavItems = useMemo(() => {
     const items = [...navItems];

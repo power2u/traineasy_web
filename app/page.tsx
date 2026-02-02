@@ -7,6 +7,9 @@ import { Button, Spinner, Card } from '@heroui/react';
 import Link from 'next/link';
 import { Droplet, Utensils, Scale } from 'lucide-react';
 
+// Disable static generation for this page since it uses auth context
+export const dynamic = 'force-dynamic';
+
 export default function Home() {
   const user = useAuthUser();
   const loading = useAuthLoading();

@@ -21,7 +21,7 @@ function addSecurityHeaders(response: NextResponse | undefined | null) {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
         "img-src 'self' data: https:; " +
-        "connect-src 'self'; " +
+        "connect-src 'self' https://*.googleapis.com https://*.firebase.googleapis.com https://*.firebaseio.com; " +
         "worker-src 'self' blob:; " +
         "frame-ancestors 'none'; " +
         "base-uri 'self';"
@@ -126,7 +126,8 @@ async function logBotDetection(
 ) {
     try {
         // Don't await this to avoid blocking the request
-        fetch('/api/admin/bot-logs', {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        fetch(`${baseUrl}/api/admin/bot-logs`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

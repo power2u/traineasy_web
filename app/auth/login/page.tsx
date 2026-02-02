@@ -6,6 +6,9 @@ import { Button, TextField, Label, Input, Card, Text, Spinner } from '@heroui/re
 import { getAuthErrorMessage } from '@/lib/utils/auth-helpers';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
+// Disable static generation for this page since it uses auth context
+export const dynamic = 'force-dynamic';
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

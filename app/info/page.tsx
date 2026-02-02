@@ -6,6 +6,9 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Globe, LogOut, Info, Share2 } from 'lucide-react';
 import Link from 'next/link';
 
+// Disable static generation for this page since it uses auth context
+export const dynamic = 'force-dynamic';
+
 export default function AppInfoPage() {
   const { signOut } = useAuth();
 

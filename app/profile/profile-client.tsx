@@ -11,6 +11,7 @@ import {
 } from '@/app/actions/profile';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { MealTimingSettings, type MealTimes } from '@/components/profile/meal-timing-settings';
+import { NotificationSettings } from '@/components/notifications/notification-settings';
 import { useRouter } from 'next/navigation';
 
 interface ProfileClientProps {
@@ -257,6 +258,11 @@ export function ProfileClient({ initialProfile, initialPlan }: ProfileClientProp
                     </div> */}
                 </div>
             </Card>
+
+            {/* Notification Settings */}
+            <div className="mb-3 md:mb-6">
+                <NotificationSettings />
+            </div>
 
             {/* Meal Timing Settings */}
             <div className="mb-3 md:mb-6">

@@ -12,6 +12,7 @@ export function AdminTabs() {
         { href: '/admin/packages', label: 'Packages', icon: '📦' },
         { href: '/admin/banners', label: 'Banners', icon: '✨' },
         { href: '/admin/notifications', label: 'Notifications', icon: '🔔' },
+        { href: '/admin/scheduler', label: 'Scheduler', icon: '⏰' },
         { href: '/admin/bot-detection', label: 'Bot Detection', icon: '🤖' },
         { href: '/admin/settings', label: 'Settings', icon: '⚙️' },
     ];

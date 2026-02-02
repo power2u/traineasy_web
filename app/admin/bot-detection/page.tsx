@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { Button, Card, Input, TextArea, TextField, Label } from '@heroui/react';
 import { SelectField } from '@/components/ui/select-field';
 
+// Disable static generation for this page since it's an admin page
+export const dynamic = 'force-dynamic';
+
 interface BotAnalysis {
   userAgent: string;
   ip: string;

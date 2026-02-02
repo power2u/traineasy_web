@@ -1,11 +1,8 @@
 'use client';
 
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
-import { useThemeSync } from '@/lib/hooks/use-theme-sync';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  useThemeSync();
-
   return (
     <NextThemesProvider
       attribute="class"

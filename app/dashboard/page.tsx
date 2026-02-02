@@ -8,6 +8,7 @@ import { WeightCard } from './components/weight-card';
 import { MembershipSection } from './components/membership-section';
 import { QuickStats } from './components/quick-stats';
 import { CardSkeleton, MembershipSkeleton, QuickStatsSkeleton } from './components/skeletons';
+import { TestNotificationButton } from '@/components/notifications/test-notification-button';
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -25,9 +26,15 @@ export default async function DashboardPage() {
   return (
     <>
       <div className="mb-4">
-        <h2 className="text-xl font-bold md:text-3xl">
-          Welcome back, {(user as any).name || user.email?.split('@')[0]}!
-        </h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xl font-bold md:text-3xl">
+            Welcome back, {(user as any).name || user.email?.split('@')[0]}!
+          </h2>
+          
+          {process.env.NODE_ENV === 'development' && (
+            <TestNotificationButton />
+          )}
+        </div>
 
         <Suspense fallback={<MembershipSkeleton />}>
           <MembershipSection userId={userId} isAdmin={isAdmin} />

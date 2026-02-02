@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState, useEffect } from 'react';
 import { Home, Droplet, Utensils, Ruler, User, Settings } from 'lucide-react';
 import { useAuthUser } from '@/lib/contexts/auth-context';
 
@@ -43,11 +43,17 @@ const NavItem = memo(function NavItem({
 
 export const BottomNav = memo(function BottomNav() {
   const pathname = usePathname();
+  const [isClient, setIsClient] = useState(false);
   const user = useAuthUser();
+
+  // Only render on client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Check if user is super admin
   const isAdmin = useMemo(() => {
-    if (!user) return false;
+    if (!isClient || !user) return false;
     const role = (user as any).role || user.raw_app_meta_data?.role || user.raw_user_meta_data?.role;
     return role === 'super_admin';
   }, [user]);

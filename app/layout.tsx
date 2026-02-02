@@ -4,6 +4,10 @@ import { Providers } from "./providers";
 import { AppShell } from "@/components/layout/app-shell";
 import ErrorBoundary from "@/components/error-boundary";
 import { TimezoneSync } from "@/components/auth/timezone-sync";
+import { FCMForegroundHandler } from "@/components/notifications/fcm-foreground-handler";
+import { NotificationPermissionPrompt } from "@/components/notifications/notification-permission-prompt";
+import { FCMTokenManager } from "@/components/auth/fcm-token-manager";
+import { initializeApp } from "@/lib/startup/initialize";
 
 export const metadata: Metadata = {
   title: "Fitness Tracker",
@@ -29,6 +33,9 @@ export const viewport: Viewport = {
 
 import { MaintenanceBanner } from "@/components/ui/maintenance-banner";
 
+// Initialize the application on startup
+initializeApp();
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -39,9 +46,12 @@ export default function RootLayout({
       <body className="antialiased font-sans">
         <ErrorBoundary>
           <Providers>
+            <FCMForegroundHandler />
+            <FCMTokenManager />
             <MaintenanceBanner />
             <TimezoneSync />
             <AppShell>{children}</AppShell>
+            <NotificationPermissionPrompt />
           </Providers>
         </ErrorBoundary>
       </body>

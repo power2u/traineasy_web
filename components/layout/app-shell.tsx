@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Sidebar } from './sidebar';
 import { BottomNav } from './bottom-nav';
 import { TopBar } from './top-bar';
@@ -15,8 +16,18 @@ interface AppShellProps {
 }
 
 function AuthenticatedContent({ children }: { children: React.ReactNode }) {
+  const [isClient, setIsClient] = useState(false);
   const user = useAuthUser();
   const { showDialog, handleComplete } = useMealTimingOnboarding(user?.id);
+
+  // Only render on client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) {
+    return <>{children}</>;
+  }
 
   return (
     <>
