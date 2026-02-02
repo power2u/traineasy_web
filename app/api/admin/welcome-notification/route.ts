@@ -3,12 +3,19 @@ import { prisma } from '@/lib/prisma';
 import { adminMessaging } from '@/lib/firebase/admin';
 
 /**
- * Send welcome notification to all users when scheduler starts
- * Internal endpoint called by the scheduler
+ * Send custom notification to all users
+ * Can be used for welcome messages, offers, announcements, etc.
  */
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    console.log('🎉 Welcome notification API called - starting process...');
+    const body = await request.json().catch(() => ({}));
+    
+    // Extract custom title and body from request, with defaults
+    const customTitle = body.title || '🚀 TrainEasy Notification';
+    const customBody = body.body || 'Stay consistent with your fitness goals! 💪';
+    const notificationType = body.type || 'admin_notification';
+    
+    console.log(`🎉 Custom notification API called - Title: "${customTitle}", Body: "${customBody}"`);
     
     if (!adminMessaging) {
       console.error('❌ Firebase admin messaging not initialized');
@@ -63,14 +70,20 @@ export async function POST() {
           try {
             console.log(`📱 Sending to token: ${fcmToken.id}`);
             
+            // Personalize the body message if it contains placeholder
+            let personalizedBody = customBody;
+            if (customBody.includes('{name}')) {
+              personalizedBody = customBody.replace('{name}', user.fullName || 'there');
+            }
+            
             await adminMessaging.send({
               token: fcmToken.token,
               notification: {
-                title: '🚀 TrainEasy Scheduler Active!',
-                body: `Hi ${user.fullName || 'there'}! Your meal reminders and notifications are now active. Stay consistent with your fitness goals! 💪`,
+                title: customTitle,
+                body: personalizedBody,
               },
               data: {
-                type: 'scheduler_welcome',
+                type: notificationType,
                 userId: user.id,
                 timestamp: new Date().toISOString(),
               },
@@ -79,7 +92,7 @@ export async function POST() {
             totalSent++;
             console.log(`✅ Sent to token: ${fcmToken.id}`);
           } catch (tokenError: any) {
-            console.error(`❌ Failed to send welcome notification to token ${fcmToken.id}:`, tokenError.code, tokenError.message);
+            console.error(`❌ Failed to send notification to token ${fcmToken.id}:`, tokenError.code, tokenError.message);
             
             // Clean up invalid tokens
             if (tokenError.code === 'messaging/registration-token-not-registered' || 
@@ -101,16 +114,19 @@ export async function POST() {
       sent: totalSent,
       users: totalUsers,
       tokens: totalTokens,
-      message: `Welcome notifications sent: ${totalSent}/${totalTokens} tokens for ${totalUsers} users`,
+      title: customTitle,
+      body: customBody,
+      type: notificationType,
+      message: `Custom notifications sent: ${totalSent}/${totalTokens} tokens for ${totalUsers} users`,
       timestamp: new Date().toISOString(),
     };
 
-    console.log(`✅ Welcome notification summary:`, summary);
+    console.log(`✅ Custom notification summary:`, summary);
 
     return NextResponse.json(summary);
 
   } catch (error) {
-    console.error('❌ Welcome notification error:', error);
+    console.error('❌ Custom notification error:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

@@ -134,6 +134,11 @@ class InternalScheduler {
           'User-Agent': 'Internal-Scheduler/1.0',
           'Accept': 'application/json',
         },
+        body: JSON.stringify({
+          title: '🚀 TrainEasy Scheduler Active!',
+          body: 'Hi {name}! Your meal reminders and notifications are now active. Stay consistent with your fitness goals! 💪',
+          type: 'scheduler_welcome'
+        }),
       });
 
       if (response.ok) {

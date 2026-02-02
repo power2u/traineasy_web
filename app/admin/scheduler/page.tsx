@@ -21,6 +21,11 @@ export default function SchedulerAdminPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customNotification, setCustomNotification] = useState({
+    title: '',
+    body: '',
+    type: 'admin_notification'
+  });
 
   // Helper function to get scheduler status from either scheduler or status property
   const getSchedulerStatus = (data: SchedulerData | null): SchedulerStatus | null => {
@@ -75,6 +80,48 @@ export default function SchedulerAdminPage() {
     } catch (err) {
       console.error('Test welcome notification error:', err);
       setError(err instanceof Error ? err.message : 'Failed to test welcome notification');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const sendCustomNotification = async () => {
+    if (!customNotification.title.trim() || !customNotification.body.trim()) {
+      setError('Please provide both title and body for the notification');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      const response = await fetch('/api/admin/welcome-notification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-requested-with': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(customNotification),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Custom notification result:', data);
+      setError(null);
+      
+      // Clear the form after successful send
+      setCustomNotification({
+        title: '',
+        body: '',
+        type: 'admin_notification'
+      });
+      
+      // Show success message
+      alert(`Notification sent successfully to ${data.sent} devices!`);
+    } catch (err) {
+      console.error('Send custom notification error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to send custom notification');
     } finally {
       setActionLoading(false);
     }
@@ -269,7 +316,7 @@ export default function SchedulerAdminPage() {
                   disabled={actionLoading}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {actionLoading ? 'Loading...' : 'Test Welcome Notification'}
+                  {actionLoading ? 'Loading...' : 'Test Default Welcome'}
                 </button>
 
                 <button
@@ -278,6 +325,82 @@ export default function SchedulerAdminPage() {
                   className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {actionLoading ? 'Loading...' : 'Clean Old Tokens'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Custom Notification Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold mb-4">Send Custom Notification</h2>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="notificationTitle" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Notification Title
+                </label>
+                <input
+                  id="notificationTitle"
+                  type="text"
+                  value={customNotification.title}
+                  onChange={(e) => setCustomNotification(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="e.g., 🎉 Special Offer!, 📢 Important Update"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  disabled={actionLoading}
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="notificationBody" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Notification Body
+                </label>
+                <textarea
+                  id="notificationBody"
+                  value={customNotification.body}
+                  onChange={(e) => setCustomNotification(prev => ({ ...prev, body: e.target.value }))}
+                  placeholder="e.g., Get 20% off on premium plans! Use {name} for personalization."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
+                  disabled={actionLoading}
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Tip: Use {'{name}'} in your message to personalize it with user names
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="notificationType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Notification Type
+                </label>
+                <select
+                  id="notificationType"
+                  value={customNotification.type}
+                  onChange={(e) => setCustomNotification(prev => ({ ...prev, type: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  disabled={actionLoading}
+                >
+                  <option value="admin_notification">General Notification</option>
+                  <option value="offer">Special Offer</option>
+                  <option value="announcement">Announcement</option>
+                  <option value="update">App Update</option>
+                  <option value="reminder">Reminder</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={sendCustomNotification}
+                  disabled={actionLoading || !customNotification.title.trim() || !customNotification.body.trim()}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex-1"
+                >
+                  {actionLoading ? 'Sending...' : 'Send Custom Notification'}
+                </button>
+                
+                <button
+                  onClick={() => setCustomNotification({ title: '', body: '', type: 'admin_notification' })}
+                  disabled={actionLoading}
+                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Clear
                 </button>
               </div>
             </div>
@@ -298,6 +421,10 @@ export default function SchedulerAdminPage() {
               <p>
                 <strong>🧹 Token Cleanup:</strong> Runs daily to remove invalid or expired 
                 FCM tokens from the database.
+              </p>
+              <p>
+                <strong>📢 Custom Notifications:</strong> Send personalized notifications to all 
+                active users for offers, announcements, or updates.
               </p>
               <p>
                 <strong>🚀 Auto-Start:</strong> Automatically starts in production mode when 
