@@ -312,6 +312,42 @@ export class LocalNotificationManager {
     }
     return Notification.permission;
   }
+
+  /**
+   * Show a test notification
+   */
+  showTestNotification(): boolean {
+    if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') {
+      console.warn('Cannot show test notification: permission not granted');
+      return false;
+    }
+
+    try {
+      const notification = new Notification('🧪 Test Notification', {
+        body: 'This is a test notification from the local notification system!',
+        icon: '/logo.png',
+        badge: '/logo.png',
+        tag: 'test-notification',
+        requireInteraction: false,
+      });
+
+      // Handle click
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+
+      // Auto-close after 5 seconds
+      setTimeout(() => {
+        notification.close();
+      }, 5000);
+
+      return true;
+    } catch (error) {
+      console.error('Error showing test notification:', error);
+      return false;
+    }
+  }
 }
 
 // Export singleton instance

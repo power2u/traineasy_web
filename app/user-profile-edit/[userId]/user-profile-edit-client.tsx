@@ -353,7 +353,7 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                         )}
                     </TextField>
 
-                    <TextField>
+                    {/* <TextField>
                         <Label>Glass Size (ml)</Label>
                         {isEditing ? (
                             <Input
@@ -368,7 +368,7 @@ export function UserProfileEditClient({ userId, initialData }: UserProfileEditCl
                                 {userProfile.glassSizeMl ? `${userProfile.glassSizeMl} ml` : 'Not set'}
                             </div>
                         )}
-                    </TextField>
+                    </TextField> */}
 
                     <TextField>
                         <Label>Timezone</Label>

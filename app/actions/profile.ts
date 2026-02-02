@@ -231,7 +231,8 @@ export async function updateProfile(userId: string, profileData: Partial<UserPre
 async function updateUserCronJobs(userId: string) {
   try {
     // This assumes the API route is also migrated or still works
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/cron/register-user`, {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const response = await fetch(`${baseUrl}/api/cron/register-user`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

@@ -67,7 +67,8 @@ export const authOptions: NextAuthOptions = {
                     };
 
                     if (!user.emailVerified) {
-                        updateData.emailVerified = new Date();
+                        updateData.emailVerified = true;
+                        updateData.emailVerifiedAt = new Date();
                         console.log("[Auth] Auto-verifying email for user:", user.email);
                     }
 

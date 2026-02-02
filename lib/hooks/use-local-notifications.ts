@@ -16,32 +16,22 @@ export function useLocalNotifications() {
     if (isInitialized.current || !user) return;
 
     try {
-      const success = await localNotificationManager.initialize();
-
-      // Check if we already have permission, if so, ensure token is registered
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        try {
-          console.log('Permission already granted, syncing FCM token...');
-          const token = await requestFCMToken();
-          if (token) {
-            await saveFCMToken(user.id, token);
-            console.log('FCM Token synced on initialization');
-          }
-        } catch (fcmError) {
-          console.error('Error syncing FCM token on init:', fcmError);
-        }
-      }
-
-      if (success) {
-        console.log('Local notifications initialized successfully');
+      console.log('🔔 Initializing notifications (CSP-safe mode)...');
+      
+      // Skip complex initialization, just check if notifications work
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        console.log('✅ Browser notifications supported');
+        console.log('📋 Current permission:', Notification.permission);
         isInitialized.current = true;
-      } else {
-        // Suppress warning - likely just not supported or pwa not installed
-        // console.warn('Failed to initialize local notifications');
+        
+        // Skip FCM entirely due to CSP violations in production
+        console.log('ℹ️ Skipping FCM initialization due to CSP restrictions');
+        return;
       }
-    } catch (error) {
-      // Suppress error log for initialization
-      // console.error('Error initializing local notifications:', error);
+
+      console.log('❌ Browser notifications not supported');
+    } catch (error: any) {
+      console.warn('⚠️ Error initializing notifications:', error?.message || 'Unknown error');
     }
   }, [user]);
 
@@ -89,36 +79,72 @@ export function useLocalNotifications() {
   // Request notification permission
   const requestPermission = useCallback(async () => {
     try {
-      // First try to get FCM token (this triggers the permission prompt)
-      const token = await requestFCMToken();
+      console.log('🔔 Permission request initiated (bypassing FCM due to CSP)...');
+      
+      // Skip FCM entirely due to CSP issues, use only browser API
+      if (typeof window === 'undefined' || !('Notification' in window)) {
+        console.log('❌ Notifications not supported');
+        return 'denied';
+      }
 
-      const permission = Notification.permission;
-
-      if (permission === 'granted' && token && user) {
-        // Save the token
-        await saveFCMToken(user.id, token);
+      if (Notification.permission === 'granted') {
+        console.log('✅ Permission already granted');
         return 'granted';
       }
 
-      // Fallback to local manager if FCM fails or just to return status
-      return await localNotificationManager.requestPermission();
+      // Request permission directly from browser
+      const permission = await Notification.requestPermission();
+      console.log('📋 Browser permission result:', permission);
+
+      return permission;
     } catch (error) {
-      console.error('Error requesting permission:', error);
+      console.error('❌ Error requesting permission:', error);
       return Notification.permission;
     }
   }, [user]);
 
   // Show a test notification
   const showTestNotification = useCallback(async () => {
-    if (!user) return false;
+    if (!user) {
+      console.error('❌ Test notification failed: No user');
+      return false;
+    }
 
-    return await localNotificationManager.showNotification({
-      title: '🎉 Test Notification',
-      body: `Hi ${user.displayName}! Your local notifications are working perfectly!`,
-      tag: 'test-notification',
-      url: '/dashboard',
-      data: { type: 'test' }
-    });
+    console.log('🧪 Starting test notification...');
+    console.log('📋 Permission status:', Notification.permission);
+    console.log('👤 User:', user.displayName || user.email);
+
+    // Try direct notification first (simpler approach)
+    if (Notification.permission !== 'granted') {
+      console.error('❌ Test notification failed: Permission not granted');
+      return false;
+    }
+
+    try {
+      console.log('🔔 Creating test notification...');
+      const notification = new Notification('🧪 Test Notification', {
+        body: `Hi ${user.displayName || 'there'}! Your notifications are working!`,
+        icon: '/logo.png',
+        tag: 'test-notification',
+        requireInteraction: false,
+      });
+
+      notification.onclick = () => {
+        console.log('🖱️ Test notification clicked');
+        window.focus();
+        notification.close();
+      };
+
+      setTimeout(() => {
+        notification.close();
+      }, 5000);
+
+      console.log('✅ Test notification created successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Test notification error:', error);
+      return false;
+    }
   }, [user]);
 
   // Show meal reminder
