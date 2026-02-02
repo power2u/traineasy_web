@@ -14,10 +14,10 @@ export function useThemeSync() {
             if (!user || !theme) return;
 
             try {
-                const { updateUserPreferences } = await import('@/app/actions/fcm-actions');
+                const { updateProfile } = await import('@/app/actions/profile');
                 // Only sync if it's a valid 'light' or 'dark' setting? 
                 // Or store 'system' too? The backend likely stores a string.
-                await updateUserPreferences({ theme });
+                await updateProfile(user.id, { theme });
             } catch (error) {
                 console.error('Failed to sync theme:', error);
             }

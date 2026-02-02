@@ -57,29 +57,37 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
 
   // Initialize with current data or defaults
   useEffect(() => {
-    if (initialMealTimes) {
-      setMealTimes(initialMealTimes);
-      setEditingMealTimes(initialMealTimes);
-    } else {
-      // Auto-detect timezone if no initial data
+    // Always auto-detect timezone from device
+    const detectedTimezone = (() => {
       try {
-        const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const isSupported = COMMON_TIMEZONES.some(tz => tz.value === detectedTimezone);
-        const timezone = isSupported ? detectedTimezone : 'Asia/Kolkata';
-
-        const themeValue = ((currentTheme === 'light' || currentTheme === 'dark' || currentTheme === 'system') ? currentTheme : 'dark') as 'light' | 'dark' | 'system';
-
-        const defaultTimes = {
-          ...DEFAULT_MEAL_TIMES,
-          timezone,
-          theme: themeValue
-        };
-
-        setMealTimes(defaultTimes);
-        setEditingMealTimes(defaultTimes);
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const isSupported = COMMON_TIMEZONES.some(tz => tz.value === timezone);
+        return isSupported ? timezone : 'Asia/Kolkata';
       } catch (error) {
         console.warn('[MealTimingSettings] Failed to detect timezone:', error);
+        return 'Asia/Kolkata';
       }
+    })();
+
+    if (initialMealTimes) {
+      // Use initial meal times but override timezone with auto-detected one
+      const updatedMealTimes = {
+        ...initialMealTimes,
+        timezone: detectedTimezone
+      };
+      setMealTimes(updatedMealTimes);
+      setEditingMealTimes(updatedMealTimes);
+    } else {
+      const themeValue = ((currentTheme === 'light' || currentTheme === 'dark' || currentTheme === 'system') ? currentTheme : 'dark') as 'light' | 'dark' | 'system';
+
+      const defaultTimes = {
+        ...DEFAULT_MEAL_TIMES,
+        timezone: detectedTimezone,
+        theme: themeValue
+      };
+
+      setMealTimes(defaultTimes);
+      setEditingMealTimes(defaultTimes);
     }
   }, [initialMealTimes, currentTheme]);
 
@@ -91,10 +99,6 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
 
   const handleTimeChange = useCallback((key: keyof MealTimes, value: string) => {
     setEditingMealTimes(prev => ({ ...prev, [key]: value }));
-  }, []);
-
-  const handleTimezoneChange = useCallback((timezone: string) => {
-    setEditingMealTimes(prev => ({ ...prev, timezone }));
   }, []);
 
   const handleThemeChange = useCallback((theme: 'light' | 'dark' | 'system') => {
@@ -138,12 +142,16 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
   }, [editingMealTimes, onSave]);
 
   const handleReset = useCallback(() => {
-    const confirmReset = window.confirm('Are you sure you want to reset all settings to defaults?');
+    const confirmReset = window.confirm('Are you sure you want to reset all meal times to defaults?');
     if (confirmReset) {
-      setEditingMealTimes(DEFAULT_MEAL_TIMES);
-      toast.info('Settings reset to defaults');
+      // Preserve the current auto-detected timezone when resetting
+      setEditingMealTimes({
+        ...DEFAULT_MEAL_TIMES,
+        timezone: editingMealTimes.timezone // Keep current timezone
+      });
+      toast.info('Meal times reset to defaults');
     }
-  }, []);
+  }, [editingMealTimes.timezone]);
 
   return (
     <>
@@ -158,7 +166,7 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
             <div>
               <h2 className="text-lg font-semibold">Meal Timing & Preferences</h2>
               <p className="text-sm text-default-500">
-                Manage your meal schedules and notification preferences
+                Manage your meal schedules and preferences
               </p>
             </div>
           </div>
@@ -175,7 +183,13 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
 
         {/* Current Settings Summary */}
         <div className="space-y-3">
-          {/* Timezone and Theme display removed */}
+          {/* Timezone Display */}
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-default-500">Timezone:</span>
+            <span className="font-medium">{mealTimes.timezone}</span>
+            <span className="text-xs text-default-400">(auto-detected)</span>
+          </div>
+          
           <div className="flex flex-wrap gap-2 mt-3">
             {MEAL_CONFIG.map((meal) => (
               <div key={meal.key} className="flex items-center gap-1 px-2 py-1 bg-content2 rounded-md text-xs">
@@ -221,16 +235,33 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
                   <div className="flex items-start gap-3">
                     <div className="text-2xl">💡</div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-sm mb-1 text-foreground">About meal reminders</h3>
+                      <h3 className="font-semibold text-sm mb-1 text-foreground">About meal timing</h3>
                       <p className="text-xs text-foreground/70">
-                        We'll send you gentle reminders if you forget to mark your meals as completed.
-                        This helps you stay consistent with your nutrition tracking!
+                        Set your preferred meal times based on your daily routine. Your timezone is automatically detected from your device to ensure accurate scheduling.
                       </p>
                     </div>
                   </div>
                 </div>
 
                 {/* Timezone and Theme selection removed as they are now auto-handled */}
+                
+                {/* Timezone Display (Read-only) */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-foreground mb-3">Location Settings</h3>
+                  <div className="flex items-center gap-3 p-3 rounded-lg border border-divider bg-content1">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
+                      <span className="text-lg">🌍</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm text-foreground">Timezone</div>
+                      <div className="text-xs text-foreground/60">Auto-detected from your device</div>
+                    </div>
+                    <div className="flex items-center gap-2 bg-content2 rounded-lg px-3 py-2 border border-divider">
+                      <span className="text-sm font-medium text-foreground">{editingMealTimes.timezone}</span>
+                      <span className="text-xs text-foreground/50">(read-only)</span>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Meal Time Inputs */}
                 <div className="space-y-3">
@@ -317,7 +348,7 @@ export function MealTimingSettings({ userId, initialMealTimes, onSave }: MealTim
                   <div className="text-lg">⏰</div>
                   <div className="flex-1">
                     <p className="text-xs text-foreground/70">
-                      Changes will take effect immediately after saving. You'll receive notifications based on your updated schedule.
+                      Changes will take effect immediately after saving.
                     </p>
                   </div>
                 </div>

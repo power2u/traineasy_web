@@ -10,7 +10,6 @@ import {
     type UserPlan
 } from '@/app/actions/profile';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { NotificationSettings } from '@/components/notifications/notification-settings';
 import { MealTimingSettings, type MealTimes } from '@/components/profile/meal-timing-settings';
 import { useRouter } from 'next/navigation';
 
@@ -257,11 +256,6 @@ export function ProfileClient({ initialProfile, initialPlan }: ProfileClientProp
                         </TextField>
                     </div> */}
                 </div>
-            </Card>
-
-            {/* Notification Settings */}
-            <Card className="p-3 mb-3 md:p-6 md:mb-6">
-                <NotificationSettings />
             </Card>
 
             {/* Meal Timing Settings */}

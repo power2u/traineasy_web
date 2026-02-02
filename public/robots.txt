@@ -14,7 +14,6 @@ Disallow: /measurements/
 Disallow: /user-details/
 Disallow: /user-profile-edit/
 Disallow: /dev/
-Disallow: /test-notifications/
 Disallow: /membership-expired/
 
 # Block sensitive files

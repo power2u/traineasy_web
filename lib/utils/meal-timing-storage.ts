@@ -5,14 +5,12 @@
  * 
  * Purpose:
  * - Provides offline access to meal times
- * - Used by service worker for local notifications when user hasn't marked meal as finished
  * - Syncs with database (server is source of truth for meal_times_configured flag)
  * 
  * Flow:
  * 1. User sets meal times in onboarding dialog
- * 2. Saved to both local storage (for notifications) and database (for sync)
- * 3. Service worker reads from local storage to schedule meal reminders
- * 4. Database meal_times_configured flag controls whether to show onboarding dialog
+ * 2. Saved to both local storage and database (for sync)
+ * 3. Database meal_times_configured flag controls whether to show onboarding dialog
  */
 
 export interface MealTimes {
@@ -126,40 +124,9 @@ export async function syncMealTimes(
 }
 
 /**
- * Get meal times for notification scheduling
- * Used by service worker to determine when to send meal reminders
- * Returns null if not configured
- */
-export function getMealTimesForNotifications(): MealTimes | null {
-  if (!isMealTimesConfiguredInStorage()) {
-    return null;
-  }
-
-  return getMealTimesFromStorage();
-}
-
-/**
  * Convert time string (HH:MM) to minutes since midnight
- * Used for notification scheduling
  */
 export function timeToMinutes(time: string): number {
   const [hours, minutes] = time.split(':').map(Number);
   return hours * 60 + minutes;
-}
-
-/**
- * Get all meal times as an array with labels
- * Useful for iterating through meals for notifications
- */
-export function getMealTimesArray(): Array<{ key: string; label: string; time: string }> | null {
-  const mealTimes = getMealTimesForNotifications();
-  if (!mealTimes) return null;
-
-  return [
-    { key: 'breakfast', label: 'Breakfast', time: mealTimes.breakfast_time },
-    { key: 'snack1', label: 'Morning Snack', time: mealTimes.snack1_time },
-    { key: 'lunch', label: 'Lunch', time: mealTimes.lunch_time },
-    { key: 'snack2', label: 'Afternoon Snack', time: mealTimes.snack2_time },
-    { key: 'dinner', label: 'Dinner', time: mealTimes.dinner_time },
-  ];
 }

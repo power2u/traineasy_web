@@ -2,7 +2,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
-import { EnableNotificationsButton } from '@/components/settings/enable-notifications-button';
 import { WaterCard } from './components/water-card';
 import { MealsCard } from './components/meals-card';
 import { WeightCard } from './components/weight-card';
@@ -34,8 +33,6 @@ export default async function DashboardPage() {
           <MembershipSection userId={userId} isAdmin={isAdmin} />
         </Suspense>
       </div>
-
-      <EnableNotificationsButton />
 
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         <Suspense fallback={<CardSkeleton />}>

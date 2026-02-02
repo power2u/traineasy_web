@@ -2,16 +2,12 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/layout/app-shell";
-import { LocalNotificationProvider } from "@/components/notifications/local-notification-provider";
 import ErrorBoundary from "@/components/error-boundary";
-import { PwaUpdater } from "@/components/pwa-updater";
-import { SwCleanup } from "@/components/sw-cleanup";
 import { TimezoneSync } from "@/components/auth/timezone-sync";
 
 export const metadata: Metadata = {
   title: "Fitness Tracker",
   description: "Track your water intake, meals, and weight",
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -43,13 +39,9 @@ export default function RootLayout({
       <body className="antialiased font-sans">
         <ErrorBoundary>
           <Providers>
-            <LocalNotificationProvider>
-              <MaintenanceBanner />
-              <PwaUpdater />
-              <SwCleanup />
-              <TimezoneSync />
-              <AppShell>{children}</AppShell>
-            </LocalNotificationProvider>
+            <MaintenanceBanner />
+            <TimezoneSync />
+            <AppShell>{children}</AppShell>
           </Providers>
         </ErrorBoundary>
       </body>

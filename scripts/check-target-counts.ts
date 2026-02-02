@@ -11,8 +11,6 @@ async function main() {
         'package',
         'userPackage',
         'userMembership',
-        'notificationMessage',
-        'notificationLog',
         'fcmToken',
         'motivationBanner',
         'cronConfig',

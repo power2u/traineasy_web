@@ -85,7 +85,6 @@ export const RATE_LIMITS = {
   LOGIN: { limit: 5, windowMs: 15 * 60 * 1000 }, // 5 attempts per 15 minutes
   REGISTER: { limit: 3, windowMs: 60 * 60 * 1000 }, // 3 attempts per hour
   PASSWORD_RESET: { limit: 3, windowMs: 60 * 60 * 1000 }, // 3 attempts per hour
-  ADMIN_NOTIFICATION: { limit: 10, windowMs: 60 * 60 * 1000 }, // 10 per hour
   GENERAL_API: { limit: 100, windowMs: 15 * 60 * 1000 }, // 100 per 15 minutes
 } as const;
 

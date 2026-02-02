@@ -21,7 +21,7 @@ export function useMealTimingOnboarding(userId: string | undefined) {
         console.log('[useMealTimingOnboarding] Theme applied:', mealTimes.theme);
       }
 
-      // Save to local storage immediately for offline access and notifications
+      // Save to local storage immediately for offline access
       saveMealTimesToStorage(mealTimes);
 
       // Then sync to server and set meal_times_configured = true
@@ -37,7 +37,7 @@ export function useMealTimingOnboarding(userId: string | undefined) {
         throw new Error(result.error || 'Failed to save meal times');
       }
     } catch (error) {
-      // If server save fails, still keep local storage for notifications
+      // If server save fails, still keep local storage
       console.error('Failed to save meal times to server:', error);
       throw error;
     }

@@ -21,7 +21,7 @@ function addSecurityHeaders(response: NextResponse | undefined | null) {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
         "img-src 'self' data: https:; " +
-        "connect-src 'self' https://fcm.googleapis.com https://firebase.googleapis.com; " +
+        "connect-src 'self'; " +
         "worker-src 'self' blob:; " +
         "frame-ancestors 'none'; " +
         "base-uri 'self';"

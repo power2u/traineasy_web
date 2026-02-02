@@ -7,7 +7,6 @@ import { updateWaterTarget } from '@/app/actions/water';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { EnableNotificationsButton } from '@/components/settings/enable-notifications-button';
 
 interface WaterClientProps {
     userId: string;
@@ -67,12 +66,7 @@ export function WaterClient({ userId, initialData }: WaterClientProps) {
     }, [userId, queryClient]);
 
     return (
-        <>
-            <div className="mb-6">
-                <EnableNotificationsButton />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
                 <div>
                     <WaterTracker
                         count={todayCount}
@@ -87,6 +81,5 @@ export function WaterClient({ userId, initialData }: WaterClientProps) {
                     <WaterHistory entries={entries} onDelete={handleDelete} />
                 </div>
             </div>
-        </>
     );
 }

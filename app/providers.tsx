@@ -6,7 +6,6 @@ import { TimezoneUpdater } from '@/components/auth/timezone-updater';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Toaster } from 'sonner';
-import { FCMForegroundHandler } from '@/components/notifications/fcm-foreground-handler';
 import { SessionProvider } from 'next-auth/react';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -27,7 +26,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <SessionProvider>
         <AuthProvider>
           <ThemeProvider>
-            <FCMForegroundHandler />
             <TimezoneUpdater />
             {children}
             <Toaster position="top-center" richColors />

@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useState, useMemo, useCallback, u
 import { useRouter } from 'next/navigation';
 import { signIn as nextAuthSignIn, signOut as nextAuthSignOut, useSession } from 'next-auth/react';
 import type { AuthUser, AuthContextValue, AuthProvider as AppAuthProvider, AuthCredentials } from '@/lib/types';
-import { requestNotificationPermission, saveFCMToken as saveFCMTokenClient } from '@/lib/firebase/messaging';
 
 // Define context
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -14,7 +13,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loading = status === 'loading';
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const hasAttemptedFCMRegistration = useRef(false);
 
   // Map session to AuthUser
   const user: AuthUser | null = useMemo(() => {
@@ -65,34 +63,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw err;
     }
   }, []);
-
-  // Automatically attempt FCM token registration once per session
-  useEffect(() => {
-    const setupFCM = async () => {
-      if (!user?.id) return;
-      if (hasAttemptedFCMRegistration.current) return;
-
-      hasAttemptedFCMRegistration.current = true;
-
-      try {
-        const token = await requestNotificationPermission();
-
-        if (token) {
-          const success = await saveFCMTokenClient(user.id, token);
-
-          if (!success && process.env.NODE_ENV === 'development') {
-            console.warn('[AuthContext] Failed to save FCM token for user', user.id);
-          }
-        }
-      } catch (err) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[AuthContext] Error during FCM setup:', err);
-        }
-      }
-    };
-
-    setupFCM();
-  }, [user]);
 
   const value = useMemo(() => ({
     user,

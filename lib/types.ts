@@ -109,23 +109,6 @@ export interface DashboardData {
   lastUpdated: Date;
 }
 
-// PWA Types
-export interface SyncQueueItem {
-  id: string;
-  operation: 'create' | 'update' | 'delete';
-  table: 'water_intake' | 'meals' | 'body_measurements';
-  data: any;
-  timestamp: Date;
-  retryCount: number;
-}
-
-export interface PWAState {
-  isInstalled: boolean;
-  isOnline: boolean;
-  syncQueue: SyncQueueItem[];
-  canInstall: boolean;
-}
-
 // User Profile Types
 export interface UserProfile {
   id: string;
