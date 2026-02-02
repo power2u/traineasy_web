@@ -213,7 +213,9 @@ if (process.env.NODE_ENV === 'production' &&
     typeof window === 'undefined' && 
     !process.env.NEXT_PHASE &&
     !process.env.BUILDING &&
-    process.env.VERCEL_ENV !== 'preview') {
+    process.env.VERCEL_ENV !== 'preview' &&
+    !process.argv.includes('build') &&
+    !process.argv.includes('start')) {
   // Only start on server-side in production runtime, not during build
   console.log('� Auto-starting scheduler in production...');
   internalScheduler.start();
