@@ -16,7 +16,7 @@ vi.mock('@/lib/firebase/admin', () => ({
   adminMessaging: null,
 }));
 
-import { runFcmTokenCleanupJob } from './route';
+import { runFcmTokenCleanupJob } from './job';
 
 describe('runFcmTokenCleanupJob', () => {
   beforeEach(() => {
@@ -46,4 +46,3 @@ describe('runFcmTokenCleanupJob', () => {
     await expect(runFcmTokenCleanupJob()).rejects.toThrow('DB failure');
   });
 });
-
