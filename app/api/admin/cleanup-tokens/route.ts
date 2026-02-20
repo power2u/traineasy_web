@@ -2,65 +2,73 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { adminMessaging } from '@/lib/firebase/admin';
 
-/**
- * Clean up old and invalid FCM tokens
- * Internal endpoint called by the scheduler
- */
-export async function POST() {
-  try {
-    console.log('🧹 Starting FCM token cleanup...');
-    
-    const results = {
-      totalTokens: 0,
-      oldTokensRemoved: 0,
-      invalidTokensRemoved: 0,
-      validTokensKept: 0,
-      errors: 0,
-    };
+type TokenCleanupResults = {
+  totalTokens: number;
+  oldTokensRemoved: number;
+  invalidTokensRemoved: number;
+  validTokensKept: number;
+  errors: number;
+};
 
-    // Get all FCM tokens
-    const allTokens = await prisma.fcmToken.findMany({
-      orderBy: { updatedAt: 'desc' },
-    });
+type TokenCleanupSummary = {
+  success: boolean;
+  removed: number;
+  results: TokenCleanupResults;
+  message: string;
+  timestamp: string;
+};
 
-    results.totalTokens = allTokens.length;
-    console.log(`📊 Found ${allTokens.length} total FCM tokens`);
+export async function runFcmTokenCleanupJob(): Promise<TokenCleanupSummary> {
+  console.log('🧹 Starting FCM token cleanup...');
 
-    // 1. Remove tokens older than 90 days
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  const results: TokenCleanupResults = {
+    totalTokens: 0,
+    oldTokensRemoved: 0,
+    invalidTokensRemoved: 0,
+    validTokensKept: 0,
+    errors: 0,
+  };
 
-    const oldTokensResult = await prisma.fcmToken.deleteMany({
+  const allTokens = await prisma.fcmToken.findMany({
+    orderBy: { updatedAt: 'desc' },
+  });
+
+  results.totalTokens = allTokens.length;
+  console.log(`📊 Found ${allTokens.length} total FCM tokens`);
+
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+  const oldTokensResult = await prisma.fcmToken.deleteMany({
+    where: {
+      updatedAt: {
+        lt: ninetyDaysAgo,
+      },
+    },
+  });
+
+  results.oldTokensRemoved = oldTokensResult.count;
+  console.log(`🗑️ Removed ${oldTokensResult.count} tokens older than 90 days`);
+
+  if (adminMessaging) {
+    const recentTokens = await prisma.fcmToken.findMany({
       where: {
         updatedAt: {
-          lt: ninetyDaysAgo,
+          gte: ninetyDaysAgo,
         },
       },
+      orderBy: { updatedAt: 'desc' },
+      take: 100,
     });
 
-    results.oldTokensRemoved = oldTokensResult.count;
-    console.log(`🗑️ Removed ${oldTokensResult.count} tokens older than 90 days`);
+    console.log(`🧪 Testing ${recentTokens.length} recent tokens for validity...`);
 
-    // 2. Test remaining tokens for validity (if Firebase admin is available)
-    if (adminMessaging) {
-      const recentTokens = await prisma.fcmToken.findMany({
-        where: {
-          updatedAt: {
-            gte: ninetyDaysAgo,
-          },
-        },
-        orderBy: { updatedAt: 'desc' },
-        take: 100, // Limit to prevent overwhelming Firebase
-      });
+    const invalidTokenIds: string[] = [];
 
-      console.log(`🧪 Testing ${recentTokens.length} recent tokens for validity...`);
-
-      const invalidTokenIds: string[] = [];
-
-      for (const tokenRecord of recentTokens) {
-        try {
-          // Try to send a dry-run message to test token validity
-          await adminMessaging.send({
+    for (const tokenRecord of recentTokens) {
+      try {
+        await adminMessaging.send(
+          {
             token: tokenRecord.token,
             notification: {
               title: 'Test',
@@ -69,42 +77,50 @@ export async function POST() {
             data: {
               type: 'test',
             },
-          }, true); // dry-run = true
-
-          results.validTokensKept++;
-        } catch (error: any) {
-          // Token is invalid
-          console.log(`❌ Invalid token found: ${tokenRecord.id} (${error.code})`);
-          invalidTokenIds.push(tokenRecord.id);
-          results.invalidTokensRemoved++;
-        }
-      }
-
-      // Remove invalid tokens from database
-      if (invalidTokenIds.length > 0) {
-        await prisma.fcmToken.deleteMany({
-          where: {
-            id: { in: invalidTokenIds },
           },
-        });
-        console.log(`🗑️ Removed ${invalidTokenIds.length} invalid tokens`);
+          true
+        );
+
+        results.validTokensKept++;
+      } catch (error: any) {
+        console.log(`❌ Invalid token found: ${tokenRecord.id} (${error.code})`);
+        invalidTokenIds.push(tokenRecord.id);
+        results.invalidTokensRemoved++;
       }
-    } else {
-      console.warn('⚠️ Firebase admin not available, skipping token validation');
-      results.validTokensKept = allTokens.length - results.oldTokensRemoved;
     }
 
-    const totalRemoved = results.oldTokensRemoved + results.invalidTokensRemoved;
-    console.log(`✅ Token cleanup completed: ${totalRemoved} tokens removed, ${results.validTokensKept} valid tokens kept`);
+    if (invalidTokenIds.length > 0) {
+      await prisma.fcmToken.deleteMany({
+        where: {
+          id: { in: invalidTokenIds },
+        },
+      });
+      console.log(`🗑️ Removed ${invalidTokenIds.length} invalid tokens`);
+    }
+  } else {
+    console.warn('⚠️ Firebase admin not available, skipping token validation');
+    results.validTokensKept = allTokens.length - results.oldTokensRemoved;
+  }
 
-    return NextResponse.json({
-      success: true,
-      removed: totalRemoved,
-      results,
-      message: `Cleaned up ${totalRemoved} FCM tokens`,
-      timestamp: new Date().toISOString(),
-    });
+  const totalRemoved = results.oldTokensRemoved + results.invalidTokensRemoved;
+  console.log(
+    `✅ Token cleanup completed: ${totalRemoved} tokens removed, ${results.validTokensKept} valid tokens kept`
+  );
 
+  return {
+    success: true,
+    removed: totalRemoved,
+    results,
+    message: `Cleaned up ${totalRemoved} FCM tokens`,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export async function POST() {
+  try {
+    const result = await runFcmTokenCleanupJob();
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error('❌ Token cleanup error:', error);
     return NextResponse.json(

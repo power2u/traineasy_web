@@ -9,7 +9,7 @@
     "dev": "next dev --turbopack",
     "build": "next build --webpack",
     "build:prod": "node scripts/validate-production-env.js && next build && next-sitemap",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
     "lint": "eslint ./src --config ./eslint.config.mjs",
     "lint:fix": "eslint --fix ./src --config ./eslint.config.mjs",
     "audit": "npm audit --production",
