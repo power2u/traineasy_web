@@ -105,9 +105,6 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // Output configuration for better production builds
-  output: 'standalone',
-
   // Enhanced error handling
   onDemandEntries: {
     maxInactiveAge: 25 * 1000,

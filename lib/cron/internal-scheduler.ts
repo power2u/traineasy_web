@@ -1,5 +1,5 @@
-import { runFcmTokenCleanupJob } from '@/app/api/admin/cleanup-tokens/route';
-import { sendCustomNotificationToActiveUsers } from '@/app/api/admin/welcome-notification/route';
+import { runFcmTokenCleanupJob } from '@/app/api/admin/cleanup-tokens/job';
+import { sendCustomNotificationToActiveUsers } from '@/app/api/admin/welcome-notification/job';
 
 class InternalScheduler {
   private intervals: Map<string, NodeJS.Timeout> = new Map();
@@ -134,28 +134,3 @@ class InternalScheduler {
 }
 
 export const internalScheduler = new InternalScheduler();
-
-if (process.env.NODE_ENV === 'production' && 
-    typeof window === 'undefined' && 
-    !process.env.NEXT_PHASE &&
-    !process.env.BUILDING &&
-    process.env.VERCEL_ENV !== 'preview' &&
-    !process.argv.includes('build') &&
-    !process.argv.includes('start')) {
-  // Only start on server-side in production runtime, not during build
-  console.log('� Auto-starting scheduler in production...');
-  internalScheduler.start();
-  
-  // Graceful shutdown
-  process.on('SIGTERM', () => {
-    console.log('📡 Received SIGTERM, stopping scheduler...');
-    internalScheduler.stop();
-  });
-  
-  process.on('SIGINT', () => {
-    console.log('📡 Received SIGINT, stopping scheduler...');
-    internalScheduler.stop();
-  });
-} else {
-  console.log('🔧 Scheduler not auto-started (development mode or build phase)');
-}

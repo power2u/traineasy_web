@@ -21,7 +21,7 @@ vi.mock('@/lib/firebase/admin', () => ({
   },
 }));
 
-import { sendCustomNotificationToActiveUsers } from './route';
+import { sendCustomNotificationToActiveUsers } from './job';
 
 describe('sendCustomNotificationToActiveUsers', () => {
   beforeEach(() => {
