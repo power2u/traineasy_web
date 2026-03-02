@@ -24,12 +24,12 @@ class InternalScheduler {
 
   stop() {
     console.log('🛑 Stopping internal scheduler...');
-    
+
     for (const [jobName, interval] of this.intervals) {
       clearInterval(interval);
       console.log(`   Stopped job: ${jobName}`);
     }
-    
+
     this.intervals.clear();
     this.isRunning = false;
     console.log('✅ Internal scheduler stopped');
@@ -60,7 +60,7 @@ class InternalScheduler {
       const baseUrl =
         process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
       const cronSecret = process.env.CRON_SECRET;
-      
+
       let url = `${baseUrl}/api/cron/meal-notifications`;
       if (cronSecret) {
         url += `?secret=${encodeURIComponent(cronSecret)}`;
@@ -71,6 +71,7 @@ class InternalScheduler {
         headers: {
           'User-Agent': 'Internal-Scheduler/1.0',
           'Accept': 'application/json',
+          'X-Internal-Request': 'true',
         },
       });
 
@@ -85,7 +86,7 @@ class InternalScheduler {
       }
 
       const result = await response.json();
-      
+
       if (result.results) {
         const { notificationsSent, eligibleUsers, totalUsers } = result.results;
         console.log(`📊 Meal notifications: ${notificationsSent} sent to ${eligibleUsers}/${totalUsers} users`);

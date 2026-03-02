@@ -1,8 +1,6 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { detectBot, createBotBlockResponse, trackBotAttempt, getClientFingerprint } from "@/lib/utils/bot-detection";
-import { getClientIdentifier } from "@/lib/utils/rate-limit";
 
 /**
  * Security headers to add to all responses
@@ -54,103 +52,7 @@ function addSecurityHeaders(response: NextResponse | undefined | null) {
     return response;
 }
 
-/**
- * Bot detection and blocking (improved accuracy)
- */
-function checkForBots(req: NextRequest): NextResponse | null {
-    const clientIP = getClientIdentifier(req);
-    const botDetection = detectBot(req, clientIP);
 
-    if (botDetection.isBot) {
-        console.warn(`[Security] Bot detected: ${botDetection.reason} (confidence: ${botDetection.confidence}%) from IP: ${clientIP}`);
-
-        // Log bot detection (fire and forget)
-        logBotDetection(
-            clientIP,
-            req.headers.get('user-agent') || 'unknown',
-            botDetection.confidence,
-            botDetection.reason,
-            false, // Will be updated if blocked
-            req.nextUrl.pathname
-        );
-
-        // Check if we're in log-only mode
-        if (process.env.BOT_DETECTION_LOG_ONLY === 'true') {
-            console.log(`[Security] Bot detection in log-only mode - not blocking`);
-            return null;
-        }
-
-        // Only block high-confidence bot detections
-        const threshold = parseInt(process.env.BOT_DETECTION_THRESHOLD || '85');
-        if (botDetection.confidence >= threshold) {
-            const fingerprint = getClientFingerprint(req);
-            const allowed = trackBotAttempt(fingerprint);
-
-            if (!allowed) {
-                console.error(`[Security] Bot blocked due to repeated attempts: ${fingerprint}`);
-
-                // Update log to show it was blocked
-                logBotDetection(
-                    clientIP,
-                    req.headers.get('user-agent') || 'unknown',
-                    botDetection.confidence,
-                    botDetection.reason,
-                    true, // Blocked
-                    req.nextUrl.pathname
-                );
-
-                return new NextResponse(createBotBlockResponse().body, {
-                    status: 403,
-                    headers: createBotBlockResponse().headers
-                });
-            }
-        }
-
-        // For medium confidence, just log but don't block
-        // This allows for manual review and adjustment of detection rules
-    }
-
-    return null;
-}
-
-/**
- * Log bot detection for monitoring (async, non-blocking)
- */
-async function logBotDetection(
-    ip: string,
-    userAgent: string,
-    confidence: number,
-    reason: string,
-    blocked: boolean,
-    path: string
-) {
-    try {
-        // Don't await this to avoid blocking the request
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-        fetch(`${baseUrl}/api/admin/bot-logs`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                ip,
-                userAgent,
-                confidence,
-                reason,
-                blocked,
-                path
-            })
-        }).catch(error => {
-            // Only log in development to avoid console spam in production
-            if (process.env.NODE_ENV === 'development') {
-                console.error('[Security] Failed to log bot detection:', error);
-            }
-        });
-    } catch (error) {
-        // Silently fail in production
-        if (process.env.NODE_ENV === 'development') {
-            console.error('[Security] Error in bot logging:', error);
-        }
-    }
-}
 
 /**
  * Protected paths that require authentication
@@ -260,13 +162,7 @@ const authMiddleware = withAuth(
 
 export default function middleware(req: NextRequest) {
     try {
-        // 1. Bot Detection (log only for now)
-        const botResponse = checkForBots(req);
-        if (botResponse) {
-            return addSecurityHeaders(botResponse);
-        }
-
-        // 2. Redirect /maintenance to / as we now use a banner
+        // 1. Redirect /maintenance to / as we now use a banner
         if (req.nextUrl.pathname === '/maintenance') {
             const response = NextResponse.redirect(new URL('/', req.url));
             return addSecurityHeaders(response);

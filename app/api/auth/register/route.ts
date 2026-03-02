@@ -2,21 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { rateLimit, RATE_LIMITS, createRateLimitHeaders } from "@/lib/utils/rate-limit";
-import { detectBot, createBotBlockResponse } from "@/lib/utils/bot-detection";
 
 export async function POST(req: Request) {
     try {
-        // 1. Bot Detection - Block only high-confidence bots
-        const botDetection = detectBot(req);
-        if (botDetection.isBot && botDetection.confidence > 85) {
-            console.warn(`[Registration] High-confidence bot registration blocked: ${botDetection.reason}`);
-            return createBotBlockResponse();
-        } else if (botDetection.isBot) {
-            // Log medium-confidence detections but allow them through
-            console.log(`[Registration] Potential bot detected (confidence: ${botDetection.confidence}%): ${botDetection.reason}`);
-        }
-
-        // 2. Apply rate limiting
+        // Apply rate limiting
         const rateLimitResult = rateLimit(req, RATE_LIMITS.REGISTER);
 
         if (!rateLimitResult.allowed) {
