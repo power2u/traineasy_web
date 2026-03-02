@@ -168,22 +168,7 @@ export default function middleware(req: NextRequest) {
             return addSecurityHeaders(response);
         }
 
-        // 3. Block direct access to sensitive API endpoints from browsers
-        const path = req.nextUrl.pathname;
-        if (path.startsWith('/api/') && !path.startsWith('/api/auth/')) {
-            const userAgent = req.headers.get('user-agent') || '';
-            const isDirectBrowserAccess = userAgent.includes('Mozilla') && !req.headers.get('x-requested-with');
-
-            if (isDirectBrowserAccess && req.method === 'GET') {
-                console.warn(`[Security] Direct browser access to API endpoint blocked: ${path}`);
-                return addSecurityHeaders(new NextResponse(
-                    JSON.stringify({ error: 'Direct access not allowed' }),
-                    { status: 403, headers: { 'Content-Type': 'application/json' } }
-                ));
-            }
-        }
-
-        // 4. Standard Auth Middleware
+        // Standard Auth Middleware
         const authResponse = (authMiddleware as any)(req);
 
         // 5. Add security headers to all responses
